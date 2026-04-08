@@ -15,6 +15,7 @@ import {
   Database, FileText, Presentation, Calendar, ListTodo, FileSearch,
   Smartphone, MonitorSmartphone, FileSpreadsheet, ClipboardList, Mail,
   FolderSync, ScreenShare, Timer, Receipt, NotebookPen, Menu,
+  Palette, Image, Hash, Pencil, ShieldCheck, CreditCard, ExternalLink, Paintbrush,
 } from "lucide-react";
 import { useGateway, initGateway, sendMessage, switchModel, executeCommand } from "@/lib/useGateway";
 import { Button } from "@/components/ui/button";
@@ -82,9 +83,9 @@ function CostBadge({ tier }) {
 /* ─── Navigation ─────────────────────────────────────────────────────────────── */
 const NAV = [
   { href: "/", label: "Chat", icon: MessageSquare },
-  { href: "/agent", label: "Agent", icon: Monitor },
+  { href: "/agent", label: "Agent", icon: Sparkles },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/jobs", label: "Jobs", icon: Briefcase },
+  { href: "/jobs", label: "Jobs", icon: Briefcase, badgeKey: "activeJobs" },
   { href: "/approvals", label: "Approvals", icon: AlertTriangle, badgeKey: "pendingApprovals", warn: true },
   { href: "/spaces", label: "Spaces", icon: Grid3X3 },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -248,11 +249,11 @@ function ModelSelector({ models, providers, activeModel, onSelect }) {
       </button>
 
       {open && (
-        <div className="absolute bottom-full right-0 mb-2 z-50 flex items-start" style={{ gap: 2 }}>
+        <div className="absolute bottom-full right-0 mb-2 z-50 flex items-start">
           {/* Models panel (appears on hover, LEFT of providers) */}
           {hovProv && hovModels.length > 0 && (
             <div className="shadow-2xl" onMouseEnter={handleModelsEnter} onMouseLeave={handleModelsLeave}
-              style={{ width: 300, maxHeight: 420, background: "#111", borderRadius: 12, border: "1px solid #222", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              style={{ width: 300, maxHeight: 420, background: "#111", borderRadius: "12px 0 0 12px", borderTop: "1px solid #222", borderLeft: "1px solid #222", borderBottom: "1px solid #222", overflow: "hidden", display: "flex", flexDirection: "column" }}>
               <div className="px-3 py-2 shrink-0 flex items-center justify-between" style={{ borderBottom: "1px solid #1d1d1d" }}>
                 <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>{hovProv}</span>
                 <CapabilityIcons caps={{ vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }} size={11} gap={5} />
@@ -283,7 +284,7 @@ function ModelSelector({ models, providers, activeModel, onSelect }) {
           )}
 
           {/* Providers panel (always visible when open, RIGHT side) */}
-          <div className="shadow-2xl" style={{ width: 160, background: "#0f0f0f", borderRadius: 12, border: "1px solid #222", overflow: "hidden" }}>
+          <div className="shadow-2xl" style={{ width: 160, background: "#0f0f0f", borderRadius: hovProv ? "0 12px 12px 0" : 12, border: "1px solid #222", borderLeft: hovProv ? "none" : "1px solid #222", overflow: "hidden" }}>
             <div className="px-3 py-2" style={{ borderBottom: "1px solid #1d1d1d" }}>
               <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>Providers</span>
             </div>
@@ -535,27 +536,58 @@ function DashboardPage() {
 /* ─── Jobs Page ──────────────────────────────────────────────────────────────── */
 function JobsPage() {
   const { jobs, cancelJob } = useGateway();
-  const getStatusColor = (status) => { switch (status) { case "running": return C.accent; case "completed": return C.green; case "pending": return C.yellow; default: return C.red; } };
-  const getStatusIcon = (status) => { switch (status) { case "running": return <Play className="w-4 h-4" />; case "completed": return <CheckCircle className="w-4 h-4" />; case "pending": return <Clock className="w-4 h-4" />; default: return <XCircle className="w-4 h-4" />; } };
+  const getStatusColor = (s) => { switch (s) { case "running": return "#3b82f6"; case "completed": return C.green; case "failed": return C.red; case "cancelled": return "#888"; default: return C.muted; } };
+  
+  const runningJobs = jobs.filter(j => j.status === "running");
+  const completedJobs = jobs.filter(j => j.status !== "running");
+
+  const [tick, setTick] = useState(0);
+  useEffect(() => { const iv = setInterval(() => setTick(t => t + 1), 3000); return () => clearInterval(iv); }, []);
+
   return (
-    <div className="p-6 space-y-4" style={{ color: C.text }}>
-      <div className="flex items-center justify-between"><h1 className="text-2xl font-bold">Jobs</h1><Button className="gap-2" style={{ background: C.accent }}><Plus className="w-4 h-4" /> New Job</Button></div>
-      <div className="space-y-3">
-        {jobs.map(job => (
-          <div key={job.id} className="p-4 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${getStatusColor(job.status)}20`, color: getStatusColor(job.status) }}>{getStatusIcon(job.status)}</div>
-                <div><div className="font-medium">{job.name}</div><div className="text-xs" style={{ color: C.muted }}>Agent: {job.agent}</div></div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs px-2 py-1 rounded-full capitalize" style={{ background: `${getStatusColor(job.status)}20`, color: getStatusColor(job.status) }}>{job.status}</span>
-                {job.status === "running" && <Button variant="ghost" size="sm" onClick={() => cancelJob(job.id)} style={{ color: C.red }}><Square className="w-4 h-4" /></Button>}
-              </div>
+    <div className="h-full overflow-auto" style={{ color: C.text }}>
+      <div className="max-w-3xl mx-auto px-6 py-6">
+        <div className="flex items-center justify-between mb-6">
+          <div><h1 className="text-2xl font-bold">Jobs</h1><p className="text-sm" style={{ color: C.muted }}>Monitor active and completed tasks</p></div>
+          {runningJobs.length > 0 && (
+            <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.2)" }}>
+              <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#3b82f6" }} />{runningJobs.length} active
+            </span>
+          )}
+        </div>
+        {runningJobs.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-sm font-medium mb-3" style={{ color: C.muted }}>Active</h2>
+            <div className="space-y-3">
+              {runningJobs.map(job => (
+                <div key={job.id} className="p-4 rounded-xl" style={{ background: C.surface, border: "1px solid rgba(59,130,246,0.2)" }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3"><div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#3b82f6" }} /><div><div className="font-medium">{job.name}</div><div className="text-xs" style={{ color: C.muted }}>Agent: {job.agent}</div></div></div>
+                    <div className="flex items-center gap-2"><span className="text-xs font-mono" style={{ color: "#3b82f6" }}>{Math.min(job.progress + tick % 5, 99)}%</span><Button variant="ghost" size="sm" onClick={() => cancelJob(job.id)} style={{ color: C.red }} data-testid={`cancel-job-${job.id}`}><Square className="w-3.5 h-3.5" /></Button></div>
+                  </div>
+                  <Progress value={Math.min(job.progress + tick % 5, 99)} className="h-1.5" />
+                </div>
+              ))}
             </div>
-            {job.status === "running" && <><Progress value={job.progress} className="h-1.5" /><div className="text-xs mt-2" style={{ color: C.muted }}>{job.progress}% complete</div></>}
           </div>
-        ))}
+        )}
+        {completedJobs.length > 0 && (
+          <div>
+            <h2 className="text-sm font-medium mb-3" style={{ color: C.muted }}>History</h2>
+            <div className="space-y-2">
+              {completedJobs.map(job => (
+                <div key={job.id} className="p-3 rounded-xl flex items-center justify-between" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                  <div className="flex items-center gap-3">
+                    {job.status === "completed" ? <CheckCircle className="w-4 h-4" style={{ color: C.green }} /> : job.status === "failed" ? <XCircle className="w-4 h-4" style={{ color: C.red }} /> : <Clock className="w-4 h-4" style={{ color: C.muted }} />}
+                    <div><div className="text-sm">{job.name}</div><div className="text-[11px]" style={{ color: C.muted }}>Agent: {job.agent}</div></div>
+                  </div>
+                  <span className="text-xs px-2 py-1 rounded-full capitalize" style={{ background: `${getStatusColor(job.status)}20`, color: getStatusColor(job.status) }}>{job.status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {jobs.length === 0 && (<div className="text-center py-16"><Briefcase className="w-10 h-10 mx-auto mb-3" style={{ color: "#333" }} /><p className="text-sm" style={{ color: C.muted }}>No jobs yet</p></div>)}
       </div>
     </div>
   );
@@ -589,17 +621,103 @@ function ApprovalsPage() {
 
 /* ─── Spaces Page ────────────────────────────────────────────────────────────── */
 function SpacesPage() {
-  const { spaces } = useGateway();
+  const { spaces, threads, addSpace, deleteSpace, assignThreadToSpace } = useGateway();
+  const navigate = useNavigate();
+  const [showNew, setShowNew] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [selectedSpace, setSelectedSpace] = useState(null);
+
+  const SPACE_ICONS = { FileText, PenTool, Code2, Folder, Briefcase, Globe, Database, Rocket };
+  const SPACE_COLORS = ["#3b82f6", "#ec4899", "#22c55e", "#f59e0b", "#8b5cf6", "#06b6d4", "#ef4444", "#84cc16"];
+
+  const handleCreate = () => {
+    if (!newName.trim()) return;
+    addSpace(newName.trim(), "Folder", SPACE_COLORS[spaces.length % SPACE_COLORS.length]);
+    setNewName("");
+    setShowNew(false);
+  };
+
+  const getSpaceThreads = (spaceId) => threads.filter(t => t.spaceId === spaceId);
+  const unassignedThreads = threads.filter(t => !t.spaceId);
+
+  if (selectedSpace) {
+    const sp = spaces.find(s => s.id === selectedSpace);
+    if (!sp) { setSelectedSpace(null); return null; }
+    const spThreads = getSpaceThreads(sp.id);
+    const Icon = SPACE_ICONS[sp.icon] || Folder;
+    return (
+      <div className="h-full flex flex-col" style={{ color: C.text }}>
+        <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: `1px solid ${C.border}` }}>
+          <button onClick={() => setSelectedSpace(null)} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ color: C.muted }}><ChevronLeft className="w-4 h-4" /></button>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: sp.color + "20" }}><Icon className="w-4 h-4" style={{ color: sp.color }} /></div>
+          <div><div className="font-medium">{sp.name}</div><div className="text-xs" style={{ color: C.muted }}>{spThreads.length} conversation{spThreads.length !== 1 ? "s" : ""}</div></div>
+        </div>
+        <div className="flex-1 overflow-auto p-6">
+          {spThreads.length === 0 ? (
+            <div className="text-center py-16"><Folder className="w-10 h-10 mx-auto mb-3" style={{ color: "#333" }} /><p className="text-sm" style={{ color: C.muted }}>No conversations in this space yet</p><p className="text-xs mt-1" style={{ color: "#555" }}>Conversations will auto-save here or you can move them manually</p></div>
+          ) : (
+            <div className="space-y-2">
+              {spThreads.map(t => (
+                <button key={t.id} onClick={() => { useGateway.getState().setActiveThread(t.id); navigate("/"); }}
+                  className="w-full text-left p-3 rounded-xl transition-colors hover:bg-white/5"
+                  style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                  <div className="flex items-center gap-3">
+                    <MessageSquare className="w-4 h-4 shrink-0" style={{ color: C.muted }} />
+                    <div className="flex-1 min-w-0"><div className="text-sm font-medium truncate">{t.title}</div><div className="text-[11px]" style={{ color: C.muted }}>{new Date(t.createdAt).toLocaleDateString()}</div></div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-4" style={{ color: C.text }}>
-      <div className="flex items-center justify-between"><h1 className="text-2xl font-bold">Spaces</h1><Button className="gap-2" style={{ background: C.accent }}><Plus className="w-4 h-4" /> New Space</Button></div>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Spaces</h1>
+        <Button className="gap-2" style={{ background: C.accent }} onClick={() => setShowNew(true)} data-testid="new-space-btn"><Plus className="w-4 h-4" /> New Space</Button>
+      </div>
+      <p className="text-sm" style={{ color: C.muted }}>Organize conversations by project or topic. Threads auto-save based on context.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {spaces.map(space => (
-          <div key={space.id} className="p-4 rounded-xl cursor-pointer hover:border-[#333] transition-colors" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-            <div className="flex items-center gap-3 mb-3"><div className="w-10 h-10 rounded-lg" style={{ background: space.color }} /><div><div className="font-medium">{space.name}</div><div className="text-xs" style={{ color: C.muted }}>{space.description}</div></div></div>
-            <div className="flex gap-2">{space.agents.map(agent => <span key={agent} className="text-xs px-2 py-1 rounded" style={{ background: C.surface2, color: C.muted }}>{agent}</span>)}</div>
+        {spaces.map(space => {
+          const Icon = SPACE_ICONS[space.icon] || Folder;
+          const count = getSpaceThreads(space.id).length;
+          return (
+            <button key={space.id} onClick={() => setSelectedSpace(space.id)}
+              className="text-left p-4 rounded-xl cursor-pointer transition-all hover:border-[#444] group"
+              style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: space.color + "18" }}>
+                  <Icon className="w-5 h-5" style={{ color: space.color }} />
+                </div>
+                <div>
+                  <div className="font-medium">{space.name}</div>
+                  <div className="text-xs" style={{ color: C.muted }}>{space.description || `${count} conversation${count !== 1 ? "s" : ""}`}</div>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+        {/* Add space card */}
+        {showNew ? (
+          <div className="p-4 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.accent}40` }}>
+            <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Space name..." autoFocus
+              onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") setShowNew(false); }}
+              className="w-full px-3 py-2 rounded-lg text-sm mb-3" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text }} data-testid="new-space-input" />
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleCreate} style={{ background: C.accent }}>Create</Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowNew(false)} style={{ color: C.muted }}>Cancel</Button>
+            </div>
           </div>
-        ))}
+        ) : (
+          <button onClick={() => setShowNew(true)} className="p-4 rounded-xl border-dashed flex items-center justify-center transition-colors hover:border-[#444]"
+            style={{ border: `2px dashed ${C.border}`, color: C.muted, minHeight: 100 }}>
+            <div className="text-center"><Plus className="w-6 h-6 mx-auto mb-1" /><span className="text-sm">Add Space</span></div>
+          </button>
+        )}
       </div>
     </div>
   );
@@ -979,32 +1097,147 @@ function CodePage() {
   );
 }
 
-/* ─── Settings Page ──────────────────────────────────────────────────────────── */
+/* ─── Settings Page (Claude-style tabs) ───────────────────────────────────────── */
 function SettingsPage() {
-  const { connectors, toggleConnector, writingStyle, setWritingStyle, webSearchEnabled, setWebSearchEnabled } = useGateway();
+  const { connectors, toggleConnector, writingStyle, setWritingStyle, webSearchEnabled, setWebSearchEnabled, userProfile, setUserProfile, activeModel, models } = useGateway();
+  const [tab, setTab] = useState("general");
+
+  const TABS = [
+    { id: "general", label: "General", icon: Settings },
+    { id: "profile", label: "Profile", icon: Users },
+    { id: "apps", label: "Connected Apps", icon: Link2 },
+    { id: "data", label: "Data Controls", icon: Database },
+    { id: "security", label: "Security", icon: ShieldCheck },
+  ];
+
   return (
-    <div className="p-6 space-y-6" style={{ color: C.text }}>
-      <h1 className="text-2xl font-bold">Settings</h1>
-      <div className="p-4 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-        <h2 className="text-lg font-medium mb-4">Connectors</h2>
-        <div className="space-y-3">
-          {CONNECTORS.map(c => (
-            <div key={c.id} className="flex items-center justify-between">
-              <div className="flex items-center gap-3"><c.icon className="w-5 h-5" style={{ color: C.muted }} /><span>{c.label}</span></div>
-              <Toggle on={connectors[c.id]} onToggle={() => toggleConnector(c.id)} />
-            </div>
-          ))}
+    <div className="h-full flex" style={{ color: C.text }}>
+      {/* Settings sidebar */}
+      <div className="shrink-0 overflow-auto" style={{ width: 200, borderRight: `1px solid ${C.border}`, background: "#0b0b0b" }}>
+        <div className="p-4 pb-2"><h1 className="text-lg font-bold">Settings</h1></div>
+        <div className="px-2 pb-4">
+          {TABS.map(t => {
+            const Icon = t.icon;
+            const active = tab === t.id;
+            return (
+              <button key={t.id} onClick={() => setTab(t.id)} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] transition-colors"
+                style={{ background: active ? "rgba(29,140,248,0.1)" : "transparent", color: active ? C.accent : "#999" }}
+                data-testid={`settings-tab-${t.id}`}>
+                <Icon className="w-4 h-4" />{t.label}
+              </button>
+            );
+          })}
         </div>
       </div>
-      <div className="p-4 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-        <h2 className="text-lg font-medium mb-4">Preferences</h2>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between"><span>Web Search</span><Toggle on={webSearchEnabled} onToggle={() => setWebSearchEnabled(!webSearchEnabled)} /></div>
-          <div><label className="block text-sm mb-2">Writing Style</label>
-            <div className="flex gap-2">{["Normal", "Concise", "Formal", "Explanatory"].map(s => (
-              <button key={s} onClick={() => setWritingStyle(s)} className="px-3 py-1.5 rounded text-sm" style={{ background: writingStyle === s ? C.accent : C.surface2, color: writingStyle === s ? "#fff" : C.muted }}>{s}</button>
-            ))}</div>
-          </div>
+
+      {/* Settings content */}
+      <div className="flex-1 overflow-auto p-6">
+        <div className="max-w-xl">
+          {tab === "general" && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold mb-4">General</h2>
+              <div className="p-4 rounded-xl space-y-4" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                <div className="flex items-center justify-between"><span className="text-sm">Theme</span>
+                  <div className="flex gap-1">{["Dark", "Light", "System"].map(t => (
+                    <button key={t} className="px-3 py-1 rounded text-xs" style={{ background: t === "Dark" ? C.accent : C.surface2, color: t === "Dark" ? "#fff" : C.muted }}>{t}</button>
+                  ))}</div>
+                </div>
+                <div className="flex items-center justify-between"><span className="text-sm">Language</span><span className="text-sm" style={{ color: C.muted }}>English</span></div>
+                <div className="flex items-center justify-between"><span className="text-sm">Web Search</span><Toggle on={webSearchEnabled} onToggle={() => setWebSearchEnabled(!webSearchEnabled)} /></div>
+                <div>
+                  <label className="block text-sm mb-2">Writing Style</label>
+                  <div className="flex gap-2">{["Normal", "Concise", "Formal", "Explanatory"].map(s => (
+                    <button key={s} onClick={() => setWritingStyle(s)} className="px-3 py-1.5 rounded text-xs" style={{ background: writingStyle === s ? C.accent : C.surface2, color: writingStyle === s ? "#fff" : C.muted }}>{s}</button>
+                  ))}</div>
+                </div>
+                <div>
+                  <label className="block text-sm mb-2">Default Model</label>
+                  <span className="text-xs" style={{ color: C.muted }}>{activeModel ? models.find(m => m.id === activeModel)?.name || activeModel : "None selected"}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === "profile" && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold mb-4">Profile</h2>
+              <div className="p-4 rounded-xl space-y-4" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                <div>
+                  <label className="block text-sm mb-1.5">Display Name</label>
+                  <input type="text" value={userProfile.name} onChange={e => setUserProfile({ name: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text }} data-testid="profile-name-input" />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1.5">Email</label>
+                  <input type="email" value={userProfile.email} onChange={e => setUserProfile({ email: e.target.value })} placeholder="meg@example.com"
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text }} />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1.5">Custom Instructions</label>
+                  <p className="text-xs mb-2" style={{ color: C.muted }}>Tell OpenClaw about yourself, your preferences, or how you'd like it to respond.</p>
+                  <textarea value={userProfile.customInstructions} onChange={e => setUserProfile({ customInstructions: e.target.value })} rows={4} placeholder="e.g., I'm a frontend developer who prefers TypeScript and React..."
+                    className="w-full px-3 py-2 rounded-lg text-sm resize-none" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text }} data-testid="custom-instructions-input" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === "apps" && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold mb-4">Connected Apps</h2>
+              <p className="text-sm" style={{ color: C.muted }}>Manage integrations and connectors. Enable only the services you need.</p>
+              <div className="p-4 rounded-xl space-y-4" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                <h3 className="text-sm font-medium">Connectors</h3>
+                <div className="space-y-3">
+                  {CONNECTORS.map(c => (
+                    <div key={c.id} className="flex items-center justify-between py-1">
+                      <div className="flex items-center gap-3"><c.icon className="w-4 h-4" style={{ color: connectors[c.id] ? C.green : C.muted }} /><span className="text-sm">{c.label}</span></div>
+                      <Toggle on={connectors[c.id]} onToggle={() => toggleConnector(c.id)} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="p-4 rounded-xl space-y-3" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                <h3 className="text-sm font-medium">MCP Servers</h3>
+                <p className="text-xs" style={{ color: C.muted }}>Connect remote MCP servers for additional tool access.</p>
+                <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted }}>
+                  <Plus className="w-4 h-4" /> Add MCP Server
+                </button>
+              </div>
+              <div className="p-4 rounded-xl space-y-3" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                <h3 className="text-sm font-medium">API Keys</h3>
+                <p className="text-xs" style={{ color: C.muted }}>Manage API keys for external services.</p>
+                <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted }}>
+                  <Plus className="w-4 h-4" /> Add API Key
+                </button>
+              </div>
+            </div>
+          )}
+
+          {tab === "data" && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold mb-4">Data Controls</h2>
+              <div className="p-4 rounded-xl space-y-4" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                <div className="flex items-center justify-between"><span className="text-sm">Save conversation history</span><Toggle on={true} onToggle={() => {}} /></div>
+                <div className="flex items-center justify-between"><span className="text-sm">Allow usage for improvement</span><Toggle on={false} onToggle={() => {}} /></div>
+                <div className="flex items-center justify-between"><span className="text-sm">Memory across conversations</span><Toggle on={true} onToggle={() => {}} /></div>
+              </div>
+              <button className="px-4 py-2 rounded-lg text-sm" style={{ background: "rgba(239,68,68,0.1)", color: C.red, border: "1px solid rgba(239,68,68,0.3)" }}>Delete all conversations</button>
+            </div>
+          )}
+
+          {tab === "security" && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold mb-4">Security</h2>
+              <div className="p-4 rounded-xl space-y-4" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                <div className="flex items-center justify-between"><span className="text-sm">Two-factor authentication</span><Toggle on={false} onToggle={() => {}} /></div>
+                <div className="flex items-center justify-between">
+                  <div><span className="text-sm block">Active sessions</span><span className="text-xs" style={{ color: C.muted }}>1 active session</span></div>
+                  <button className="text-xs px-3 py-1 rounded" style={{ background: C.surface2, color: C.muted }}>Manage</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1013,27 +1246,33 @@ function SettingsPage() {
 
 /* ─── Customize Page ─────────────────────────────────────────────────────────── */
 function CustomizePage() {
+  const { enabledSkills, toggleSkill } = useGateway();
+  const allSkills = SKILLS;
   return (
-    <div className="h-full flex items-center justify-center" style={{ color: C.text }}>
-      <div className="max-w-md text-center">
-        <div className="w-20 h-20 mx-auto mb-6 rounded-xl flex items-center justify-center" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-          <Package className="w-10 h-10" style={{ color: C.muted }} />
-        </div>
+    <div className="h-full overflow-auto" style={{ color: C.text }}>
+      <div className="max-w-2xl mx-auto px-6 py-8">
         <h1 className="text-2xl font-bold mb-2">Customize OpenClaw</h1>
-        <p className="text-sm mb-8" style={{ color: C.muted }}>Skills, connectors, and plugins shape how OpenClaw works with you.</p>
-        <div className="space-y-3">
-          <Link to="/settings" className="block p-4 rounded-xl text-left transition-colors hover:bg-white/5" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+        <p className="text-sm mb-6" style={{ color: C.muted }}>Teach OpenClaw your workflows and add capabilities.</p>
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+            <h2 className="text-sm font-medium mb-3">Skills</h2>
+            <p className="text-xs mb-4" style={{ color: C.muted }}>Toggle skills to extend OpenClaw's capabilities.</p>
+            <div className="space-y-2">
+              {allSkills.map(skill => (
+                <div key={skill} className="flex items-center justify-between py-1.5">
+                  <div className="flex items-center gap-2"><Wrench className="w-3.5 h-3.5" style={{ color: enabledSkills.includes(skill) ? C.green : C.muted }} /><span className="text-sm">{skill}</span></div>
+                  <Toggle on={enabledSkills.includes(skill)} onToggle={() => toggleSkill(skill)} />
+                </div>
+              ))}
+            </div>
+          </div>
+          <Link to="/settings?tab=apps" className="block p-4 rounded-xl transition-colors hover:bg-white/5" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: C.surface2 }}><Link2 className="w-5 h-5" style={{ color: C.muted }} /></div>
-              <div><div className="font-medium">Connect your apps</div><div className="text-sm" style={{ color: C.muted }}>Let OpenClaw read and write to the tools you already use.</div></div>
+              <div><div className="font-medium">Manage Connectors</div><div className="text-sm" style={{ color: C.muted }}>Enable integrations in Settings &rarr; Connected Apps</div></div>
+              <ChevronRight className="w-4 h-4 ml-auto" style={{ color: C.muted }} />
             </div>
           </Link>
-          <button className="w-full p-4 rounded-xl text-left transition-colors hover:bg-white/5" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: C.surface2 }}><Sparkles className="w-5 h-5" style={{ color: C.muted }} /></div>
-              <div><div className="font-medium">Create new skills</div><div className="text-sm" style={{ color: C.muted }}>Teach OpenClaw your processes, team norms, and expertise.</div></div>
-            </div>
-          </button>
           <button className="w-full p-4 rounded-xl text-left transition-colors hover:bg-white/5" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: C.surface2 }}><Puzzle className="w-5 h-5" style={{ color: C.muted }} /></div>
@@ -1046,27 +1285,173 @@ function CustomizePage() {
   );
 }
 
+/* ─── Agent Page (Creative/Builder workspace) ──────────────────────────────── */
+function AgentPage() {
+  const { models, providers, activeModel, status, connectors } = useGateway();
+  const [agentInput, setAgentInput] = useState("");
+  const [capabilities, setCapabilities] = useState({ imageGen: false, design: false, codeExec: true, webBrowse: false });
+  const [agentMessages, setAgentMessages] = useState([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const bottomRef = useRef(null);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [agentMessages, isProcessing]);
+
+  const toggleCap = (key) => setCapabilities(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const handleSend = () => {
+    if (!agentInput.trim()) return;
+    const activeCaps = Object.entries(capabilities).filter(([, v]) => v).map(([k]) => k);
+    setAgentMessages(prev => [...prev, { id: crypto.randomUUID(), role: "user", content: agentInput.trim(), caps: activeCaps }]);
+    setAgentInput("");
+    setIsProcessing(true);
+    setTimeout(() => {
+      setAgentMessages(prev => [...prev, { id: crypto.randomUUID(), role: "agent", content: `Working with ${activeCaps.length} active capabilities. Processing your request...`, caps: activeCaps }]);
+      setIsProcessing(false);
+    }, 2000);
+  };
+
+  const capButtons = [
+    { key: "imageGen", label: "Image Generation", icon: Image, desc: "Generate images and visuals" },
+    { key: "design", label: "Design Creation", icon: Paintbrush, desc: "Create UI/UX designs and layouts" },
+    { key: "codeExec", label: "Code Execution", icon: Code2, desc: "Run and test code in sandbox" },
+    { key: "webBrowse", label: "Web Browsing", icon: Globe, desc: "Browse and research the web" },
+  ];
+
+  const connectedCount = Object.values(connectors).filter(Boolean).length;
+
+  return (
+    <div className="h-full flex flex-col" style={{ color: C.text }}>
+      {agentMessages.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center px-6">
+          <div className="w-full max-w-lg">
+            <div className="text-center mb-8">
+              <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: "linear-gradient(135deg, #ec4899, #8b5cf6)", border: "2px solid #333" }}>
+                <Sparkles className="w-7 h-7 text-white" />
+              </div>
+              <h1 className="text-2xl font-bold mb-1">Agent Mode</h1>
+              <p className="text-sm" style={{ color: C.muted }}>Creative builder workspace with tool access</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {capButtons.map(cap => {
+                const Icon = cap.icon;
+                const on = capabilities[cap.key];
+                return (
+                  <button key={cap.key} onClick={() => toggleCap(cap.key)}
+                    className="p-3 rounded-xl text-left transition-all"
+                    style={{ background: on ? `${cap.key === "imageGen" ? "#ec4899" : cap.key === "design" ? "#8b5cf6" : cap.key === "codeExec" ? "#22c55e" : "#3b82f6"}12` : C.surface,
+                      border: `1px solid ${on ? (cap.key === "imageGen" ? "#ec4899" : cap.key === "design" ? "#8b5cf6" : cap.key === "codeExec" ? "#22c55e" : "#3b82f6") + "40" : C.border}` }}
+                    data-testid={`agent-cap-${cap.key}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Icon className="w-4 h-4" style={{ color: on ? (cap.key === "imageGen" ? "#ec4899" : cap.key === "design" ? "#8b5cf6" : cap.key === "codeExec" ? "#22c55e" : "#3b82f6") : C.muted }} />
+                      <span className="text-sm font-medium" style={{ color: on ? C.text : C.muted }}>{cap.label}</span>
+                    </div>
+                    <div className="text-[11px]" style={{ color: "#555" }}>{cap.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+            {connectedCount === 0 && (
+              <Link to="/settings?tab=apps" className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm mb-4" style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)", color: C.yellow }}>
+                <AlertCircle className="w-4 h-4" /> Connect apps in Settings for full agent capabilities <ChevronRight className="w-3.5 h-3.5 ml-auto" />
+              </Link>
+            )}
+            <div className="rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+              <textarea value={agentInput} onChange={e => setAgentInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                placeholder="Describe what you want to build or create..." rows={2}
+                className="w-full focus:outline-none resize-none text-sm" style={{ background: "transparent", border: "none", color: C.text, padding: "14px 16px 8px" }}
+                data-testid="agent-input" />
+              <div className="flex items-center justify-between px-3 pb-3">
+                <div className="flex items-center gap-1.5">
+                  {Object.entries(capabilities).filter(([, v]) => v).map(([k]) => {
+                    const cap = capButtons.find(c => c.key === k);
+                    if (!cap) return null;
+                    const Icon = cap.icon;
+                    return <span key={k} className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: C.surface2, color: C.muted }}><Icon className="w-3 h-3" />{cap.label.split(" ")[0]}</span>;
+                  })}
+                </div>
+                <div className="flex items-center gap-2">
+                  <ModelSelector models={models} providers={providers} activeModel={activeModel} onSelect={switchModel} />
+                  <button onClick={handleSend} disabled={!agentInput.trim()} className="h-8 px-4 rounded-lg text-sm font-medium" style={{ background: agentInput.trim() ? C.accent : C.surface2, color: agentInput.trim() ? "#fff" : "#555" }}
+                    data-testid="agent-send-btn">Build</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex-1 overflow-auto px-4 py-6">
+            <div className="max-w-2xl mx-auto space-y-4">
+              {agentMessages.map(msg => (
+                <div key={msg.id} className="flex gap-3">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] shrink-0 mt-0.5"
+                    style={{ background: msg.role === "user" ? C.surface2 : "linear-gradient(135deg, #ec4899, #8b5cf6)", border: `1px solid ${msg.role === "user" ? C.border : "#8b5cf640"}` }}>
+                    {msg.role === "user" ? "M" : <Sparkles className="w-3.5 h-3.5 text-white" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm leading-relaxed" style={{ color: C.text }}>{msg.content}</div>
+                    {msg.caps?.length > 0 && <div className="flex gap-1 mt-1">{msg.caps.map(c => <span key={c} className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: C.surface2, color: C.muted }}>{c}</span>)}</div>}
+                  </div>
+                </div>
+              ))}
+              {isProcessing && (
+                <div className="flex gap-3"><div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: "linear-gradient(135deg, #ec4899, #8b5cf6)" }}><Sparkles className="w-3.5 h-3.5 text-white" /></div>
+                  <div className="flex items-center gap-2 text-sm"><span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#8b5cf6" }} /><span style={{ color: C.muted }}>Building...</span></div>
+                </div>
+              )}
+              <div ref={bottomRef} />
+            </div>
+          </div>
+          <div className="px-4 pb-4 pt-2 shrink-0">
+            <div className="max-w-2xl mx-auto">
+              <div className="rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                <textarea value={agentInput} onChange={e => setAgentInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                  placeholder="Continue building..." rows={1} className="w-full focus:outline-none resize-none text-sm" style={{ background: "transparent", border: "none", color: C.text, padding: "12px 16px 8px" }} />
+                <div className="flex items-center justify-end gap-2 px-3 pb-3">
+                  <ModelSelector models={models} providers={providers} activeModel={activeModel} onSelect={switchModel} />
+                  <button onClick={handleSend} disabled={!agentInput.trim()} className="h-7 px-3 rounded-lg text-xs font-medium" style={{ background: agentInput.trim() ? C.accent : C.surface2, color: agentInput.trim() ? "#fff" : "#555" }}>Send</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ─── Layout ─────────────────────────────────────────────────────────────────── */
 function Layout({ children }) {
   const location = useLocation();
-  const { status, clawStatus, approvals } = useGateway();
+  const navigate = useNavigate();
+  const { status, clawStatus, approvals, threads, activeThreadId, createThread, setActiveThread, deleteThread } = useGateway();
   const clawState = clawStatus?.state ?? "Scheduled";
   const pendingApprovals = approvals.filter(a => a.status === "pending").length;
+  const activeJobs = useGateway(s => s.jobs.filter(j => j.status === "running").length);
   const currentTab = location.pathname === "/cowork" ? "cowork" : location.pathname === "/code" ? "code" : "chat";
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
-  // Close sidebar on route change (mobile)
   useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
+
+  const handleNewThread = () => {
+    useGateway.getState().clearMessages();
+    useGateway.setState({ activeThreadId: null });
+    navigate("/");
+  };
+
+  const handleThreadClick = (threadId) => {
+    setActiveThread(threadId);
+    navigate("/");
+  };
+
+  const recentThreads = threads.slice(0, 12);
 
   return (
     <div className="flex h-screen w-full overflow-hidden" style={{ background: C.bg, color: C.text }}>
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="sidebar-overlay-bg fixed inset-0 bg-black/60 z-40" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
       <aside className={`sidebar-desktop flex flex-col shrink-0 overflow-hidden ${sidebarOpen ? "sidebar-open" : ""}`} style={{ width: 200, background: "#0f0f0f", borderRight: "1px solid #222" }}>
         <div className="flex items-center gap-2 px-4 py-3.5 cursor-pointer hover:bg-white/5 transition-colors" style={{ borderBottom: "1px solid #222" }}>
           <div className="w-5 h-5 rounded" style={{ background: C.accent }} />
@@ -1074,10 +1459,10 @@ function Layout({ children }) {
           <ChevronDown className="w-3.5 h-3.5" style={{ color: "#666" }} />
         </div>
         <div className="flex flex-col gap-0.5 px-2 pt-3 pb-1">
-          <Link to="/" className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors" style={{ color: "#888" }}><Plus className="w-4 h-4" />New thread</Link>
+          <button onClick={handleNewThread} className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors hover:bg-white/5" style={{ color: "#888" }} data-testid="new-thread-btn"><Plus className="w-4 h-4" />New thread</button>
           {NAV.map(item => {
             const active = location.pathname === item.href;
-            const badge = item.badgeKey === "pendingApprovals" ? pendingApprovals : null;
+            const badge = item.badgeKey === "pendingApprovals" ? pendingApprovals : item.badgeKey === "activeJobs" ? activeJobs : null;
             return (
               <Link key={item.href} to={item.href} className="flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors"
                 style={{ background: active ? "rgba(29,140,248,0.12)" : "transparent", color: active ? C.accent : "#bbb" }}>
@@ -1093,14 +1478,28 @@ function Layout({ children }) {
             <Package className="w-4 h-4" />Customize
           </Link>
         </div>
-        <div className="flex-1" />
+        {/* Thread history */}
+        {recentThreads.length > 0 && (
+          <div className="px-2 pt-2 flex-1 overflow-auto" style={{ borderTop: "1px solid #1a1a1a" }}>
+            <div className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5" style={{ color: "#444" }}>Recents</div>
+            {recentThreads.map(t => (
+              <button key={t.id} onClick={() => handleThreadClick(t.id)}
+                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-[12px] truncate transition-colors group"
+                style={{ background: t.id === activeThreadId ? "rgba(29,140,248,0.1)" : "transparent", color: t.id === activeThreadId ? C.accent : "#777" }}>
+                <MessageSquare className="w-3 h-3 shrink-0" />
+                <span className="truncate flex-1 text-left">{t.title}</span>
+                <X className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity cursor-pointer" onClick={(e) => { e.stopPropagation(); deleteThread(t.id); }} />
+              </button>
+            ))}
+          </div>
+        )}
+        {recentThreads.length === 0 && <div className="flex-1" />}
         <div className="flex items-center gap-3 px-4 py-3.5" style={{ borderTop: "1px solid #222" }}>
           <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0" style={{ background: C.accent, color: "#fff" }}>M</div>
           <div><div className="text-sm font-medium" style={{ color: C.text }}>Meg</div><div className="text-[11px]" style={{ color: C.muted }}>Pro plan</div></div>
         </div>
       </aside>
 
-      {/* Main */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-12 flex items-center justify-between px-4 shrink-0" style={{ borderBottom: "1px solid #1a1a1a", background: C.bg }}>
           <div className="flex items-center gap-2" style={{ minWidth: 80 }}>
@@ -1225,7 +1624,7 @@ function App() {
     <Layout>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/agent" element={<HomePage />} />
+        <Route path="/agent" element={<AgentPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/jobs" element={<JobsPage />} />
         <Route path="/approvals" element={<ApprovalsPage />} />

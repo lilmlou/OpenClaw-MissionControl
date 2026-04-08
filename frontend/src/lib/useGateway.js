@@ -232,10 +232,10 @@ const MOCK_APPROVALS = [
 ];
 
 // ─── Spaces data ─────────────────────────────────────────────────────────────
-const MOCK_SPACES = [
-  { id: "space-1", name: "Development", description: "Code projects and tools", agents: ["coder", "file-manager"], color: "#3b82f6" },
-  { id: "space-2", name: "Research", description: "Web research and analysis", agents: ["researcher"], color: "#10b981" },
-  { id: "space-3", name: "Automation", description: "Desktop and system tasks", agents: ["desktop"], color: "#f59e0b" },
+const DEFAULT_SPACES = [
+  { id: "space-files", name: "Files", description: "Documents and reports", icon: "FileText", color: "#3b82f6" },
+  { id: "space-design", name: "Design", description: "Creative and visual work", icon: "PenTool", color: "#ec4899" },
+  { id: "space-dev", name: "Development", description: "Code, builds, and dev jobs", icon: "Code2", color: "#22c55e" },
 ];
 
 // ─── Zustand store ───────────────────────────────────────────────────────────
@@ -265,24 +265,24 @@ export const useGateway = create(
       // Settings
       userName: "Meg",
       
-      // Connectors state
+      // Connectors state (all OFF by default — connect in Settings)
       connectors: {
-        mac: true,
-        desktop: true,
-        files: true,
-        web: true,
+        mac: false,
+        desktop: false,
+        files: false,
+        web: false,
         signal: false,
-        telegram: true,
+        telegram: false,
       },
       
       // Skills state  
-      enabledSkills: ["deep-research", "code-review"],
+      enabledSkills: [],
       
       // Style
       writingStyle: "Normal",
       
       // Web search
-      webSearchEnabled: true,
+      webSearchEnabled: false,
       
       // Tool access
       toolAccess: "lazy",
@@ -298,7 +298,11 @@ export const useGateway = create(
       approvals: MOCK_APPROVALS,
       
       // Spaces
-      spaces: MOCK_SPACES,
+      spaces: DEFAULT_SPACES,
+      
+      // Conversation threads
+      threads: [],
+      activeThreadId: null,
       
       // Terminal/Code state
       terminalOutput: [],
@@ -393,6 +397,51 @@ export const useGateway = create(
         )
       })),
       
+      // Thread actions
+      createThread: (title) => {
+        const id = crypto.randomUUID();
+        const thread = { id, title: title || "New thread", messages: [], createdAt: Date.now(), spaceId: null };
+        set((s) => ({ threads: [thread, ...s.threads], activeThreadId: id, messages: [] }));
+        return id;
+      },
+      setActiveThread: (threadId) => {
+        const { threads } = get();
+        const thread = threads.find(t => t.id === threadId);
+        set({ activeThreadId: threadId, messages: thread ? thread.messages : [] });
+      },
+      saveThreadMessages: () => {
+        const { activeThreadId, messages, threads } = get();
+        if (!activeThreadId) return;
+        set({ threads: threads.map(t => t.id === activeThreadId ? { ...t, messages, title: messages[0]?.content?.slice(0, 40) || t.title } : t) });
+      },
+      deleteThread: (threadId) => set((s) => ({
+        threads: s.threads.filter(t => t.id !== threadId),
+        activeThreadId: s.activeThreadId === threadId ? null : s.activeThreadId,
+        messages: s.activeThreadId === threadId ? [] : s.messages,
+      })),
+      assignThreadToSpace: (threadId, spaceId) => set((s) => ({
+        threads: s.threads.map(t => t.id === threadId ? { ...t, spaceId } : t)
+      })),
+      
+      // Space actions
+      addSpace: (name, icon, color) => {
+        const id = `space-${crypto.randomUUID().slice(0, 8)}`;
+        set((s) => ({ spaces: [...s.spaces, { id, name, description: "", icon: icon || "Folder", color: color || "#888" }] }));
+        return id;
+      },
+      deleteSpace: (spaceId) => set((s) => ({
+        spaces: s.spaces.filter(sp => sp.id !== spaceId),
+        threads: s.threads.map(t => t.spaceId === spaceId ? { ...t, spaceId: null } : t),
+      })),
+      
+      // Settings
+      userProfile: { name: "Meg", email: "", customInstructions: "" },
+      theme: "dark",
+      defaultModel: null,
+      setUserProfile: (profile) => set((s) => ({ userProfile: { ...s.userProfile, ...profile } })),
+      setTheme: (theme) => set({ theme }),
+      setDefaultModel: (defaultModel) => set({ defaultModel }),
+      
       // Initialize connection
       initGateway: async () => {
         set({ status: "connecting" });
@@ -414,7 +463,10 @@ export const useGateway = create(
       
       // Send message
       sendMessage: async (text) => {
-        const { addMessage, setStreamingMessage, setPendingRunId, addEvent } = get();
+        const { addMessage, setStreamingMessage, setPendingRunId, addEvent, activeThreadId, createThread, saveThreadMessages } = get();
+        
+        // Auto-create thread if none active
+        if (!activeThreadId) { createThread(text.slice(0, 40)); }
         
         const userMsgId = crypto.randomUUID();
         addMessage({
@@ -463,6 +515,9 @@ export const useGateway = create(
           payload: { runId }
         });
         
+        // Auto-save thread
+        get().saveThreadMessages();
+        
         return { ok: true };
       },
       
@@ -506,6 +561,12 @@ export const useGateway = create(
         writingStyle: s.writingStyle,
         webSearchEnabled: s.webSearchEnabled,
         toolAccess: s.toolAccess,
+        threads: s.threads,
+        activeThreadId: s.activeThreadId,
+        spaces: s.spaces,
+        userProfile: s.userProfile,
+        theme: s.theme,
+        defaultModel: s.defaultModel,
       }),
     }
   )
