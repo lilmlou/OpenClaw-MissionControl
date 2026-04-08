@@ -140,8 +140,40 @@ a {
 }
 
 /* Responsive */
-@media (max-width: 768px) {
-  aside {
-    width: 200px !important;
+@media (max-width: 767px) {
+  .sidebar-desktop {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+  .sidebar-desktop.sidebar-open {
+    transform: translateX(0);
+  }
+  .sidebar-overlay-bg {
+    display: block;
+  }
+  .hamburger-btn {
+    display: flex !important;
+  }
+  .status-text-mobile {
+    display: none;
+  }
+}
+@media (min-width: 768px) {
+  .sidebar-desktop {
+    position: relative;
+  }
+  .sidebar-overlay-bg {
+    display: none !important;
+  }
+  .hamburger-btn {
+    display: none !important;
+  }
+  .status-text-mobile {
+    display: inline;
   }
 }
