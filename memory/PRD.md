@@ -16,82 +16,66 @@ Complete the OpenClaw Mission Control dashboard interface from the existing Repl
 
 ## What's Been Implemented
 
-### Model Selector with Proper Badges
-- Cost tier: Free/$/$$/$$$ (derived from model ID patterns)
-- Capability icons: Vision, Coding, Tool Call, Files, Reasoning, Fast
-- 9 providers: anthropic, openai, google, nvidia, meta-llama, deepseek, mistral, qwen, openrouter
+### Model Selector with Real Provider Data (Feb 8, 2026)
+- 6 providers: huggingface (9), ollama (11), opencode (13), opencode-go (3), openrouter (24), venice (31)
+- ~91 models with explicit capability data from OpenClaw cheatsheet
+- Capability icons: Vision, Coding, Tools, Files, Reasoning, Fast
+  - Green = supported, Dim = partial, Grey = unsupported
+- Cost tier badges: Free (green), $ (blue), $$ (yellow), $$$ (red)
+- Context badges (e.g., 2M, 256K, 125K) where applicable
+- Selected model name persists and replaces "Select model" text
+- Provider auto-detection for multi-segment names (e.g., opencode-go)
 
-### Dashboard/Jobs/Approvals/Spaces Pages
+### Cowork Page - Inline Conversation (Feb 8, 2026)
+- Task grid with 21 templates across 6 categories
+- Clicking a task opens inline conversation WITHIN the Cowork page (no navigation)
+- Left sidebar: Recents list, "New task" button
+- Center: Conversation with user prompt (from user's perspective), AI response, "Working on it..." status
+- Right sidebar: Progress (step circles), Working folder, Context sections
+- Reply input with "Queue" button and model selector
+- Back button returns to task grid
+- All prompts rewritten from user's perspective (user instructs OpenClaw)
+
+### PlusMenu & InputBar Enhancement (Feb 8, 2026)
+- PlusMenu: Add files, Add to project, Add from GitHub, Skills, Connectors, Plugins, Research, Web search, Use style
+- Skills submenu: toggle individual skills with checkmarks
+- Connectors submenu: toggle connectors with switches
+- Persistent feature badges: "Web" (green), "X skills" (green) appear in InputBar
+- Agent/Research mode toggle (blue/purple styling)
+- Research selection changes mode badge and fills prompt
+
+### Dashboard/Jobs/Approvals/Spaces Pages (Previously Done)
 - **Dashboard**: Stats grid, Active Model, Recent Events
 - **Jobs**: Job cards with status/progress, cancel functionality
 - **Approvals**: Risk levels, Approve/Reject buttons (functional)
 - **Spaces**: Workspace cards with agents
 
-### Cowork Page (Functional)
-- 21 actionable task templates across 6 categories (Schedule, Create, Analyze, Organize, Communicate)
-- Category filter tabs and search functionality
-- Clicking any task navigates to Chat with prompt pre-filled in input
-- "Connect tools" banner with links to Settings/Customize
-- Mobile-friendly bottom bar with model selector
+### Code Page - Clean Terminal (Previously Done)
+- Clean terminal with lobster mascot splash
+- Command execution, Clear, Bypass Permissions, Local/Remote toggle
+- Mobile-responsive with collapsible sidebar
 
-### Code Page (Clean Terminal)
-- Clean terminal interface with lobster mascot splash screen (no mock data)
-- Command input with simulated execution
-- Clear button to reset terminal
-- Bypass Permissions toggle (locked/unlocked visual state)
-- Local/Remote execution toggle
-- Model selector and mic button
-
-### Customize Page
-- Connect apps, Create skills, Browse plugins cards
-
-### Navigation & Layout
-- Sidebar with all nav items + Cowork + Customize
-- Top tabs: Chat/Cowork/Code
-- Mobile responsive: collapsible sidebar with hamburger menu on screens < 768px
-- Binary rain background on Chat page
-
-## User Personas
-1. **AI Developer**: Multi-model access with capability awareness
-2. **Power User**: Control over agent capabilities and connectors
-3. **Team Manager**: Mission Control for job/approval monitoring
-4. **Collaborator**: Cowork for real-time agent collaboration
-
-## Technical Implementation Notes
-
-### Model Capability Derivation (from ID patterns)
-- **Fast**: `/flash|fast|mini|nano|turbo|small|haiku|lite/i`
-- **Vision**: `/vl|vision|gpt-4o|claude-3|gemini|llava|pixtral/i`
-- **Reasoning**: `/o1|o3|deepseek-r|reasoning|thinking|r1/i`
-- **Coding**: `/cod(e|er|ing)|qwen.*coder|deepseek.*coder|codestral/i`
-- **Tool Call**: Assume yes unless `/embed|whisper|tts|image/i`
-- **Files**: Same as Vision
-
-### Cost Tier Derivation
-- **Free**: `:free` suffix, `ollama/`, `huggingface/`
-- **$$$**: `gpt-4`, `claude-3-opus`, `o1-preview`
-- **$$**: `claude-3-sonnet`, `gpt-4o`
-- **$**: `haiku`, `mini`, `flash`, `lite`
+### Other (Previously Done)
+- Dark mode CSS, binary rain background
+- Mobile responsive layout with hamburger menu
+- Customize page with plugins/skills/connectors
 
 ## P1 - Next Phase: Real Gateway Connection
-- [ ] Obtain OpenClaw WebSocket gateway URL and credentials
-- [ ] Implement real gateway connection in useGateway.js
-- [ ] Replace mock terminal commands with actual sandbox execution
+- [ ] Configure terminal alias bridge between dashboard and sandboxed OpenClaw user account
+- [ ] Finalize WebSocket gateway connection with real OpenClaw endpoint
+- [ ] Replace mock data in useGateway.js with actual API responses
 - [ ] Real model API switching
-- [ ] Connect to sandboxed OpenClaw user account
-- [ ] Terminal alias bridge between dashboard and sandbox
 
 ## P2 - Future Enhancements
 - [ ] Keyboard shortcuts (Cmd+K, Cmd+/)
+- [ ] Componentize monolithic App.js into separate page files
 - [ ] Real-time job status updates via WebSocket
 - [ ] Push notifications for approvals
-- [ ] Agent heartbeat monitoring
 - [ ] Conversation history persistence
 - [ ] Voice input integration (mic button)
-- [ ] Componentize App.js into separate page files
+- [ ] Mobile app configuration
 
 ## Testing Status (Feb 8, 2026)
-- Frontend: 100% pass rate (iteration 4)
-- All 15 features tested and verified
-- Cowork task navigation, Code terminal, Chat, Dashboard, Jobs, Approvals all functional
-- All toggles, dropdowns, and navigation working
+- Frontend: 100% pass rate (iteration 5 - 22+ tests)
+- All features verified: Cowork inline conversation, model selector, PlusMenu, InputBar badges
+- Previous iterations: 1-4 all passed
