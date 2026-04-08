@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, Routes, Route } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -7,13 +7,17 @@ import {
   AlertTriangle, Grid3X3, Settings, Plus, ChevronDown, ChevronRight,
   Terminal, Bookmark, Send, Telescope, Paperclip, Layers, Mic, Wrench,
   FolderOpen, Globe, Eye, Brain, Zap, Radio, Cpu, Rocket, Bot, Trash2,
-  MessageCircle, X, Check,
+  MessageCircle, X, Check, Play, Pause, Square, Clock, Shield,
+  FileCode, Folder, RefreshCw, Users, Code2, ArrowRight, AlertCircle,
+  CheckCircle, XCircle, ChevronUp, Copy, Download, Upload, GitBranch,
 } from "lucide-react";
-import { useGateway, initGateway, sendMessage, switchModel } from "@/lib/useGateway";
+import { useGateway, initGateway, sendMessage, switchModel, executeCommand } from "@/lib/useGateway";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
+import "@/App.css";
 
 /* ─── Design tokens ──────────────────────────────────────────────────────────── */
 const C = {
@@ -25,7 +29,61 @@ const C = {
   muted:    "#888",
   border:   "#222",
   borderHi: "#333",
+  green:    "#22c55e",
+  yellow:   "#fbbf24",
+  red:      "#ef4444",
+  orange:   "#f97316",
 };
+
+/* ─── Capability Icons Component ──────────────────────────────────────────────── */
+const CAP_ICONS = [
+  { key: "vision", icon: "👁️", label: "Vision" },
+  { key: "coding", icon: "💻", label: "Coding" },
+  { key: "tools", icon: "🔧", label: "Tool Call" },
+  { key: "files", icon: "📁", label: "Files" },
+  { key: "reasoning", icon: "🧠", label: "Reasoning" },
+  { key: "fast", icon: "⚡", label: "Fast" },
+];
+
+function CapabilityIcons({ caps }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {CAP_ICONS.map(({ key, icon, label }) => (
+        <span
+          key={key}
+          title={label}
+          className="text-[10px] w-4 h-4 flex items-center justify-center"
+          style={{ opacity: caps?.[key] ? 1 : 0.2, filter: caps?.[key] ? "none" : "grayscale(100%)" }}
+        >
+          {icon}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Cost Badge Component ────────────────────────────────────────────────────── */
+function CostBadge({ tier }) {
+  if (!tier) return null;
+  
+  const colors = {
+    Free: { bg: "#064e3b", color: "#34d399", border: "#065f46" },
+    "$": { bg: "#1e3a5f", color: "#60a5fa", border: "#1e40af" },
+    "$$": { bg: "#4a3728", color: "#fbbf24", border: "#78350f" },
+    "$$$": { bg: "#4a2c2a", color: "#f87171", border: "#7f1d1d" },
+  };
+  
+  const style = colors[tier] || colors["$"];
+  
+  return (
+    <span
+      className="text-[9px] px-1.5 py-0.5 rounded font-medium"
+      style={{ background: style.bg, color: style.color, border: `1px solid ${style.border}` }}
+    >
+      {tier}
+    </span>
+  );
+}
 
 /* ─── Navigation items ─────────────────────────────────────────────────────── */
 const NAV = [
@@ -33,7 +91,7 @@ const NAV = [
   { href: "/agent",     label: "Agent",     icon: Monitor },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/jobs",      label: "Jobs",      icon: Briefcase },
-  { href: "/approvals", label: "Approvals", icon: AlertTriangle, badge: "2", warn: true },
+  { href: "/approvals", label: "Approvals", icon: AlertTriangle, badgeKey: "pendingApprovals", warn: true },
   { href: "/spaces",    label: "Spaces",    icon: Grid3X3 },
   { href: "/settings",  label: "Settings",  icon: Settings },
 ];
@@ -61,13 +119,6 @@ const SKILLS = [
   "deep-research", "code-review", "web-scraper",
   "file-manager", "task-scheduler", "mcp-builder",
   "slack-gif-creator", "canvas-design",
-];
-
-const MODEL_CAPS = [
-  { key: "vision", Icon: Eye,   label: "Vision" },
-  { key: "tools",  Icon: Wrench, label: "Tools" },
-  { key: "memory", Icon: Brain, label: "Reasoning" },
-  { key: "fast",   Icon: Zap,   label: "Fast" },
 ];
 
 const CARDS = [
@@ -126,7 +177,6 @@ function Toggle({ on, onToggle }) {
       onClick={onToggle}
       className="w-8 h-[18px] rounded-full relative transition-colors shrink-0"
       style={{ background: on ? C.accent : "#333" }}
-      data-testid="toggle-switch"
     >
       <div 
         className="absolute top-[2px] w-[14px] h-[14px] rounded-full transition-all"
@@ -161,7 +211,7 @@ function Markdown({ content }) {
   );
 }
 
-/* ─── Model Selector ─────────────────────────────────────────────────────────── */
+/* ─── Model Selector with proper badges ───────────────────────────────────────── */
 function ModelSelector({ models, providers, activeModel, onSelect }) {
   const [open, setOpen] = useState(false);
   const [selProv, setSelProv] = useState(null);
@@ -196,9 +246,6 @@ function ModelSelector({ models, providers, activeModel, onSelect }) {
     if (!ok) toast({ title: "Failed to switch model", variant: "destructive" });
   };
 
-  const HDR = { borderBottom: "1px solid #1d1d1d" };
-  const hoverRow = "rgba(255,255,255,0.045)";
-  const activeRow = "rgba(29,140,248,0.1)";
   const label = activeName
     ? (activeName.length > 24 ? activeName.slice(0, 22) + "…" : activeName)
     : models.length > 0 ? "Select model" : "No models";
@@ -224,7 +271,7 @@ function ModelSelector({ models, providers, activeModel, onSelect }) {
         >
           {/* Providers panel */}
           <div style={{ width: 180, background: "#0f0f0f", borderRight: "1px solid #1d1d1d", display: "flex", flexDirection: "column", maxHeight: 440 }}>
-            <div className="px-3 py-2 shrink-0" style={HDR}>
+            <div className="px-3 py-2 shrink-0" style={{ borderBottom: "1px solid #1d1d1d" }}>
               <span className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: "#555" }}>Providers</span>
             </div>
             <ScrollArea className="flex-1">
@@ -258,16 +305,14 @@ function ModelSelector({ models, providers, activeModel, onSelect }) {
           </div>
 
           {/* Models panel */}
-          <div style={{ width: 320, background: "#131313", display: "flex", flexDirection: "column", maxHeight: 440 }}>
+          <div style={{ width: 360, background: "#131313", display: "flex", flexDirection: "column", maxHeight: 440 }}>
             {selProv ? (
               <>
-                <div className="flex items-center justify-between px-3 py-2 shrink-0" style={HDR}>
+                <div className="flex items-center justify-between px-3 py-2 shrink-0" style={{ borderBottom: "1px solid #1d1d1d" }}>
                   <span className="text-[11px] font-bold uppercase tracking-[0.1em]" style={{ color: "#555" }}>{selProv}</span>
-                  <div className="flex items-center gap-2">
-                    {MODEL_CAPS.map(({ key, Icon, label }) => (
-                      <span key={key} title={label} className="flex items-center justify-center w-3.5 h-3.5" style={{ color: "#3a3a3a" }}>
-                        <Icon className="w-3 h-3" />
-                      </span>
+                  <div className="flex items-center gap-1 text-[9px]" style={{ color: "#444" }}>
+                    {CAP_ICONS.map(({ icon, label }) => (
+                      <span key={label} title={label}>{icon}</span>
                     ))}
                   </div>
                 </div>
@@ -279,37 +324,26 @@ function ModelSelector({ models, providers, activeModel, onSelect }) {
                         key={m.id}
                         type="button"
                         onClick={() => handleSelect(m.id)}
-                        className="w-full px-3 py-[8px] text-left transition-colors"
-                        style={{ background: isActive ? activeRow : "transparent" }}
-                        onMouseOver={e => { if (!isActive) e.currentTarget.style.background = hoverRow; }}
+                        className="w-full px-3 py-2.5 text-left transition-colors"
+                        style={{ background: isActive ? "rgba(29,140,248,0.1)" : "transparent" }}
+                        onMouseOver={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}
                         onMouseOut={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
                         data-testid={`model-${m.name}`}
                       >
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center justify-between gap-2 mb-1">
                           <span className="text-[13px] font-semibold truncate" style={{ color: isActive ? C.accent : "#ddd" }}>{m.name}</span>
-                          {isActive && <Check className="w-3 h-3 shrink-0" style={{ color: C.accent }} />}
+                          {isActive && <Check className="w-3.5 h-3.5 shrink-0" style={{ color: C.accent }} />}
                         </div>
-                        <div className="text-[10px] truncate mt-[1px]" style={{ color: "#484848", fontFamily: "monospace" }}>{m.id}</div>
-                        <div className="flex items-center gap-1.5 mt-1">
-                          {m.cost && (
-                            <span className="text-[10px] px-[5px] py-[1px] rounded font-mono shrink-0" style={{ background: "#1a1a1a", color: "#f5a623", border: "1px solid #2a2200" }}>
-                              {m.cost}
-                            </span>
-                          )}
+                        <div className="text-[10px] truncate mb-1.5" style={{ color: "#484848", fontFamily: "monospace" }}>{m.id}</div>
+                        <div className="flex items-center gap-2">
+                          <CostBadge tier={m.costTier} />
                           {m.context && (
-                            <span className="text-[10px] px-[5px] py-[1px] rounded font-mono shrink-0" style={{ background: "#1a1a1a", color: "#666", border: "1px solid #222" }}>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded font-mono" style={{ background: "#1a1a1a", color: "#666", border: "1px solid #222" }}>
                               {m.context}
                             </span>
                           )}
-                          <div className="flex items-center gap-1 ml-auto">
-                            {MODEL_CAPS.map(({ key, Icon }) => {
-                              const on = m.caps?.[key];
-                              return (
-                                <span key={key} className="flex items-center justify-center w-3.5 h-3.5" style={{ color: on ? C.accent : "#282828" }}>
-                                  <Icon className="w-3 h-3" />
-                                </span>
-                              );
-                            })}
+                          <div className="ml-auto">
+                            <CapabilityIcons caps={m.caps} />
                           </div>
                         </div>
                       </button>
@@ -408,7 +442,7 @@ function PlusMenu({ onSelect, disabled }) {
           <div className="w-56 rounded-xl py-1 shadow-2xl" style={panelStyle}>
             <Row icon={Paperclip} label="Add files or photos" onClick={close} />
             <Row icon={FolderOpen} label="Add to project" onClick={() => { onSelect("Add the following to the project: ", true); close(); }} />
-            <Row icon={Globe} label="Add from GitHub" onClick={() => { onSelect("Pull from GitHub repo: ", true); close(); }} />
+            <Row icon={GitBranch} label="Add from GitHub" onClick={() => { onSelect("Pull from GitHub repo: ", true); close(); }} />
             <Divider />
             <Row icon={Wrench} label="Skills" badge={enabledSkills.length} hasSub onClick={() => setSub(p => p === "skills" ? null : "skills")} />
             <Row icon={Layers} label="Connectors" badge={Object.values(connectors).filter(Boolean).length} hasSub onClick={() => setSub(p => p === "connectors" ? null : "connectors")} />
@@ -700,11 +734,525 @@ function MessageRow({ msg }) {
   );
 }
 
+/* ─── Dashboard Page ─────────────────────────────────────────────────────────── */
+function DashboardPage() {
+  const { jobs, approvals, connectors, status, activeModel, events } = useGateway();
+  
+  const runningJobs = jobs.filter(j => j.status === "running").length;
+  const pendingApprovals = approvals.filter(a => a.status === "pending").length;
+  const activeConnectors = Object.values(connectors).filter(Boolean).length;
+
+  const stats = [
+    { label: "Active Jobs", value: runningJobs, icon: Briefcase, color: C.accent },
+    { label: "Pending Approvals", value: pendingApprovals, icon: AlertTriangle, color: C.yellow },
+    { label: "Connectors", value: `${activeConnectors}/6`, icon: Layers, color: C.green },
+    { label: "Gateway", value: status, icon: Radio, color: status === "connected" ? C.green : C.yellow },
+  ];
+
+  return (
+    <div className="p-6 space-y-6" style={{ color: C.text }}>
+      <h1 className="text-2xl font-bold">Mission Control Dashboard</h1>
+      
+      {/* Stats Grid */}
+      <div className="grid grid-cols-4 gap-4">
+        {stats.map(stat => (
+          <div key={stat.label} className="p-4 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: `${stat.color}20` }}>
+                <stat.icon className="w-5 h-5" style={{ color: stat.color }} />
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{stat.value}</div>
+                <div className="text-xs" style={{ color: C.muted }}>{stat.label}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Active Model */}
+      <div className="p-4 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm font-medium mb-1">Active Model</div>
+            <div className="text-lg" style={{ color: C.accent }}>{activeModel || "None selected"}</div>
+          </div>
+          <Cpu className="w-8 h-8" style={{ color: C.muted }} />
+        </div>
+      </div>
+
+      {/* Recent Events */}
+      <div className="p-4 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+        <h2 className="text-sm font-medium mb-3">Recent Events</h2>
+        <div className="space-y-2 max-h-48 overflow-auto">
+          {events.length === 0 ? (
+            <div className="text-sm" style={{ color: C.muted }}>No events yet</div>
+          ) : (
+            events.slice(-10).reverse().map(evt => (
+              <div key={evt.id} className="flex items-center gap-2 text-xs">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: C.accent }} />
+                <span style={{ color: C.accent }}>{evt.type}</span>
+                <span style={{ color: C.muted }}>{new Date(evt.ts).toLocaleTimeString()}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Jobs Page ──────────────────────────────────────────────────────────────── */
+function JobsPage() {
+  const { jobs, updateJobStatus, cancelJob } = useGateway();
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "running": return C.accent;
+      case "completed": return C.green;
+      case "pending": return C.yellow;
+      case "failed":
+      case "cancelled": return C.red;
+      default: return C.muted;
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "running": return <Play className="w-4 h-4" />;
+      case "completed": return <CheckCircle className="w-4 h-4" />;
+      case "pending": return <Clock className="w-4 h-4" />;
+      case "failed":
+      case "cancelled": return <XCircle className="w-4 h-4" />;
+      default: return <AlertCircle className="w-4 h-4" />;
+    }
+  };
+
+  return (
+    <div className="p-6 space-y-4" style={{ color: C.text }}>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Jobs</h1>
+        <Button className="gap-2" style={{ background: C.accent }}>
+          <Plus className="w-4 h-4" /> New Job
+        </Button>
+      </div>
+
+      <div className="space-y-3">
+        {jobs.map(job => (
+          <div
+            key={job.id}
+            className="p-4 rounded-xl"
+            style={{ background: C.surface, border: `1px solid ${C.border}` }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center"
+                  style={{ background: `${getStatusColor(job.status)}20`, color: getStatusColor(job.status) }}
+                >
+                  {getStatusIcon(job.status)}
+                </div>
+                <div>
+                  <div className="font-medium">{job.name}</div>
+                  <div className="text-xs" style={{ color: C.muted }}>Agent: {job.agent}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-xs px-2 py-1 rounded-full capitalize"
+                  style={{ background: `${getStatusColor(job.status)}20`, color: getStatusColor(job.status) }}
+                >
+                  {job.status}
+                </span>
+                {job.status === "running" && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => cancelJob(job.id)}
+                    style={{ color: C.red }}
+                  >
+                    <Square className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+            {job.status === "running" && (
+              <Progress value={job.progress} className="h-1.5" />
+            )}
+            {job.status === "running" && (
+              <div className="text-xs mt-2" style={{ color: C.muted }}>{job.progress}% complete</div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Approvals Page ─────────────────────────────────────────────────────────── */
+function ApprovalsPage() {
+  const { approvals, approveRequest, rejectRequest } = useGateway();
+
+  const getRiskColor = (risk) => {
+    switch (risk) {
+      case "low": return C.green;
+      case "medium": return C.yellow;
+      case "high": return C.red;
+      default: return C.muted;
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const colors = {
+      pending: { bg: `${C.yellow}20`, color: C.yellow },
+      approved: { bg: `${C.green}20`, color: C.green },
+      rejected: { bg: `${C.red}20`, color: C.red },
+    };
+    return colors[status] || colors.pending;
+  };
+
+  return (
+    <div className="p-6 space-y-4" style={{ color: C.text }}>
+      <h1 className="text-2xl font-bold">Approvals</h1>
+
+      <div className="space-y-3">
+        {approvals.map(approval => (
+          <div
+            key={approval.id}
+            className="p-4 rounded-xl"
+            style={{ background: C.surface, border: `1px solid ${C.border}` }}
+          >
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-3">
+                <Shield className="w-5 h-5" style={{ color: getRiskColor(approval.risk) }} />
+                <div>
+                  <div className="font-medium">{approval.title}</div>
+                  <div className="text-sm" style={{ color: C.muted }}>{approval.description}</div>
+                </div>
+              </div>
+              <span
+                className="text-xs px-2 py-1 rounded-full capitalize"
+                style={getStatusBadge(approval.status)}
+              >
+                {approval.status}
+              </span>
+            </div>
+            <div className="flex items-center justify-between mt-3">
+              <div className="flex items-center gap-4 text-xs" style={{ color: C.muted }}>
+                <span>Agent: {approval.agent}</span>
+                <span>Risk: <span style={{ color: getRiskColor(approval.risk) }}>{approval.risk}</span></span>
+              </div>
+              {approval.status === "pending" && (
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => approveRequest(approval.id)}
+                    style={{ background: C.green }}
+                  >
+                    <Check className="w-4 h-4 mr-1" /> Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => rejectRequest(approval.id)}
+                    style={{ borderColor: C.red, color: C.red }}
+                  >
+                    <X className="w-4 h-4 mr-1" /> Reject
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Spaces Page ────────────────────────────────────────────────────────────── */
+function SpacesPage() {
+  const { spaces } = useGateway();
+
+  return (
+    <div className="p-6 space-y-4" style={{ color: C.text }}>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Spaces</h1>
+        <Button className="gap-2" style={{ background: C.accent }}>
+          <Plus className="w-4 h-4" /> New Space
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        {spaces.map(space => (
+          <div
+            key={space.id}
+            className="p-4 rounded-xl cursor-pointer hover:border-[#333] transition-colors"
+            style={{ background: C.surface, border: `1px solid ${C.border}` }}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-lg" style={{ background: space.color }} />
+              <div>
+                <div className="font-medium">{space.name}</div>
+                <div className="text-xs" style={{ color: C.muted }}>{space.description}</div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              {space.agents.map(agent => (
+                <span
+                  key={agent}
+                  className="text-xs px-2 py-1 rounded"
+                  style={{ background: C.surface2, color: C.muted }}
+                >
+                  {agent}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Cowork Page ────────────────────────────────────────────────────────────── */
+function CoworkPage() {
+  const { coworkParticipants, coworkMessages, addCoworkMessage, updateParticipantStatus } = useGateway();
+  const [input, setInput] = useState("");
+
+  const handleSend = () => {
+    if (!input.trim()) return;
+    addCoworkMessage({
+      id: crypto.randomUUID(),
+      sender: "user",
+      content: input,
+      timestamp: Date.now(),
+    });
+    setInput("");
+    
+    // Simulate agent response
+    updateParticipantStatus("claw", "thinking");
+    setTimeout(() => {
+      addCoworkMessage({
+        id: crypto.randomUUID(),
+        sender: "claw",
+        content: "I understand your request. Let me work on that collaboratively with you.",
+        timestamp: Date.now(),
+      });
+      updateParticipantStatus("claw", "idle");
+    }, 1500);
+  };
+
+  return (
+    <div className="h-full flex" style={{ color: C.text }}>
+      {/* Participants sidebar */}
+      <div className="w-60 p-4" style={{ borderRight: `1px solid ${C.border}`, background: C.surface }}>
+        <h2 className="text-sm font-medium mb-3">Participants</h2>
+        <div className="space-y-2">
+          {coworkParticipants.map(p => (
+            <div key={p.id} className="flex items-center gap-2 p-2 rounded" style={{ background: C.surface2 }}>
+              <div className="relative">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: p.role === "human" ? C.accent : C.green }}>
+                  {p.role === "human" ? <Users className="w-4 h-4" /> : "🦞"}
+                </div>
+                <span
+                  className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2"
+                  style={{
+                    borderColor: C.surface,
+                    background: p.status === "active" || p.status === "thinking" ? C.green : C.muted,
+                  }}
+                />
+              </div>
+              <div>
+                <div className="text-sm font-medium">{p.name}</div>
+                <div className="text-xs capitalize" style={{ color: C.muted }}>{p.status}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Chat area */}
+      <div className="flex-1 flex flex-col">
+        <div className="p-4" style={{ borderBottom: `1px solid ${C.border}` }}>
+          <h1 className="text-xl font-bold">Cowork Session</h1>
+          <p className="text-sm" style={{ color: C.muted }}>Collaborate in real-time with OpenClaw</p>
+        </div>
+        
+        <div className="flex-1 overflow-auto p-4 space-y-3">
+          {coworkMessages.length === 0 ? (
+            <div className="text-center py-8" style={{ color: C.muted }}>
+              Start a cowork session by sending a message
+            </div>
+          ) : (
+            coworkMessages.map(msg => (
+              <div
+                key={msg.id}
+                className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className="max-w-[70%] px-4 py-2.5 rounded-2xl"
+                  style={{
+                    background: msg.sender === "user" ? `${C.accent}20` : C.surface,
+                    border: `1px solid ${msg.sender === "user" ? `${C.accent}30` : C.border}`,
+                  }}
+                >
+                  {msg.content}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="p-4" style={{ borderTop: `1px solid ${C.border}` }}>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleSend()}
+              placeholder="Collaborate with the team..."
+              className="flex-1 px-4 py-2 rounded-xl text-sm"
+              style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text }}
+            />
+            <Button onClick={handleSend} style={{ background: C.accent }}>
+              <Send className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Code Page ──────────────────────────────────────────────────────────────── */
+function CodePage() {
+  const { terminalOutput, addTerminalOutput, clearTerminal } = useGateway();
+  const [cmd, setCmd] = useState("");
+  const terminalRef = useRef(null);
+
+  useEffect(() => {
+    terminalRef.current?.scrollTo(0, terminalRef.current.scrollHeight);
+  }, [terminalOutput]);
+
+  const handleCommand = async () => {
+    if (!cmd.trim()) return;
+    await executeCommand(cmd);
+    setCmd("");
+  };
+
+  return (
+    <div className="h-full flex flex-col" style={{ color: C.text }}>
+      <div className="p-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${C.border}` }}>
+        <div>
+          <h1 className="text-xl font-bold">Terminal</h1>
+          <p className="text-sm" style={{ color: C.muted }}>Execute commands via OpenClaw sandbox</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={clearTerminal}>
+            <Trash2 className="w-4 h-4 mr-1" /> Clear
+          </Button>
+        </div>
+      </div>
+
+      <div
+        ref={terminalRef}
+        className="flex-1 p-4 font-mono text-sm overflow-auto"
+        style={{ background: "#000" }}
+      >
+        {terminalOutput.length === 0 ? (
+          <div style={{ color: C.muted }}>Terminal ready. Type a command below.</div>
+        ) : (
+          terminalOutput.map(line => (
+            <div key={line.id} style={{ color: line.content.startsWith("$") ? C.green : C.text }}>
+              {line.content}
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="p-4" style={{ borderTop: `1px solid ${C.border}`, background: "#000" }}>
+        <div className="flex items-center gap-2">
+          <span style={{ color: C.green }}>$</span>
+          <input
+            type="text"
+            value={cmd}
+            onChange={e => setCmd(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleCommand()}
+            placeholder="Enter command..."
+            className="flex-1 bg-transparent border-none outline-none font-mono text-sm"
+            style={{ color: C.text }}
+          />
+          <Button size="sm" onClick={handleCommand} style={{ background: C.accent }}>
+            <ArrowRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Settings Page ──────────────────────────────────────────────────────────── */
+function SettingsPage() {
+  const { connectors, toggleConnector, writingStyle, setWritingStyle, webSearchEnabled, setWebSearchEnabled } = useGateway();
+
+  return (
+    <div className="p-6 space-y-6" style={{ color: C.text }}>
+      <h1 className="text-2xl font-bold">Settings</h1>
+
+      {/* Connectors */}
+      <div className="p-4 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+        <h2 className="text-lg font-medium mb-4">Connectors</h2>
+        <div className="space-y-3">
+          {CONNECTORS.map(c => (
+            <div key={c.id} className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <c.icon className="w-5 h-5" style={{ color: C.muted }} />
+                <span>{c.label}</span>
+              </div>
+              <Toggle on={connectors[c.id]} onToggle={() => toggleConnector(c.id)} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Preferences */}
+      <div className="p-4 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+        <h2 className="text-lg font-medium mb-4">Preferences</h2>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span>Web Search</span>
+            <Toggle on={webSearchEnabled} onToggle={() => setWebSearchEnabled(!webSearchEnabled)} />
+          </div>
+          <div>
+            <label className="block text-sm mb-2">Writing Style</label>
+            <div className="flex gap-2">
+              {["Normal", "Concise", "Formal", "Explanatory"].map(s => (
+                <button
+                  key={s}
+                  onClick={() => setWritingStyle(s)}
+                  className="px-3 py-1.5 rounded text-sm"
+                  style={{
+                    background: writingStyle === s ? C.accent : C.surface2,
+                    color: writingStyle === s ? "#fff" : C.muted,
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Layout ─────────────────────────────────────────────────────────────────── */
 function Layout({ children }) {
   const location = useLocation();
-  const { status, clawStatus } = useGateway();
+  const { status, clawStatus, approvals, activeTab, setActiveTab } = useGateway();
   const clawState = clawStatus?.state ?? "Scheduled";
+  const pendingApprovals = approvals.filter(a => a.status === "pending").length;
 
   return (
     <div className="flex h-screen w-full overflow-hidden" style={{ background: C.bg, color: C.text }}>
@@ -734,6 +1282,7 @@ function Layout({ children }) {
           </Link>
           {NAV.map(item => {
             const active = location.pathname === item.href;
+            const badge = item.badgeKey === "pendingApprovals" ? pendingApprovals : null;
             return (
               <Link
                 key={item.href}
@@ -749,12 +1298,12 @@ function Layout({ children }) {
                   <item.icon className="w-4 h-4" />
                   {item.label}
                 </div>
-                {item.badge && (
+                {badge > 0 && (
                   <span
-                    className="flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-semibold"
+                    className="flex h-4 min-w-4 px-1 items-center justify-center rounded-full text-[10px] font-semibold"
                     style={{ background: item.warn ? "rgba(251,191,36,0.2)" : "rgba(29,140,248,0.2)", color: item.warn ? "#fbbf24" : C.accent }}
                   >
-                    {item.badge}
+                    {badge}
                   </span>
                 )}
               </Link>
@@ -817,10 +1366,12 @@ function Layout({ children }) {
           <div className="w-32" />
           <div className="flex items-center gap-1">
             {["Chat", "Cowork", "Code"].map(tab => {
-              const isActive = tab === "Chat";
+              const isActive = activeTab === tab.toLowerCase();
               return (
-                <button
+                <Link
                   key={tab}
+                  to={tab === "Chat" ? "/" : `/${tab.toLowerCase()}`}
+                  onClick={() => setActiveTab(tab.toLowerCase())}
                   className="px-3.5 py-1 rounded-md text-[13px] font-medium transition-colors"
                   style={{
                     background: isActive ? "rgba(29,140,248,0.12)" : "transparent",
@@ -829,7 +1380,7 @@ function Layout({ children }) {
                   data-testid={`tab-${tab.toLowerCase()}`}
                 >
                   {tab}
-                </button>
+                </Link>
               );
             })}
           </div>
@@ -859,10 +1410,9 @@ function Layout({ children }) {
 }
 
 /* ─── Home Page ──────────────────────────────────────────────────────────────── */
-function Home() {
+function HomePage() {
   const { messages, streamingMessage, status, clearMessages } = useGateway();
   const [fillPrompt, setFillPrompt] = useState(null);
-  const [showEvents, setShowEvents] = useState(false);
   const bottomRef = useRef(null);
   const hasMessages = messages.length > 0 || !!streamingMessage;
 
@@ -959,13 +1509,8 @@ function Home() {
           <Trash2 className="w-3 h-3" /> Clear chat
         </button>
         <button
-          onClick={() => setShowEvents(v => !v)}
           className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full transition-colors"
-          style={{
-            border: `1px solid ${showEvents ? "rgba(29,140,248,0.4)" : C.border}`,
-            background: showEvents ? "rgba(29,140,248,0.1)" : "transparent",
-            color: showEvents ? C.accent : "#666",
-          }}
+          style={{ border: `1px solid ${C.border}`, color: "#666" }}
           data-testid="events-toggle"
         >
           <Terminal className="w-3 h-3" />
@@ -1024,7 +1569,17 @@ function Home() {
 function App() {
   return (
     <Layout>
-      <Home />
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/agent" element={<HomePage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/jobs" element={<JobsPage />} />
+        <Route path="/approvals" element={<ApprovalsPage />} />
+        <Route path="/spaces" element={<SpacesPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/cowork" element={<CoworkPage />} />
+        <Route path="/code" element={<CodePage />} />
+      </Routes>
       <Toaster />
     </Layout>
   );
