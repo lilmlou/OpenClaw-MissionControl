@@ -52,10 +52,16 @@ const CAP_ICONS = [
 function CapabilityIcons({ caps }) {
   return (
     <div className="flex items-center gap-0.5">
-      {CAP_ICONS.map(({ key, icon, label }) => (
-        <span key={key} title={label} className="text-[10px] w-4 h-4 flex items-center justify-center"
-          style={{ opacity: caps?.[key] ? 1 : 0.2, filter: caps?.[key] ? "none" : "grayscale(100%)" }}>{icon}</span>
-      ))}
+      {CAP_ICONS.map(({ key, icon, label }) => {
+        const val = caps?.[key];
+        const isOn = val === true;
+        const isPartial = val === "partial";
+        return (
+          <span key={key} title={`${label}: ${isOn ? "Yes" : isPartial ? "Partial" : "No"}`}
+            className="text-[10px] w-4 h-4 flex items-center justify-center"
+            style={{ opacity: isOn ? 1 : isPartial ? 0.55 : 0.2, filter: isOn ? "none" : isPartial ? "saturate(0.5)" : "grayscale(100%)" }}>{icon}</span>
+        );
+      })}
     </div>
   );
 }
@@ -94,44 +100,44 @@ const CONNECTORS = [
 
 const SKILLS = ["deep-research", "code-review", "web-scraper", "file-manager", "task-scheduler", "mcp-builder", "slack-gif-creator", "canvas-design"];
 
-/* ─── Cowork Task Templates (Actual actionable prompts) ─────────────────────── */
+/* ─── Cowork Task Templates (User prompts to OpenClaw) ─────────────────────── */
 const COWORK_TASKS = [
   // Schedule tasks
-  { id: 1, icon: Timer, title: "Schedule a recurring task", prompt: "Help me schedule a recurring task. What task would you like me to perform, and how often?", category: "schedule", tags: ["Automation"] },
-  { id: 2, icon: Mail, title: "Create daily briefing", prompt: "Create a daily briefing that pulls from my connected tools (Slack, email, calendar) every morning at 8am. What should be included?", category: "schedule", tags: ["Productivity"] },
+  { id: 1, icon: Timer, title: "Schedule a recurring task", prompt: "I need to set up a recurring task. I'll tell you what it is and how often it should run. Ask me anything unclear, then configure the schedule and confirm before activating.", category: "schedule", tags: ["Automation"] },
+  { id: 2, icon: Mail, title: "Create daily briefing", prompt: "I want a daily briefing that pulls from my connected tools — Slack, email, calendar — every morning at 8am. I'll tell you what to include. Ask follow-ups, draft the format, and wait for my approval before scheduling.", category: "schedule", tags: ["Productivity"] },
   
   // File organization
-  { id: 3, icon: FolderSync, title: "Organize my files", prompt: "Help me organize my files. Which folder would you like me to organize? I'll scan the contents and propose a plan with categories, naming conventions, and cleanup suggestions.", category: "organize", tags: [] },
-  { id: 4, icon: FileText, title: "Turn documents into a report", prompt: "I'll help you turn documents into a polished report. Please share the documents or tell me which folder to look in.", category: "create", tags: ["Documents"] },
+  { id: 3, icon: FolderSync, title: "Organize my files", prompt: "I want to organize my files. I'll point you at the folder and tell you what needs organizing. Follow up on anything that's unclear, then scan everything, propose a plan with categories and naming conventions, and wait for my go-ahead before moving anything.", category: "organize", tags: [] },
+  { id: 4, icon: FileText, title: "Turn documents into a report", prompt: "I have a set of documents I need turned into a polished report. I'll share the files or point you to a folder. Read through everything, ask what format and tone I want, then draft it for my review.", category: "create", tags: ["Documents"] },
   
   // Spreadsheets & Data
-  { id: 5, icon: FileSpreadsheet, title: "Build a spreadsheet", prompt: "I'll help you build a spreadsheet. What data do you need to track or analyze?", category: "create", tags: ["Data"] },
-  { id: 6, icon: Receipt, title: "Turn receipts into spreadsheet", prompt: "I can extract data from receipts and organize them into a spreadsheet. Share the receipts or tell me which folder contains them.", category: "analyze", tags: ["Data", "Finance"] },
-  { id: 7, icon: Database, title: "Write optimized SQL query", prompt: "I'll help you write an optimized SQL query. Describe your database schema and what data you need to retrieve.", category: "analyze", tags: ["Data", "Engineering"] },
+  { id: 5, icon: FileSpreadsheet, title: "Build a spreadsheet", prompt: "I need to build a spreadsheet to track some data. I'll describe what I'm working with and what I need to see. Ask clarifying questions, then set up the structure and formulas for me to review.", category: "create", tags: ["Data"] },
+  { id: 6, icon: Receipt, title: "Turn receipts into spreadsheet", prompt: "I have a bunch of receipts I need organized into a spreadsheet. I'll share them or tell you which folder they're in. Extract the data, organize it by date and category, and show me the result before finalizing.", category: "analyze", tags: ["Data", "Finance"] },
+  { id: 7, icon: Database, title: "Write optimized SQL query", prompt: "I need an optimized SQL query. I'll describe my database schema and what data I need. Ask about edge cases or performance requirements, then write the query and explain your reasoning.", category: "analyze", tags: ["Data", "Engineering"] },
   
   // Reports & Presentations
-  { id: 8, icon: Presentation, title: "Create a presentation", prompt: "I'll help create a presentation. What's the topic and who's the audience?", category: "create", tags: [] },
-  { id: 9, icon: ClipboardList, title: "Prepare a report", prompt: "I'll help prepare a report. What's the subject and what sources should I pull from?", category: "create", tags: ["Documents"] },
-  { id: 10, icon: BarChart3, title: "Create data visualization", prompt: "I'll create a data visualization for you. What data do you want to visualize and what insights are you looking for?", category: "create", tags: ["Data"] },
+  { id: 8, icon: Presentation, title: "Create a presentation", prompt: "I want to create a presentation. I'll tell you the topic, audience, and key points. Ask about style, length, and any specific requirements, then build out the slides for my review — don't finalize until I approve the structure.", category: "create", tags: [] },
+  { id: 9, icon: ClipboardList, title: "Prepare a report", prompt: "I need a report prepared. I'll give you the subject and point you at the sources. Ask about scope and format, pull together the findings, and draft it section by section for me to review.", category: "create", tags: ["Documents"] },
+  { id: 10, icon: BarChart3, title: "Create data visualization", prompt: "I need a data visualization built. I'll share the data and tell you what insights I'm looking for. Ask what chart types work best, then create the visualization and let me iterate on it.", category: "create", tags: ["Data"] },
   
   // Research & Analysis
-  { id: 11, icon: Telescope, title: "Deep research", prompt: "I'll conduct comprehensive research. What topic would you like me to research? I'll synthesize information from multiple sources.", category: "analyze", tags: ["Research"] },
-  { id: 12, icon: NotebookPen, title: "Synthesize research notes", prompt: "I'll synthesize your research notes into key insights. Which folder contains your notes?", category: "analyze", tags: ["Research"] },
-  { id: 13, icon: Search, title: "Search all sources", prompt: "I'll search across all your connected sources (files, Slack, email, web). What are you looking for?", category: "analyze", tags: ["Enterprise search"] },
+  { id: 11, icon: Telescope, title: "Deep research", prompt: "I need comprehensive research on a topic. I'll tell you what I'm looking into and what angle matters. Go deep — synthesize from multiple sources, surface the key findings, and organize everything so I can act on it.", category: "analyze", tags: ["Research"] },
+  { id: 12, icon: NotebookPen, title: "Synthesize research notes", prompt: "I have a bunch of research notes that need synthesizing into key insights. I'll point you at the folder. Read through everything, identify the themes, and draft a clean summary with the most important takeaways.", category: "analyze", tags: ["Research"] },
+  { id: 13, icon: Search, title: "Search all sources", prompt: "I'm looking for something across all my connected sources — files, Slack, email, the web. I'll tell you what I need. Search everywhere, rank the results by relevance, and surface the best matches.", category: "analyze", tags: ["Enterprise search"] },
   
   // Writing & Communication
-  { id: 14, icon: PenTool, title: "Polish rough notes", prompt: "I'll polish your rough notes into a clean document. Share the notes or point me to the file.", category: "create", tags: [] },
-  { id: 15, icon: MessageSquareText, title: "Write meeting follow-up", prompt: "I'll write a meeting follow-up email. What were the key points and action items from the meeting?", category: "communicate", tags: [] },
+  { id: 14, icon: PenTool, title: "Polish rough notes", prompt: "I have rough notes that need polishing into a clean document. I'll share them or point you to the file. Clean up the language, improve the structure, and keep my voice — show me the draft before finalizing.", category: "create", tags: [] },
+  { id: 15, icon: MessageSquareText, title: "Write meeting follow-up", prompt: "I need a meeting follow-up email written. I'll give you the key points and action items from the meeting. Draft something clear and professional, and let me review before sending.", category: "communicate", tags: [] },
   
   // Development
-  { id: 16, icon: Code2, title: "Build a web app", prompt: "I'll help you build a web app. Describe what you want to build and I'll create it step by step.", category: "create", tags: ["Engineering"] },
-  { id: 17, icon: GitBranch, title: "Code review checklist", prompt: "I'll create a code review checklist tailored for your team. What languages/frameworks do you use and what are your standards?", category: "create", tags: ["Engineering"] },
-  { id: 18, icon: Globe, title: "Automate browser task", prompt: "I'll help automate a browser task. What website and what actions do you need to perform repeatedly?", category: "create", tags: ["Automation"] },
+  { id: 16, icon: Code2, title: "Build a web app", prompt: "I want to build a web app. I'll describe what it should do and how it should look. Ask about tech stack preferences, walk me through the architecture, then build it out step by step — checking in at each milestone.", category: "create", tags: ["Engineering"] },
+  { id: 17, icon: GitBranch, title: "Code review checklist", prompt: "I need a code review checklist tailored for my team. I'll tell you what languages, frameworks, and standards we use. Ask about our priorities, then create a thorough checklist I can share with the team.", category: "create", tags: ["Engineering"] },
+  { id: 18, icon: Globe, title: "Automate browser task", prompt: "I have a browser task I need automated. I'll describe the website and the actions I repeat. Figure out the best approach, ask about edge cases, then build the automation and test it before I run it.", category: "create", tags: ["Automation"] },
   
   // Design & Planning
-  { id: 19, icon: FileSearch, title: "Audit accessibility", prompt: "I'll audit your design or website for accessibility issues. Share a URL or screenshots.", category: "analyze", tags: ["Design"] },
-  { id: 20, icon: ListTodo, title: "Create launch checklist", prompt: "I'll create a comprehensive launch checklist for your project. What are you launching?", category: "organize", tags: ["Product management"] },
-  { id: 21, icon: Calendar, title: "Plan a trip", prompt: "I'll help plan your trip. Where do you want to go, when, and what are your interests?", category: "organize", tags: [] },
+  { id: 19, icon: FileSearch, title: "Audit accessibility", prompt: "I need an accessibility audit on my design or website. I'll share a URL or screenshots. Run through WCAG guidelines, flag the issues by severity, and give me actionable fixes for each one.", category: "analyze", tags: ["Design"] },
+  { id: 20, icon: ListTodo, title: "Create launch checklist", prompt: "I'm launching something and need a comprehensive checklist. I'll tell you what I'm launching and the timeline. Ask about my team, dependencies, and risks, then build out the checklist in priority order.", category: "organize", tags: ["Product management"] },
+  { id: 21, icon: Calendar, title: "Plan a trip", prompt: "I want to plan a trip. I'll tell you where, when, and what I'm into. Ask about budget, travel style, and must-dos, then put together an itinerary for me to customize.", category: "organize", tags: [] },
 ];
 
 const COWORK_CATEGORIES = [
@@ -217,15 +223,16 @@ function ModelSelector({ models, providers, activeModel, onSelect }) {
 
   useEffect(() => {
     if (open && activeModel) {
-      const slash = activeModel.indexOf("/");
-      setSelProv(slash > 0 ? activeModel.slice(0, slash) : null);
+      // Find the actual provider by checking which provider's models contain the active model
+      const prov = providers.find(p => p.models.some(m => m.id === activeModel));
+      setSelProv(prov ? prov.name : null);
     }
-  }, [open, activeModel]);
+  }, [open, activeModel, providers]);
 
-  const activeName = activeModel ? activeModel.split("/").slice(1).join("/") : null;
+  const activeName = activeModel ? (models.find(m => m.id === activeModel)?.name ?? activeModel.split("/").pop()) : null;
   const selModels = selProv ? (providers.find(p => p.name === selProv)?.models ?? []) : [];
   const handleSelect = async (modelId) => { setOpen(false); await onSelect(modelId); };
-  const label = activeName ? (activeName.length > 18 ? activeName.slice(0, 16) + "…" : activeName) : "Select model";
+  const label = activeName ? (activeName.length > 22 ? activeName.slice(0, 20) + "..." : activeName) : "Select model";
 
   return (
     <div ref={ref} className="relative">
@@ -287,7 +294,7 @@ function ModelSelector({ models, providers, activeModel, onSelect }) {
 }
 
 /* ─── Plus Menu ──────────────────────────────────────────────────────────────── */
-function PlusMenu({ onSelect, disabled }) {
+function PlusMenu({ onSelect, disabled, onModeChange }) {
   const [open, setOpen] = useState(false);
   const [sub, setSub] = useState(null);
   const ref = useRef(null);
@@ -335,7 +342,7 @@ function PlusMenu({ onSelect, disabled }) {
             <Row icon={Layers} label="Connectors" badge={Object.values(connectors).filter(Boolean).length} hasSub onClick={() => setSub(p => p === "connectors" ? null : "connectors")} />
             <Row icon={Cpu} label="Plugins" onClick={close} />
             <Divider />
-            <Row icon={Telescope} label="Research" onClick={() => { onSelect("Do deep research on: ", true); close(); }} />
+            <Row icon={Telescope} label="Research" onClick={() => { onModeChange?.("research"); onSelect("Do deep research on: ", true); close(); }} />
             <Row icon={Globe} label="Web search" active={webSearchEnabled} onClick={() => setWebSearchEnabled(!webSearchEnabled)} />
             <Row icon={Bot} label="Use style" hasSub onClick={() => setSub(p => p === "style" ? null : "style")} />
           </div>
@@ -386,30 +393,58 @@ function PlusMenu({ onSelect, disabled }) {
 function InputBar({ onSend, disabled, placeholder, fillPrompt, onFillConsumed }) {
   const [val, setVal] = useState("");
   const ref = useRef(null);
-  const { models, providers, activeModel } = useGateway();
+  const { models, providers, activeModel, webSearchEnabled, enabledSkills } = useGateway();
+  const [activeMode, setActiveMode] = useState("agent"); // agent, research, code
 
   useEffect(() => { if (fillPrompt) { setVal(fillPrompt); onFillConsumed?.(); setTimeout(() => ref.current?.focus(), 0); } }, [fillPrompt, onFillConsumed]);
 
   const handleInput = (e) => { setVal(e.target.value); const el = e.target; el.style.height = "auto"; el.style.height = `${Math.min(el.scrollHeight, 180)}px`; };
   const handleKey = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } };
   const submit = () => { if (!val.trim() || disabled) return; onSend(val.trim()); setVal(""); if (ref.current) ref.current.style.height = "auto"; };
-  const handleQuick = (prompt, fill) => { if (fill) { setVal(prompt); setTimeout(() => ref.current?.focus(), 0); } else { onSend(prompt); } };
+  const handleQuick = (prompt, fill) => {
+    if (fill) { setVal(prompt); setTimeout(() => ref.current?.focus(), 0); }
+    else { onSend(prompt); }
+  };
+  const handleModeFromMenu = (mode) => { setActiveMode(mode); };
   const active = !!val.trim() && !disabled;
+
+  // Build active feature chips
+  const chips = [];
+  if (webSearchEnabled) chips.push({ key: "web", label: "Web", icon: Globe });
+  if (enabledSkills.length > 0) chips.push({ key: "skills", label: `${enabledSkills.length} skill${enabledSkills.length > 1 ? "s" : ""}`, icon: Wrench });
+
+  const modeConfig = {
+    agent: { label: "Agent", icon: Bot, color: C.accent },
+    research: { label: "Research", icon: Telescope, color: "#a78bfa" },
+  };
+  const currentMode = modeConfig[activeMode] || modeConfig.agent;
+  const ModeIcon = currentMode.icon;
 
   return (
     <div className="w-full rounded-2xl shadow-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-      <textarea ref={ref} value={val} onChange={handleInput} onKeyDown={handleKey} placeholder={placeholder ?? (disabled ? "Connecting to gateway…" : "Ask anything...")} disabled={disabled} rows={1}
+      <textarea ref={ref} value={val} onChange={handleInput} onKeyDown={handleKey} placeholder={placeholder ?? (disabled ? "Connecting to gateway..." : "Ask anything...")} disabled={disabled} rows={1}
         className="w-full focus:outline-none resize-none text-[14px] font-sans" style={{ background: "transparent", border: "none", color: C.text, padding: "14px 16px 10px", minHeight: 52, maxHeight: 180, opacity: disabled ? 0.5 : 1 }} data-testid="chat-input" />
       <div className="flex items-center gap-2 px-3 pb-3">
-        <PlusMenu onSelect={handleQuick} disabled={disabled} />
-        <button type="button" className="flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[12px] font-medium transition-colors" style={{ background: "rgba(29,140,248,0.12)", border: "1px solid rgba(29,140,248,0.25)", color: C.accent }}>
-          <span className="text-sm leading-none">🤖</span><span>Agent</span><ChevronDown className="w-3 h-3 opacity-60" />
+        <PlusMenu onSelect={handleQuick} disabled={disabled} onModeChange={handleModeFromMenu} />
+        <button type="button" onClick={() => setActiveMode(activeMode === "agent" ? "research" : "agent")}
+          className="flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[12px] font-medium transition-colors"
+          style={{ background: `${currentMode.color}18`, border: `1px solid ${currentMode.color}40`, color: currentMode.color }}
+          data-testid="mode-toggle-btn">
+          <ModeIcon className="w-3.5 h-3.5" /><span>{currentMode.label}</span><ChevronDown className="w-3 h-3 opacity-60" />
         </button>
+        {chips.map(chip => {
+          const ChipIcon = chip.icon;
+          return (
+            <span key={chip.key} className="flex items-center gap-1 h-6 px-2 rounded-full text-[11px]" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)", color: "#22c55e" }}>
+              <ChipIcon className="w-3 h-3" />{chip.label}
+            </span>
+          );
+        })}
         <div className="flex-1" />
         <ModelSelector models={models} providers={providers} activeModel={activeModel} onSelect={switchModel} />
         <button type="button" className="w-7 h-7 flex items-center justify-center rounded-full transition-colors" style={{ color: C.muted }}><Mic className="w-4 h-4" /></button>
         <button type="button" onClick={submit} disabled={!active} className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
-          style={{ background: active ? C.accent : C.surface2, color: active ? "#fff" : "#555", cursor: active ? "pointer" : "not-allowed" }} title="Send"><Send className="w-3.5 h-3.5" /></button>
+          style={{ background: active ? C.accent : C.surface2, color: active ? "#fff" : "#555", cursor: active ? "pointer" : "not-allowed" }} title="Send" data-testid="send-btn"><Send className="w-3.5 h-3.5" /></button>
       </div>
     </div>
   );
@@ -552,13 +587,19 @@ function SpacesPage() {
   );
 }
 
-/* ─── Cowork Page (Functional Task Templates) ─────────────────────────────────── */
+/* ─── Cowork Page (Inline Conversation like Claude) ────────────────────────────── */
 function CoworkPage() {
-  const navigate = useNavigate();
   const [category, setCategory] = useState("all");
   const [search, setSearch] = useState("");
-  const { models, providers, activeModel, connectors } = useGateway();
-  const [selectedTask, setSelectedTask] = useState(null);
+  const { models, providers, activeModel, connectors, sendMessage, messages, streamingMessage } = useGateway();
+  const [activeTask, setActiveTask] = useState(null);
+  const [replyVal, setReplyVal] = useState("");
+  const [taskMessages, setTaskMessages] = useState([]);
+  const [isWorking, setIsWorking] = useState(false);
+  const [progressSteps, setProgressSteps] = useState([]);
+  const [recentTasks, setRecentTasks] = useState([]);
+  const replyRef = useRef(null);
+  const messagesEndRef = useRef(null);
 
   const filteredTasks = COWORK_TASKS.filter(task => {
     if (category !== "all" && task.category !== category) return false;
@@ -566,113 +607,264 @@ function CoworkPage() {
     return true;
   });
 
-  const handleTaskClick = (task) => {
-    // Navigate to chat with the prompt pre-filled
-    navigate("/?prompt=" + encodeURIComponent(task.prompt));
-  };
-
   const activeConnectors = Object.values(connectors).filter(Boolean).length;
 
-  return (
-    <div className="h-full flex flex-col" style={{ color: C.text }}>
-      <div className="flex-1 overflow-auto">
-        <div className="max-w-4xl mx-auto px-6 py-8">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2">Delegate to OpenClaw</h1>
-            <p className="text-lg" style={{ color: C.muted }}>Hand off a task, get a polished deliverable</p>
-          </div>
+  const handleTaskClick = (task) => {
+    setActiveTask(task);
+    setTaskMessages([{ id: 1, role: "user", content: task.prompt }]);
+    setIsWorking(true);
+    setProgressSteps([{ id: 1, label: "Understanding request", done: true }, { id: 2, label: "Processing", done: false }, { id: 3, label: "Delivering result", done: false }]);
+    // Add to recents
+    setRecentTasks(prev => {
+      const filtered = prev.filter(t => t.id !== task.id);
+      return [task, ...filtered].slice(0, 8);
+    });
+    // Simulate AI response after delay
+    setTimeout(() => {
+      setTaskMessages(prev => [...prev, { id: 2, role: "assistant", content: `Got it. I'll work on "${task.title}" for you.\n\nLet me start by understanding what you need. I'll ask some follow-up questions to make sure I get this right before diving in.` }]);
+      setProgressSteps(prev => prev.map((s, i) => i <= 1 ? { ...s, done: true } : s));
+      setIsWorking(false);
+    }, 2000);
+  };
 
-          {/* Connect tools banner */}
-          {activeConnectors < 4 && (
-            <div className="flex items-center justify-between p-4 rounded-xl mb-6" style={{ background: "rgba(29,140,248,0.1)", border: `1px solid rgba(29,140,248,0.2)` }}>
-              <div className="flex items-center gap-3">
-                <MonitorSmartphone className="w-5 h-5" style={{ color: C.accent }} />
-                <span className="text-sm">Connect your tools to unlock more capabilities</span>
+  const handleReply = () => {
+    if (!replyVal.trim()) return;
+    const newMsg = { id: taskMessages.length + 1, role: "user", content: replyVal.trim() };
+    setTaskMessages(prev => [...prev, newMsg]);
+    setReplyVal("");
+    setIsWorking(true);
+    setTimeout(() => {
+      setTaskMessages(prev => [...prev, { id: prev.length + 1, role: "assistant", content: "Understood. I'm processing that now and will update you shortly with the next steps." }]);
+      setIsWorking(false);
+    }, 1500);
+  };
+
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [taskMessages, isWorking]);
+
+  // ── Task grid view ──
+  if (!activeTask) {
+    return (
+      <div className="h-full flex flex-col" style={{ color: C.text }}>
+        <div className="flex-1 overflow-auto">
+          <div className="max-w-4xl mx-auto px-6 py-8">
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold mb-2">Delegate to OpenClaw</h1>
+              <p className="text-lg" style={{ color: C.muted }}>Hand off a task, get a polished deliverable</p>
+            </div>
+            {activeConnectors < 4 && (
+              <div className="flex items-center justify-between p-4 rounded-xl mb-6" style={{ background: "rgba(29,140,248,0.1)", border: "1px solid rgba(29,140,248,0.2)" }}>
+                <div className="flex items-center gap-3"><MonitorSmartphone className="w-5 h-5" style={{ color: C.accent }} /><span className="text-sm">Connect your tools to unlock more capabilities</span></div>
+                <div className="flex gap-2">
+                  <Link to="/settings"><Button variant="outline" size="sm" className="gap-1" style={{ borderColor: C.border, color: C.text }}><Layers className="w-3 h-3" /> Connectors <span className="text-xs bg-blue-600 px-1 rounded">{activeConnectors}</span></Button></Link>
+                  <Link to="/customize"><Button variant="outline" size="sm" className="gap-1" style={{ borderColor: C.border, color: C.text }}><Puzzle className="w-3 h-3" /> Plugins</Button></Link>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Link to="/settings">
-                  <Button variant="outline" size="sm" className="gap-1" style={{ borderColor: C.border, color: C.text }}>
-                    <Layers className="w-3 h-3" /> Connectors <span className="text-xs bg-blue-600 px-1 rounded">{activeConnectors}</span>
-                  </Button>
-                </Link>
-                <Link to="/customize">
-                  <Button variant="outline" size="sm" className="gap-1" style={{ borderColor: C.border, color: C.text }}>
-                    <Puzzle className="w-3 h-3" /> Plugins
-                  </Button>
-                </Link>
+            )}
+            <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
+              {COWORK_CATEGORIES.map(cat => {
+                const Icon = cat.icon;
+                const isActive = category === cat.id;
+                return (
+                  <button key={cat.id} onClick={() => setCategory(cat.id)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-all"
+                    style={{ background: isActive ? C.accent : C.surface, color: isActive ? "#fff" : C.muted, border: `1px solid ${isActive ? C.accent : C.border}` }}>
+                    <Icon className="w-4 h-4" />{cat.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="relative mb-6">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: C.muted }} />
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tasks..."
+                className="w-full pl-11 pr-4 py-3 rounded-xl text-sm" style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text }} />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredTasks.map(task => {
+                const Icon = task.icon;
+                return (
+                  <button key={task.id} onClick={() => handleTaskClick(task)}
+                    className="text-left p-4 rounded-xl transition-all hover:border-blue-500/50 hover:bg-blue-500/5 group"
+                    style={{ background: C.surface, border: `1px solid ${C.border}` }}
+                    data-testid={`cowork-task-${task.id}`}>
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors group-hover:bg-blue-500/20"
+                        style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
+                        <Icon className="w-5 h-5 transition-colors group-hover:text-blue-400" style={{ color: C.muted }} />
+                      </div>
+                      <div>
+                        <div className="font-medium mb-1 group-hover:text-blue-400 transition-colors">{task.title}</div>
+                        {task.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {task.tags.map(tag => (<span key={tag} className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: C.surface2, color: C.muted }}>{tag}</span>))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+        <div className="p-4 border-t" style={{ borderColor: C.border, background: C.bg }}>
+          <div className="max-w-2xl mx-auto">
+            <div className="flex items-center justify-between gap-3 p-3 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+              <div className="flex items-center gap-2"><Smartphone className="w-4 h-4" style={{ color: C.muted }} /><span className="text-sm" style={{ color: C.muted }}>Start a task from your phone</span></div>
+              <div className="flex items-center gap-2">
+                <ModelSelector models={models} providers={providers} activeModel={activeModel} onSelect={switchModel} />
+                <Mic className="w-4 h-4 cursor-pointer" style={{ color: C.muted }} />
               </div>
             </div>
-          )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-          {/* Categories */}
-          <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
-            {COWORK_CATEGORIES.map(cat => {
-              const Icon = cat.icon;
-              const isActive = category === cat.id;
+  // ── Active task conversation view (Claude-style) ──
+  const TaskIcon = activeTask.icon;
+  return (
+    <div className="h-full flex" style={{ color: C.text }}>
+      {/* Left recents sidebar */}
+      <div className="hidden lg:flex flex-col shrink-0 overflow-hidden" style={{ width: 220, borderRight: `1px solid ${C.border}`, background: "#0b0b0b" }}>
+        <div className="p-3" style={{ borderBottom: `1px solid ${C.border}` }}>
+          <button onClick={() => setActiveTask(null)} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-colors" style={{ color: C.muted }}
+            onMouseOver={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }} onMouseOut={e => { e.currentTarget.style.background = "transparent"; }}
+            data-testid="cowork-back-btn">
+            <ChevronLeft className="w-4 h-4" /><Plus className="w-4 h-4" /> New task
+          </button>
+        </div>
+        {recentTasks.length > 0 && (
+          <div className="px-3 pt-3">
+            <div className="text-[10px] font-bold uppercase tracking-widest mb-2 px-2" style={{ color: "#555" }}>Recents</div>
+            {recentTasks.map(t => {
+              const isActive = t.id === activeTask?.id;
               return (
-                <button key={cat.id} onClick={() => setCategory(cat.id)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-all"
-                  style={{ background: isActive ? C.accent : C.surface, color: isActive ? "#fff" : C.muted, border: `1px solid ${isActive ? C.accent : C.border}` }}>
-                  <Icon className="w-4 h-4" />
-                  {cat.label}
-                </button>
+                <button key={t.id} onClick={() => handleTaskClick(t)} className="w-full text-left px-2 py-1.5 rounded-md text-[13px] truncate transition-colors mb-0.5"
+                  style={{ background: isActive ? "rgba(29,140,248,0.1)" : "transparent", color: isActive ? C.accent : "#888" }}>{t.title}</button>
               );
             })}
           </div>
+        )}
+      </div>
 
-          {/* Search */}
-          <div className="relative mb-6">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: C.muted }} />
-            <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tasks..."
-              className="w-full pl-11 pr-4 py-3 rounded-xl text-sm" style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text }} />
+      {/* Center conversation */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Task header */}
+        <div className="flex items-center gap-3 px-4 py-3 shrink-0" style={{ borderBottom: `1px solid ${C.border}`, background: "#0d0d0d" }}>
+          <button onClick={() => setActiveTask(null)} className="lg:hidden flex items-center justify-center w-7 h-7 rounded-lg transition-colors" style={{ color: C.muted }}
+            onMouseOver={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }} onMouseOut={e => { e.currentTarget.style.background = "transparent"; }}>
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
+            <TaskIcon className="w-4 h-4" style={{ color: C.accent }} />
           </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-sm truncate">{activeTask.title}</div>
+            {activeTask.tags.length > 0 && <div className="text-[10px]" style={{ color: C.muted }}>{activeTask.tags.join(" / ")}</div>}
+          </div>
+          <ChevronDown className="w-4 h-4" style={{ color: "#555" }} />
+        </div>
 
-          {/* Task Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredTasks.map(task => {
-              const Icon = task.icon;
-              return (
-                <button key={task.id} onClick={() => handleTaskClick(task)}
-                  className="text-left p-4 rounded-xl transition-all hover:border-blue-500/50 hover:bg-blue-500/5 group"
-                  style={{ background: C.surface, border: `1px solid ${C.border}` }}
-                  data-testid={`cowork-task-${task.id}`}>
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors group-hover:bg-blue-500/20"
-                      style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
-                      <Icon className="w-5 h-5 transition-colors group-hover:text-blue-400" style={{ color: C.muted }} />
-                    </div>
-                    <div>
-                      <div className="font-medium mb-1 group-hover:text-blue-400 transition-colors">{task.title}</div>
-                      {task.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {task.tags.map(tag => (
-                            <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: C.surface2, color: C.muted }}>{tag}</span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+        {/* Messages */}
+        <div className="flex-1 overflow-auto px-4 py-6">
+          <div className="max-w-2xl mx-auto space-y-5">
+            {taskMessages.map(msg => (
+              <div key={msg.id} className="flex gap-3" data-testid={`cowork-msg-${msg.id}`}>
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] shrink-0 mt-0.5"
+                  style={{ background: msg.role === "user" ? C.surface2 : "rgba(29,140,248,0.1)", border: `1px solid ${msg.role === "user" ? C.border : "rgba(29,140,248,0.2)"}` }}>
+                  {msg.role === "user" ? "M" : <span style={{ fontSize: 14 }}>&#129438;</span>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm leading-relaxed" style={{ color: msg.role === "user" ? "#ccc" : C.text }}>
+                    <Markdown content={msg.content} />
                   </div>
+                </div>
+              </div>
+            ))}
+            {isWorking && (
+              <div className="flex gap-3">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: "rgba(29,140,248,0.1)", border: "1px solid rgba(29,140,248,0.2)" }}>
+                  <span style={{ fontSize: 14 }}>&#129438;</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#f59e0b" }} />
+                  <span style={{ color: C.muted }}>Working on it...</span>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* Reply input */}
+        <div className="px-4 pb-4 pt-2 shrink-0">
+          <div className="max-w-2xl mx-auto">
+            <div className="text-[11px] mb-2 px-1" style={{ color: "#555" }}>
+              <span style={{ color: C.accent }}>{activeModel ? activeModel.split("/").pop() : "Select model"}</span> uses your limit faster. Try another model for longer conversations.
+            </div>
+            <div className="rounded-2xl shadow-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+              <textarea ref={replyRef} value={replyVal} onChange={e => setReplyVal(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
+                placeholder="Reply..." rows={1}
+                className="w-full focus:outline-none resize-none text-[14px] font-sans" style={{ background: "transparent", border: "none", color: C.text, padding: "12px 16px 8px", minHeight: 44, maxHeight: 160 }}
+                data-testid="cowork-reply-input" />
+              <div className="flex items-center gap-2 px-3 pb-3">
+                <button className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted }}><Plus className="w-3 h-3" /></button>
+                <div className="flex-1" />
+                <ModelSelector models={models} providers={providers} activeModel={activeModel} onSelect={switchModel} />
+                <button onClick={handleReply} disabled={!replyVal.trim()} className="h-7 px-3 rounded-lg text-[12px] font-medium flex items-center gap-1.5 transition-colors"
+                  style={{ background: replyVal.trim() ? C.accent : C.surface2, color: replyVal.trim() ? "#fff" : "#555" }}
+                  data-testid="cowork-queue-btn">
+                  Queue <ArrowRight className="w-3 h-3" />
                 </button>
-              );
-            })}
+              </div>
+            </div>
+            <div className="text-[10px] mt-1.5 text-center" style={{ color: "#444" }}>OpenClaw is AI and can make mistakes. Please double-check responses.</div>
           </div>
         </div>
       </div>
 
-      {/* Mobile-friendly bottom bar */}
-      <div className="p-4 border-t" style={{ borderColor: C.border, background: C.bg }}>
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center justify-between gap-3 p-3 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-            <div className="flex items-center gap-2">
-              <Smartphone className="w-4 h-4" style={{ color: C.muted }} />
-              <span className="text-sm" style={{ color: C.muted }}>Start a task from your phone</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <ModelSelector models={models} providers={providers} activeModel={activeModel} onSelect={switchModel} />
-              <Mic className="w-4 h-4 cursor-pointer" style={{ color: C.muted }} />
+      {/* Right sidebar - Progress/Context */}
+      <div className="hidden lg:flex flex-col shrink-0 overflow-auto" style={{ width: 240, borderLeft: `1px solid ${C.border}`, background: "#0b0b0b" }}>
+        {/* Progress */}
+        <div className="p-4" style={{ borderBottom: `1px solid ${C.border}` }}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#666" }}>Progress</span>
+            <ChevronDown className="w-3.5 h-3.5" style={{ color: "#555" }} />
+          </div>
+          <div className="space-y-3">
+            {progressSteps.map((step) => (
+              <div key={step.id} className="flex items-center gap-2.5">
+                <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                  style={{ background: step.done ? "rgba(34,197,94,0.15)" : C.surface2, border: `1.5px solid ${step.done ? "#22c55e" : "#333"}` }}>
+                  {step.done && <Check className="w-3 h-3" style={{ color: "#22c55e" }} />}
+                </div>
+                <span className="text-[12px]" style={{ color: step.done ? "#aaa" : "#555" }}>{step.label}</span>
+              </div>
+            ))}
+          </div>
+          <div className="text-[10px] mt-3" style={{ color: "#444" }}>See task progress for longer tasks.</div>
+        </div>
+        {/* Working folder */}
+        <div className="p-4" style={{ borderBottom: `1px solid ${C.border}` }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2"><Folder className="w-4 h-4" style={{ color: "#555" }} /><span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#666" }}>Working folder</span></div>
+            <ChevronRight className="w-3.5 h-3.5" style={{ color: "#555" }} />
+          </div>
+        </div>
+        {/* Context */}
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#666" }}>Context</span>
+            <ChevronDown className="w-3.5 h-3.5" style={{ color: "#555" }} />
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted }}>
+              <Plus className="w-3.5 h-3.5" />
             </div>
           </div>
+          <div className="text-[10px] mt-3" style={{ color: "#444" }}>Track tools and referenced files used in this task.</div>
         </div>
       </div>
     </div>

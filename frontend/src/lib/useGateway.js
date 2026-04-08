@@ -65,90 +65,137 @@ function formatContext(contextWindow) {
   return `${n}`;
 }
 
-// ─── Model providers data ────────────────────────────────────────────────────
+// ─── Model providers data (from OpenClaw cheatsheet) ─────────────────────────
+// caps: true = supported, "partial" = partial, false = not supported
 const MODEL_PROVIDERS_DATA = {
-  anthropic: {
+  huggingface: {
     models: [
-      { id: "anthropic/claude-3-opus", name: "claude-3-opus" },
-      { id: "anthropic/claude-3-sonnet", name: "claude-3-sonnet" },
-      { id: "anthropic/claude-3-haiku", name: "claude-3-haiku" },
-      { id: "anthropic/claude-3.5-sonnet", name: "claude-3.5-sonnet" },
+      { id: "huggingface/Qwen/Qwen3-Coder-480B-A35B-Instruct", name: "Qwen3-Coder-480B", caps: { vision: false, coding: true, tools: "partial", files: true, reasoning: false, fast: false }, costTier: "$$" },
+      { id: "huggingface/Qwen/Qwen3-Coder-Next", name: "Qwen3-Coder-Next", caps: { vision: false, coding: true, tools: "partial", files: true, reasoning: false, fast: true }, costTier: "$" },
+      { id: "huggingface/Qwen/Qwen3.5-397B-A17B", name: "Qwen3.5-397B", caps: { vision: true, coding: true, tools: "partial", files: true, reasoning: true, fast: "partial" }, costTier: "$", context: "1M+" },
+      { id: "huggingface/deepseek-ai/DeepSeek-V3.1", name: "DeepSeek-V3.1", caps: { vision: false, coding: true, tools: "partial", files: true, reasoning: true, fast: "partial" }, costTier: "$" },
+      { id: "huggingface/meta-llama/Llama-3.3-70B-Instruct", name: "Llama-3.3-70B", caps: { vision: false, coding: true, tools: "partial", files: true, reasoning: false, fast: true }, costTier: "$", context: "125K" },
+      { id: "huggingface/moonshotai/Kimi-K2.5", name: "Kimi-K2.5", caps: { vision: true, coding: true, tools: "partial", files: true, reasoning: true, fast: false }, costTier: "$$", context: "256K" },
+      { id: "huggingface/openai/gpt-oss-120b", name: "GPT-OSS-120B", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+      { id: "huggingface/zai-org/GLM-5", name: "GLM-5", caps: { vision: false, coding: true, tools: "partial", files: true, reasoning: true, fast: "partial" }, costTier: "$" },
+      { id: "huggingface/XiaomiMiMo/MiMo-V2-Flash", name: "MiMo-V2-Flash", caps: { vision: false, coding: true, tools: "partial", files: true, reasoning: true, fast: true }, costTier: "$" },
     ],
   },
-  openai: {
+  ollama: {
     models: [
-      { id: "openai/gpt-4-turbo", name: "gpt-4-turbo" },
-      { id: "openai/gpt-4o", name: "gpt-4o" },
-      { id: "openai/gpt-4o-mini", name: "gpt-4o-mini" },
-      { id: "openai/gpt-3.5-turbo", name: "gpt-3.5-turbo" },
-      { id: "openai/o1-preview", name: "o1-preview" },
-      { id: "openai/o1-mini", name: "o1-mini" },
+      { id: "ollama/devstral-small-2:24b-cloud", name: "Devstral-24B", caps: { vision: false, coding: true, tools: true, files: true, reasoning: false, fast: true }, costTier: "$" },
+      { id: "ollama/gemma4:31b-cloud", name: "Gemma4-31B", caps: { vision: false, coding: "partial", tools: true, files: "partial", reasoning: false, fast: true }, costTier: "$" },
+      { id: "ollama/glm-5:cloud", name: "GLM-5", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: "partial" }, costTier: "$" },
+      { id: "ollama/kimi-k2.5:cloud", name: "Kimi-K2.5", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: false }, costTier: "$" },
+      { id: "ollama/ministral-3:14b-cloud", name: "Ministral-14B", caps: { vision: false, coding: "partial", tools: "partial", files: "partial", reasoning: false, fast: true }, costTier: "$" },
+      { id: "ollama/minimax-m2.5:cloud", name: "MiniMax-M2.5", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+      { id: "ollama/mistral-large-3:675b-cloud", name: "Mistral-Large-675B", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: false }, costTier: "$$" },
+      { id: "ollama/nemotron-3-super:cloud", name: "Nemotron-3-Super", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+      { id: "ollama/qwen3-coder-next:cloud", name: "Qwen3-Coder-Next", caps: { vision: false, coding: true, tools: true, files: true, reasoning: false, fast: true }, costTier: "$" },
+      { id: "ollama/qwen3-vl:235b-instruct-cloud", name: "Qwen3-VL-235B", caps: { vision: true, coding: true, tools: true, files: true, reasoning: false, fast: "partial" }, costTier: "$$" },
+      { id: "ollama/qwen3.5:397b-cloud", name: "Qwen3.5-397B", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: "partial" }, costTier: "$" },
     ],
   },
-  google: {
+  opencode: {
     models: [
-      { id: "google/gemini-pro", name: "gemini-pro" },
-      { id: "google/gemini-1.5-pro", name: "gemini-1.5-pro" },
-      { id: "google/gemini-1.5-flash", name: "gemini-1.5-flash" },
+      { id: "opencode/claude-opus-4-6", name: "Claude Opus 4.6", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: false }, costTier: "$$$" },
+      { id: "opencode/claude-sonnet-4-6", name: "Claude Sonnet 4.6", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$$$" },
+      { id: "opencode/gemini-3-flash", name: "Gemini 3 Flash", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+      { id: "opencode/gemini-3.1-pro", name: "Gemini 3.1 Pro", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$$" },
+      { id: "opencode/glm-5", name: "GLM-5", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: "partial" }, costTier: "$" },
+      { id: "opencode/gpt-5", name: "GPT-5", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$$" },
+      { id: "opencode/gpt-5.4", name: "GPT-5.4", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$$" },
+      { id: "opencode/gpt-5.4-mini", name: "GPT-5.4 Mini", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+      { id: "opencode/gpt-5.4-nano", name: "GPT-5.4 Nano", caps: { vision: true, coding: "partial", tools: true, files: "partial", reasoning: false, fast: true }, costTier: "$" },
+      { id: "opencode/kimi-k2.5", name: "Kimi-K2.5", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: false }, costTier: "$" },
+      { id: "opencode/minimax-m2.5", name: "MiniMax-M2.5", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+      { id: "opencode/minimax-m2.5-free", name: "MiniMax-M2.5 Free", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "Free" },
+      { id: "opencode/nemotron-3-super-free", name: "Nemotron-3 Free", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "Free" },
     ],
   },
-  "meta-llama": {
+  "opencode-go": {
     models: [
-      { id: "meta-llama/llama-3-70b-instruct", name: "llama-3-70b-instruct" },
-      { id: "meta-llama/llama-3-8b-instruct", name: "llama-3-8b-instruct" },
-      { id: "meta-llama/llama-3.1-405b", name: "llama-3.1-405b" },
-    ],
-  },
-  deepseek: {
-    models: [
-      { id: "deepseek/deepseek-coder-33b", name: "deepseek-coder-33b" },
-      { id: "deepseek/deepseek-chat", name: "deepseek-chat" },
-      { id: "deepseek/deepseek-r1", name: "deepseek-r1" },
-    ],
-  },
-  nvidia: {
-    models: [
-      { id: "nvidia/nemotron-3-super-120b-a12b", name: "nemotron-3-super-120b-a12b" },
-      { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "nemotron-3-super-120b-a12b:free" },
-      { id: "nvidia/nemotron-nano-12b-v2-vl:free", name: "nemotron-nano-12b-v2-vl:free" },
-      { id: "nvidia/nemotron-nano-8b-v2:free", name: "nemotron-nano-8b-v2:free" },
-    ],
-  },
-  mistral: {
-    models: [
-      { id: "mistral/mistral-large", name: "mistral-large" },
-      { id: "mistral/mistral-medium", name: "mistral-medium" },
-      { id: "mistral/codestral", name: "codestral" },
-    ],
-  },
-  qwen: {
-    models: [
-      { id: "qwen/qwen-72b-chat", name: "qwen-72b-chat" },
-      { id: "qwen/qwen-coder-32b", name: "qwen-coder-32b" },
+      { id: "opencode-go/glm-5", name: "GLM-5", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: "partial" }, costTier: "$" },
+      { id: "opencode-go/kimi-k2.5", name: "Kimi-K2.5", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: false }, costTier: "$" },
+      { id: "opencode-go/minimax-m2.5", name: "MiniMax-M2.5", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
     ],
   },
   openrouter: {
     models: [
-      { id: "openrouter/auto", name: "auto" },
+      { id: "openrouter/anthropic/claude-opus-4.6", name: "Claude Opus 4.6", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: false }, costTier: "$$$" },
+      { id: "openrouter/anthropic/claude-sonnet-4.6", name: "Claude Sonnet 4.6", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$$$" },
+      { id: "openrouter/cognitivecomputations/dolphin-mistral-24b-venice-edition:free", name: "Dolphin-Mistral-24B", caps: { vision: false, coding: true, tools: "partial", files: true, reasoning: false, fast: true }, costTier: "Free" },
+      { id: "openrouter/deepseek/deepseek-v3.2", name: "DeepSeek-V3.2", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: "partial" }, costTier: "$" },
+      { id: "openrouter/google/gemini-3-flash-preview", name: "Gemini 3 Flash", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+      { id: "openrouter/google/gemini-3.1-pro-preview", name: "Gemini 3.1 Pro", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$$" },
+      { id: "openrouter/google/gemini-3.1-pro-preview-customtools", name: "Gemini 3.1 Pro Custom", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$$" },
+      { id: "openrouter/minimax/minimax-m2.5", name: "MiniMax-M2.5", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+      { id: "openrouter/minimax/minimax-m2.5:free", name: "MiniMax-M2.5 Free", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "Free" },
+      { id: "openrouter/minimax/minimax-m2.7", name: "MiniMax-M2.7", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+      { id: "openrouter/nvidia/nemotron-3-super-120b-a12b", name: "Nemotron-3 Super", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+      { id: "openrouter/nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron-3 Super Free", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "Free", context: "262K" },
+      { id: "openrouter/nvidia/nemotron-nano-12b-v2-vl:free", name: "Nemotron Nano VL", caps: { vision: true, coding: "partial", tools: true, files: "partial", reasoning: true, fast: true }, costTier: "Free" },
+      { id: "openrouter/nvidia/nemotron-nano-9b-v2:free", name: "Nemotron Nano 9B", caps: { vision: false, coding: "partial", tools: true, files: "partial", reasoning: "partial", fast: true }, costTier: "Free" },
+      { id: "openrouter/openai/gpt-5.4", name: "GPT-5.4", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$$" },
+      { id: "openrouter/openai/gpt-5.4-mini", name: "GPT-5.4 Mini", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+      { id: "openrouter/openai/gpt-5.4-nano", name: "GPT-5.4 Nano", caps: { vision: true, coding: "partial", tools: true, files: "partial", reasoning: false, fast: true }, costTier: "$" },
+      { id: "openrouter/openai/gpt-oss-120b", name: "GPT-OSS-120B", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+      { id: "openrouter/openai/gpt-oss-120b:free", name: "GPT-OSS-120B Free", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "Free" },
+      { id: "openrouter/qwen/qwen3-coder-next", name: "Qwen3-Coder-Next", caps: { vision: false, coding: true, tools: true, files: true, reasoning: false, fast: true }, costTier: "$" },
+      { id: "openrouter/qwen/qwen3-vl-8b-instruct", name: "Qwen3-VL-8B", caps: { vision: true, coding: "partial", tools: true, files: "partial", reasoning: false, fast: true }, costTier: "$" },
+      { id: "openrouter/x-ai/grok-4-fast", name: "Grok-4 Fast", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$", context: "2M" },
+      { id: "openrouter/z-ai/glm-5", name: "GLM-5", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: "partial" }, costTier: "$" },
+      { id: "openrouter/z-ai/glm-5-turbo", name: "GLM-5 Turbo", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+    ],
+  },
+  venice: {
+    models: [
+      { id: "venice/claude-opus-4-6", name: "Claude Opus 4.6", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: false }, costTier: "$$$" },
+      { id: "venice/claude-sonnet-4-6", name: "Claude Sonnet 4.6", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$$$" },
+      { id: "venice/deepseek-v3.2", name: "DeepSeek-V3.2", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: "partial" }, costTier: "$" },
+      { id: "venice/gemini-3-1-pro-preview", name: "Gemini 3.1 Pro", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$$" },
+      { id: "venice/gemini-3-pro-preview", name: "Gemini 3 Pro", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$$" },
+      { id: "venice/google-gemma-3-27b-it", name: "Gemma-3-27B", caps: { vision: false, coding: "partial", tools: "partial", files: "partial", reasoning: false, fast: true }, costTier: "$" },
+      { id: "venice/grok-41-fast", name: "Grok-4.1 Fast", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$", context: "2M" },
+      { id: "venice/grok-code-fast-1", name: "Grok Code Fast", caps: { vision: false, coding: true, tools: true, files: true, reasoning: false, fast: true }, costTier: "$" },
+      { id: "venice/hermes-3-llama-3.1-405b", name: "Hermes-3-405B", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: false }, costTier: "$$" },
+      { id: "venice/kimi-k2-5", name: "Kimi-K2.5", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: false }, costTier: "$" },
+      { id: "venice/kimi-k2-thinking", name: "Kimi-K2 Thinking", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: false }, costTier: "$", context: "256K" },
+      { id: "venice/llama-3.3-70b", name: "Llama-3.3-70B", caps: { vision: false, coding: true, tools: "partial", files: true, reasoning: false, fast: true }, costTier: "$", context: "125K" },
+      { id: "venice/minimax-m25", name: "MiniMax-M2.5", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+      { id: "venice/mistral-31-24b", name: "Mistral-3.1-24B", caps: { vision: false, coding: true, tools: "partial", files: true, reasoning: false, fast: true }, costTier: "$" },
+      { id: "venice/nvidia-nemotron-3-nano-30b-a3b", name: "Nemotron Nano 30B", caps: { vision: false, coding: "partial", tools: true, files: "partial", reasoning: "partial", fast: true }, costTier: "$" },
+      { id: "venice/olafangensan-glm-4.7-flash-heretic", name: "GLM-4.7 Heretic", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+      { id: "venice/openai-gpt-53-codex", name: "GPT-5.3 Codex", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$$" },
+      { id: "venice/openai-gpt-54", name: "GPT-5.4", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$$" },
+      { id: "venice/openai-gpt-oss-120b", name: "GPT-OSS-120B", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+      { id: "venice/qwen3-235b-a22b-instruct-2507", name: "Qwen3-235B Instruct", caps: { vision: false, coding: true, tools: true, files: true, reasoning: false, fast: true }, costTier: "$" },
+      { id: "venice/qwen3-235b-a22b-thinking-2507", name: "Qwen3-235B Thinking", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: "partial" }, costTier: "$" },
+      { id: "venice/qwen3-4b", name: "Qwen3-4B", caps: { vision: false, coding: "partial", tools: "partial", files: "partial", reasoning: false, fast: true }, costTier: "$" },
+      { id: "venice/qwen3-5-35b-a3b", name: "Qwen3.5-35B", caps: { vision: false, coding: true, tools: true, files: true, reasoning: "partial", fast: true }, costTier: "$" },
+      { id: "venice/qwen3-coder-480b-a35b-instruct", name: "Qwen3-Coder-480B", caps: { vision: false, coding: true, tools: true, files: true, reasoning: false, fast: false }, costTier: "$$" },
+      { id: "venice/qwen3-coder-480b-a35b-instruct-turbo", name: "Qwen3-Coder-480B Turbo", caps: { vision: false, coding: true, tools: true, files: true, reasoning: false, fast: true }, costTier: "$$" },
+      { id: "venice/qwen3-next-80b", name: "Qwen3-Next-80B", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+      { id: "venice/qwen3-vl-235b-a22b", name: "Qwen3-VL-235B", caps: { vision: true, coding: true, tools: true, files: true, reasoning: true, fast: "partial" }, costTier: "$$" },
+      { id: "venice/venice-uncensored", name: "Venice Uncensored", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+      { id: "venice/zai-org-glm-4.7", name: "GLM-4.7", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$", context: "200K" },
+      { id: "venice/zai-org-glm-4.7-flash", name: "GLM-4.7 Flash", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: true }, costTier: "$" },
+      { id: "venice/zai-org-glm-5", name: "GLM-5", caps: { vision: false, coding: true, tools: true, files: true, reasoning: true, fast: "partial" }, costTier: "$" },
     ],
   },
 };
 
-// Process models with derived capabilities
+// Process models with explicit capabilities from cheatsheet
 const processModels = () => {
   const models = [];
   Object.entries(MODEL_PROVIDERS_DATA).forEach(([provider, data]) => {
     data.models.forEach(model => {
-      const caps = deriveCapabilities(model.id);
-      const costTier = deriveCostTier(model.id, model.cost?.input);
-      const context = formatContext(model.contextWindow);
-      
       models.push({
         ...model,
         provider,
-        caps,
-        costTier,
-        context,
+        caps: model.caps || deriveCapabilities(model.id),
+        costTier: model.costTier || deriveCostTier(model.id),
+        context: model.context || null,
       });
     });
   });
@@ -161,9 +208,9 @@ const getProviders = () => {
     count: data.models.length,
     models: data.models.map(m => ({
       ...m,
-      caps: deriveCapabilities(m.id),
-      costTier: deriveCostTier(m.id, m.cost?.input),
-      context: formatContext(m.contextWindow),
+      caps: m.caps || deriveCapabilities(m.id),
+      costTier: m.costTier || deriveCostTier(m.id),
+      context: m.context || null,
     })),
   }));
 };
