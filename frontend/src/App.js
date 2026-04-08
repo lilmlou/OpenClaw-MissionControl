@@ -1103,7 +1103,7 @@ function CoworkPage() {
           )}
         </div>
 
-        <div className="p-4" style={{ borderTop: `1px solid ${C.border}` }}>
+        <div className="p-4 relative z-20" style={{ borderTop: `1px solid ${C.border}` }}>
           <div className="flex gap-2">
             <input
               type="text"
@@ -1114,7 +1114,7 @@ function CoworkPage() {
               className="flex-1 px-4 py-2 rounded-xl text-sm"
               style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text }}
             />
-            <Button onClick={handleSend} style={{ background: C.accent }}>
+            <Button onClick={handleSend} className="relative z-30" style={{ background: C.accent }}>
               <Send className="w-4 h-4" />
             </Button>
           </div>
