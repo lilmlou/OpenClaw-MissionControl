@@ -277,9 +277,9 @@ function ModelSelector({ models, providers, activeModel, onSelect }) {
           <div style={{ position: "relative" }} ref={provRef}>
 
             {/* Providers panel (anchor, directly below/above trigger) */}
-            <div className="py-1 shadow-2xl"
-              style={{ width: 170, background: panelBg, border: `1px solid ${borderClr}`, borderRadius: hasModels ? "0 12px 12px 0" : 12, borderLeft: hasModels ? "none" : `1px solid ${borderClr}` }}>
-              <div className="px-3 py-2" style={{ borderBottom: "1px solid #1e1e1e" }}>
+            <div className="shadow-2xl"
+              style={{ width: 155, background: panelBg, border: `1px solid ${borderClr}`, borderRadius: hasModels ? "0 12px 12px 0" : 12, borderLeft: hasModels ? "none" : `1px solid ${borderClr}` }}>
+              <div className="px-2.5 py-1.5" style={{ borderBottom: "1px solid #1e1e1e" }}>
                 <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>Providers</span>
               </div>
               <div style={{ maxHeight: 320, overflowY: "auto" }}>
@@ -287,14 +287,14 @@ function ModelSelector({ models, providers, activeModel, onSelect }) {
                   <button key={prov.name} type="button"
                     onMouseEnter={() => handleProvEnter(prov.name)}
                     onMouseLeave={handleProvLeave}
-                    className="w-full flex items-center gap-2 px-3 py-[7px] text-left transition-colors"
+                    className="w-full flex items-center gap-1 px-2.5 py-[6px] text-left transition-colors"
                     style={{ background: prov.name === hovProv ? "rgba(29,140,248,0.06)" : "transparent" }}
                     onMouseOver={e => { if (prov.name !== hovProv) e.currentTarget.style.background = hoverBg; }}
                     onMouseOut={e => { e.currentTarget.style.background = prov.name === hovProv ? "rgba(29,140,248,0.06)" : "transparent"; }}
                     data-testid={`provider-${prov.name}`}>
                     <ChevronLeft className="w-3 h-3 shrink-0" style={{ color: prov.name === hovProv ? C.accent : "#333" }} />
-                    <span className="text-[12px] font-medium flex-1" style={{ color: prov.name === hovProv ? "#ddd" : "#888" }}>{prov.name}</span>
-                    <span className="text-[10px]" style={{ color: "#444" }}>{prov.count}</span>
+                    <span className="text-[12px] font-medium" style={{ color: prov.name === hovProv ? "#ddd" : "#888" }}>{prov.name}</span>
+                    <span className="text-[10px] ml-auto" style={{ color: "#444" }}>{prov.count}</span>
                   </button>
                 ))}
               </div>
@@ -303,34 +303,34 @@ function ModelSelector({ models, providers, activeModel, onSelect }) {
             {/* Models panel (absolutely positioned LEFT of providers, bottom or top aligned) */}
             {hasModels && (
               <div className="shadow-2xl" onMouseEnter={handleModelsEnter} onMouseLeave={handleModelsLeave}
-                style={{ position: "absolute", right: "100%", [modelsUp ? "bottom" : "top"]: 0, width: 280, maxHeight: 400, background: panelBg, borderTop: `1px solid ${borderClr}`, borderLeft: `1px solid ${borderClr}`, borderBottom: `1px solid ${borderClr}`, borderRight: "none", borderRadius: "12px 0 0 12px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                <div className="px-3 py-2 shrink-0 flex items-center justify-between" style={{ borderBottom: "1px solid #1e1e1e" }}>
+                style={{ position: "absolute", right: "100%", [modelsUp ? "bottom" : "top"]: 0, width: 260, maxHeight: 400, background: panelBg, borderTop: `1px solid ${borderClr}`, borderLeft: `1px solid ${borderClr}`, borderBottom: `1px solid ${borderClr}`, borderRight: "none", borderRadius: "12px 0 0 12px", display: "flex", flexDirection: "column" }}>
+                <div className="px-2.5 py-1.5 shrink-0 flex items-center justify-between" style={{ borderBottom: "1px solid #1e1e1e" }}>
                   <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>{hovProv}</span>
-                  <span className="text-[10px]" style={{ color: "#444" }}>{provModels.length} models</span>
+                  <span className="text-[10px]" style={{ color: "#444" }}>{provModels.length}</span>
                 </div>
-                <ScrollArea className="flex-1" style={{ maxHeight: 355 }}>
+                <div style={{ overflowY: "auto", maxHeight: 365 }} data-testid="models-scroll-container">
                   {provModels.map(m => {
                     const isActive = m.id === activeModel;
                     return (
                       <button key={m.id} type="button" onClick={() => handleSelect(m.id)}
                         className="w-full text-left transition-colors"
-                        style={{ padding: "7px 12px", background: isActive ? "rgba(29,140,248,0.08)" : "transparent", borderBottom: "1px solid #1e1e1e" }}
+                        style={{ padding: "5px 10px", background: isActive ? "rgba(29,140,248,0.08)" : "transparent", borderBottom: "1px solid #1e1e1e" }}
                         onMouseOver={e => { if (!isActive) e.currentTarget.style.background = hoverBg; }}
                         onMouseOut={e => { e.currentTarget.style.background = isActive ? "rgba(29,140,248,0.08)" : "transparent"; }}
                         data-testid={`model-item-${m.name.replace(/\s+/g, "-").toLowerCase()}`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[13px] font-medium truncate" style={{ color: isActive ? C.accent : "#ddd" }}>{m.name}</span>
-                          {isActive && <Check className="w-3.5 h-3.5 shrink-0" style={{ color: C.accent }} />}
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[12px] font-medium truncate" style={{ color: isActive ? C.accent : "#ddd" }}>{m.name}</span>
+                          {isActive && <Check className="w-3 h-3 shrink-0" style={{ color: C.accent }} />}
                         </div>
-                        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                        <div className="mt-0.5 flex items-center gap-1 flex-wrap">
                           {m.costTier && <CostBadge tier={m.costTier} />}
-                          {m.context && <span className="text-[9px] px-1.5 py-0.5 rounded font-medium" style={{ background: "#1a2332", color: "#60a5fa", border: "1px solid #1e3a5f" }}>{m.context}</span>}
-                          <CapabilityIcons caps={m.caps} size={11} gap={4} />
+                          {m.context && <span className="text-[9px] px-1 py-0 rounded font-medium" style={{ background: "#1a2332", color: "#60a5fa", border: "1px solid #1e3a5f" }}>{m.context}</span>}
+                          <CapabilityIcons caps={m.caps} size={10} gap={3} />
                         </div>
                       </button>
                     );
                   })}
-                </ScrollArea>
+                </div>
               </div>
             )}
           </div>
