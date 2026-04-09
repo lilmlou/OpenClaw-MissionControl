@@ -210,47 +210,60 @@ function Markdown({ content }) {
   );
 }
 
-/* ─── Model Selector (Click-based, smart positioning, + menu style) ─────── */
+/* ─── Model Selector (Mirrored + menu style: hover, flush, smart direction) */
 function ModelSelector({ models, providers, activeModel, onSelect }) {
   const [open, setOpen] = useState(false);
-  const [selProv, setSelProv] = useState(null);
-  const [expanded, setExpanded] = useState(false);
-  const [dropUp, setDropUp] = useState(true);
+  const [hovProv, setHovProv] = useState(null);
+  const [dropUp, setDropUp] = useState(false);
+  const [modelsUp, setModelsUp] = useState(true);
   const ref = useRef(null);
-  const SHOW_COUNT = 8;
+  const provRef = useRef(null);
+  const hoverTimer = useRef(null);
 
   useEffect(() => {
     if (!open) return;
-    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setSelProv(null); setExpanded(false); } };
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setHovProv(null); } };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
-  // Smart positioning: check available space
+  // Smart positioning on open
   useEffect(() => {
     if (!open || !ref.current) return;
     const rect = ref.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
     const spaceAbove = rect.top;
-    setDropUp(spaceAbove > spaceBelow && spaceAbove > 280);
+    // Providers: only flip up when very little space below
+    setDropUp(spaceBelow < 200 && spaceAbove > 280);
   }, [open]);
+
+  // Models panel direction: check space above providers panel
+  useEffect(() => {
+    if (!hovProv || !provRef.current) return;
+    const rect = provRef.current.getBoundingClientRect();
+    const spaceAbove = rect.top;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    setModelsUp(spaceAbove > 200 || spaceAbove >= spaceBelow);
+  }, [hovProv]);
 
   const activeName = activeModel ? (models.find(m => m.id === activeModel)?.name ?? activeModel.split("/").pop()) : null;
   const label = activeName ? (activeName.length > 22 ? activeName.slice(0, 20) + "..." : activeName) : "Select model";
+  const provModels = hovProv ? (providers.find(p => p.name === hovProv)?.models ?? []) : [];
 
-  const provModels = selProv ? (providers.find(p => p.name === selProv)?.models ?? []) : [];
-  const visibleModels = expanded ? provModels : provModels.slice(0, SHOW_COUNT);
-  const hasMore = provModels.length > SHOW_COUNT && !expanded;
+  const handleSelect = async (id) => { setOpen(false); setHovProv(null); await onSelect(id); };
+  const handleProvEnter = (name) => { clearTimeout(hoverTimer.current); setHovProv(name); };
+  const handleProvLeave = () => { hoverTimer.current = setTimeout(() => setHovProv(null), 150); };
+  const handleModelsEnter = () => { clearTimeout(hoverTimer.current); };
+  const handleModelsLeave = () => { hoverTimer.current = setTimeout(() => setHovProv(null), 150); };
 
-  const handleSelect = async (modelId) => { setOpen(false); setSelProv(null); setExpanded(false); await onSelect(modelId); };
-  const handleProvClick = (name) => { setSelProv(prev => prev === name ? null : name); setExpanded(false); };
-
-  const panelStyle = { background: "#151515", border: "1px solid #2a2a2a" };
+  const panelBg = "#151515";
+  const borderClr = "#2a2a2a";
   const hoverBg = "rgba(255,255,255,0.04)";
+  const hasModels = hovProv && provModels.length > 0;
 
   return (
     <div ref={ref} className="relative">
-      <button type="button" onClick={() => { setOpen(v => !v); setSelProv(null); setExpanded(false); }}
+      <button type="button" onClick={() => { setOpen(v => !v); setHovProv(null); }}
         className="flex items-center gap-1 text-[12px] transition-colors" style={{ color: open ? C.text : C.muted }}
         data-testid="model-selector-trigger">
         <span className="font-medium">{label}</span>
@@ -258,73 +271,68 @@ function ModelSelector({ models, providers, activeModel, onSelect }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 flex items-end gap-1"
+        <div className="absolute right-0 z-50"
           style={dropUp ? { bottom: "100%", marginBottom: 8 } : { top: "100%", marginTop: 8 }}>
-          {/* Models panel (LEFT, appears on click) */}
-          {selProv && provModels.length > 0 && (
-            <div className="rounded-xl py-1 shadow-2xl" style={{ ...panelStyle, width: 280, maxHeight: 420, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-              <div className="px-3 py-2 shrink-0 flex items-center justify-between" style={{ borderBottom: "1px solid #1e1e1e" }}>
-                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>{selProv}</span>
-                <span className="text-[10px]" style={{ color: "#444" }}>{provModels.length} models</span>
-              </div>
-              <ScrollArea className="flex-1" style={{ maxHeight: 370 }}>
-                {visibleModels.map(m => {
-                  const isActive = m.id === activeModel;
-                  return (
-                    <button key={m.id} type="button" onClick={() => handleSelect(m.id)}
-                      className="w-full text-left transition-colors"
-                      style={{ padding: "7px 12px", background: isActive ? "rgba(29,140,248,0.08)" : "transparent", borderBottom: "1px solid #1e1e1e" }}
-                      onMouseOver={e => { if (!isActive) e.currentTarget.style.background = hoverBg; }}
-                      onMouseOut={e => { e.currentTarget.style.background = isActive ? "rgba(29,140,248,0.08)" : "transparent"; }}
-                      data-testid={`model-item-${m.name.replace(/\s+/g, "-").toLowerCase()}`}>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[13px] font-medium truncate" style={{ color: isActive ? C.accent : "#ddd" }}>{m.name}</span>
-                        {isActive && <Check className="w-3.5 h-3.5 shrink-0" style={{ color: C.accent }} />}
-                      </div>
-                      <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                        {m.costTier && <CostBadge tier={m.costTier} />}
-                        {m.context && <span className="text-[9px] px-1.5 py-0.5 rounded font-medium" style={{ background: "#1a2332", color: "#60a5fa", border: "1px solid #1e3a5f" }}>{m.context}</span>}
-                        <CapabilityIcons caps={m.caps} size={11} gap={4} />
-                      </div>
-                    </button>
-                  );
-                })}
-                {hasMore && (
-                  <button type="button" onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
-                    className="w-full text-center py-2.5 text-[12px] font-medium transition-colors"
-                    style={{ color: C.accent }}
-                    onMouseOver={e => { e.currentTarget.style.background = hoverBg; }}
-                    onMouseOut={e => { e.currentTarget.style.background = "transparent"; }}
-                    data-testid="model-more-btn">
-                    more... ({provModels.length - SHOW_COUNT})
-                  </button>
-                )}
-              </ScrollArea>
-            </div>
-          )}
+          {/* Wrapper: providers as anchor, models absolutely positioned */}
+          <div style={{ position: "relative" }} ref={provRef}>
 
-          {/* Providers panel (RIGHT) */}
-          <div className="rounded-xl py-1 shadow-2xl" style={{ ...panelStyle, width: 160 }}>
-            <div className="px-3 py-2" style={{ borderBottom: "1px solid #1e1e1e" }}>
-              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>Providers</span>
-            </div>
-            <div style={{ maxHeight: 320, overflowY: "auto" }}>
-              {providers.map(prov => (
-                <button key={prov.name} type="button"
-                  onClick={() => handleProvClick(prov.name)}
-                  className="w-full flex items-center justify-between px-3 py-[7px] text-left transition-colors"
-                  style={{ background: prov.name === selProv ? "rgba(29,140,248,0.06)" : "transparent" }}
-                  onMouseOver={e => { e.currentTarget.style.background = prov.name === selProv ? "rgba(29,140,248,0.06)" : hoverBg; }}
-                  onMouseOut={e => { e.currentTarget.style.background = prov.name === selProv ? "rgba(29,140,248,0.06)" : "transparent"; }}
-                  data-testid={`provider-${prov.name}`}>
-                  <span className="text-[12px] font-medium" style={{ color: prov.name === selProv ? "#ddd" : "#888" }}>{prov.name}</span>
-                  <div className="flex items-center gap-1">
+            {/* Providers panel (anchor, directly below/above trigger) */}
+            <div className="py-1 shadow-2xl"
+              style={{ width: 170, background: panelBg, border: `1px solid ${borderClr}`, borderRadius: hasModels ? "0 12px 12px 0" : 12, borderLeft: hasModels ? "none" : `1px solid ${borderClr}` }}>
+              <div className="px-3 py-2" style={{ borderBottom: "1px solid #1e1e1e" }}>
+                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>Providers</span>
+              </div>
+              <div style={{ maxHeight: 320, overflowY: "auto" }}>
+                {providers.map(prov => (
+                  <button key={prov.name} type="button"
+                    onMouseEnter={() => handleProvEnter(prov.name)}
+                    onMouseLeave={handleProvLeave}
+                    className="w-full flex items-center gap-2 px-3 py-[7px] text-left transition-colors"
+                    style={{ background: prov.name === hovProv ? "rgba(29,140,248,0.06)" : "transparent" }}
+                    onMouseOver={e => { if (prov.name !== hovProv) e.currentTarget.style.background = hoverBg; }}
+                    onMouseOut={e => { e.currentTarget.style.background = prov.name === hovProv ? "rgba(29,140,248,0.06)" : "transparent"; }}
+                    data-testid={`provider-${prov.name}`}>
+                    <ChevronLeft className="w-3 h-3 shrink-0" style={{ color: prov.name === hovProv ? C.accent : "#333" }} />
+                    <span className="text-[12px] font-medium flex-1" style={{ color: prov.name === hovProv ? "#ddd" : "#888" }}>{prov.name}</span>
                     <span className="text-[10px]" style={{ color: "#444" }}>{prov.count}</span>
-                    <ChevronLeft className="w-3 h-3" style={{ color: prov.name === selProv ? C.accent : "#333" }} />
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Models panel (absolutely positioned LEFT of providers, bottom or top aligned) */}
+            {hasModels && (
+              <div className="shadow-2xl" onMouseEnter={handleModelsEnter} onMouseLeave={handleModelsLeave}
+                style={{ position: "absolute", right: "100%", [modelsUp ? "bottom" : "top"]: 0, width: 280, maxHeight: 400, background: panelBg, borderTop: `1px solid ${borderClr}`, borderLeft: `1px solid ${borderClr}`, borderBottom: `1px solid ${borderClr}`, borderRight: "none", borderRadius: "12px 0 0 12px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                <div className="px-3 py-2 shrink-0 flex items-center justify-between" style={{ borderBottom: "1px solid #1e1e1e" }}>
+                  <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>{hovProv}</span>
+                  <span className="text-[10px]" style={{ color: "#444" }}>{provModels.length} models</span>
+                </div>
+                <ScrollArea className="flex-1" style={{ maxHeight: 355 }}>
+                  {provModels.map(m => {
+                    const isActive = m.id === activeModel;
+                    return (
+                      <button key={m.id} type="button" onClick={() => handleSelect(m.id)}
+                        className="w-full text-left transition-colors"
+                        style={{ padding: "7px 12px", background: isActive ? "rgba(29,140,248,0.08)" : "transparent", borderBottom: "1px solid #1e1e1e" }}
+                        onMouseOver={e => { if (!isActive) e.currentTarget.style.background = hoverBg; }}
+                        onMouseOut={e => { e.currentTarget.style.background = isActive ? "rgba(29,140,248,0.08)" : "transparent"; }}
+                        data-testid={`model-item-${m.name.replace(/\s+/g, "-").toLowerCase()}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[13px] font-medium truncate" style={{ color: isActive ? C.accent : "#ddd" }}>{m.name}</span>
+                          {isActive && <Check className="w-3.5 h-3.5 shrink-0" style={{ color: C.accent }} />}
+                        </div>
+                        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                          {m.costTier && <CostBadge tier={m.costTier} />}
+                          {m.context && <span className="text-[9px] px-1.5 py-0.5 rounded font-medium" style={{ background: "#1a2332", color: "#60a5fa", border: "1px solid #1e3a5f" }}>{m.context}</span>}
+                          <CapabilityIcons caps={m.caps} size={11} gap={4} />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </ScrollArea>
+              </div>
+            )}
           </div>
         </div>
       )}

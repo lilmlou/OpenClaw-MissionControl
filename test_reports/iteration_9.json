@@ -1,0 +1,58 @@
+{
+  "summary": "Completed frontend testing of OpenClaw Mission Control iteration 9 - Model Selector Redesign with hover-based interaction. All 18 requested features tested and verified. Key changes: 1) Model selector now uses HOVER-based interaction (not click), 2) < icon on LEFT side of provider names, 3) Providers dropdown directly below Select Model button, 4) Models panel appears LEFT of providers (flush/tight, no gap), 5) Models panel bottom-aligns with providers (grows upward), 6) All models scrollable (Venice 31 models verified), 7) 150ms debounce on mouse leave.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+
+  "passed_tests": [
+    "Model selector trigger shows 'Select model' with ChevronDown icon",
+    "Clicking Select model opens providers dropdown DIRECTLY BELOW the trigger button",
+    "6 providers listed with < icon on LEFT side: huggingface(9), ollama(11), opencode(13), opencode-go(3), openrouter(24), venice(31)",
+    "HOVERING a provider shows models panel to the LEFT (hover-based, not click-based)",
+    "Models panel is flush/tight with providers panel (no gap, shared border styling)",
+    "Models panel bottom-aligns with providers (grows upward for large lists)",
+    "Venice shows all 31 models (scrollable)",
+    "Each model shows: name, Cost badge ($/$$/$$$/Free), Context badge (2M/256K/125K), capability icons",
+    "Clicking a model selects it and closes dropdown",
+    "Selected model name shows in trigger button text (e.g., 'Claude Opus 4.6')",
+    "Hovering a different provider smoothly switches the models panel",
+    "Moving mouse away from both panels closes the models panel (with 150ms debounce verified)",
+    "Clicking outside closes entire dropdown",
+    "Agent sparkles icon next to + button links to /agent page",
+    "No suggestion cards below chat input on home screen (only 'MISSION CONTROL' title text)",
+    "Plus menu works with Skills/Connectors/Style sub-menus (all 8 skills, 6 connectors, 4 styles)",
+    "Chat send and thread creation work correctly",
+    "All sidebar navigation tabs work (Chat, Agent, Dashboard, Jobs, Approvals, Spaces, Settings, Cowork, Customize)"
+  ],
+
+  "test_report_links": [],
+
+  "action_items": [],
+
+  "critical_code_review_comments": [],
+
+  "updated_files": [],
+
+  "success_rate": {
+    "backend": "N/A - Frontend only testing",
+    "frontend": "100%"
+  },
+
+  "seed_data_creation": "None - using mock data from Zustand store",
+
+  "retest_needed": false,
+
+  "should_main_agent_self_test": true,
+
+  "context_for_next_testing_agent": "All 18 requested features tested and working. Key iteration 9 changes verified: 1) Model selector uses HOVER-based interaction - hovering a provider shows its models panel to the LEFT, 2) < (ChevronLeft) icon on LEFT side of each provider name, 3) Providers panel directly below trigger, models panel to LEFT of providers, 4) Panels are flush/tight with shared border styling (borderRadius adjustments), 5) Models panel uses position:absolute with right:100% and bottom:0 for left-side bottom-aligned positioning, 6) 150ms debounce timer on mouse leave, 7) Venice shows all 31 models (scrollable via ScrollArea), 8) Cost badges ($, $$, $$$, Free), Context badges (2M, 256K, etc.), and 6 capability icons per model. Plus menu works with all sub-menus. Note: 'Made with Emergent' badge may overlap model selector in conversation mode (input at bottom) - this is a platform UI element, not a bug. Test on HOME SCREEN where input is centered.",
+
+  "mocked_apis_note": "ALL APIs are MOCKED via Zustand store - no real backend calls. Mocked: sendMessage (simulated chat response with streaming), executeCommand (simulated terminal output), switchModel (state update), cancelJob (state update), approveRequest/rejectRequest (state update), createThread/deleteThread (localStorage), addSpace (localStorage), Agent responses (simulated with setTimeout delay)"
+}
