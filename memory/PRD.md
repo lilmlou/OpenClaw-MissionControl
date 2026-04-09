@@ -9,29 +9,50 @@ Complete the OpenClaw Mission Control dashboard interface to match Claude's desk
 
 ## What's Been Implemented
 
-### Model Selector - Complete (Feb 9, 2026)
-- Mirrored + menu style: `<` icon LEFT of providers, hover-triggered models panel
-- Providers dropdown directly BELOW trigger, models panel LEFT growing upward
-- Tight layout: 190px models panel, minimal padding (3px 6px), no excess space
-- ALL models have context badges (128K/256K/200K/1M/1M+/2M) sourced from cheatsheet
-- Cost ($/$$/$$$/Free), Context, and 6 Capability icons per model
-- Smart positioning (up/down based on viewport)
-- Scrollable model list, flush panels, 150ms hover debounce
-- 6 providers with full cheatsheet data: huggingface(11), ollama(10), opencode(12), opencode-go(4), openrouter(29), venice(31)
-- Added missing models: MiniMax-M2.5 HF, DeepSeek-R1, openrouter free models (Qwen3.6+, Qwen Coder, Qwen Next, Nano 30B, GLM Air, Auto Router), opencode-go M2.7
+### Model Selector (Feb 9, 2026)
+- Mirrored + menu style, hover-triggered, flush panels, smart positioning
+- ALL models have context badges (128K/256K/200K/1M/1M+/2M) from cheatsheet
+- Cost/Context/Capability icons per model, scrollable, 6 providers (97 total models)
 
-### Other Completed Features (Feb 8-9, 2026)
-- Conversation Threading, Settings (5 Claude-style tabs), Spaces, Agent Page, Jobs, Cowork, Code, Customize
-- UI: removed suggestion cards, added Agent shortcut icon
+### + Menu - Fully Functional (Feb 9, 2026)
+- **Add files or photos**: Opens native file picker dialog
+- **Add to Spaces**: Sub-menu lists existing spaces (Files/Design/Development) with colored icons, create new space inline with name input + Add button, assigns current thread to selected space
+- **Add from GitHub**: Fills prompt with "Pull from GitHub repo:"
+- **Skills**: Toggleable skills list + "Manage skills" / "Add skill" link to /customize
+- **Connectors**: 12 connectors with toggles + "Manage connectors" link to /settings?tab=apps
+- **Plugins**: Navigates to /customize plugin catalog
+- **Research**: Sets mode + fills "Do deep research on:" prompt
+- **Web search**: Toggle with checkmark indicator
+- **Use style**: Normal/Concise/Formal/Explanatory selector
+
+### Connectors - Desktop Apps Added (Feb 9, 2026)
+12 connectors: Control Mac, Desktop Commander, File Access, Web Search, Signal, Telegram, VS Code, Figma, Slack, Chrome Browser, Docker, Notion
+
+### Settings - Fully Functional (Feb 9, 2026)
+- **General**: Theme (Dark/Light/System) persists to state, Web Search toggle, Writing Style selector, Default Model display
+- **Profile**: Name, Email, Custom Instructions (all editable, persisted)
+- **Connected Apps**: 12 connector toggles, Add MCP Server form (name + URL), Add API Key form (name + key), Remove buttons
+- **Data Controls**: Save history / Usage data / Memory toggles (functional, persisted)
+- **Delete all conversations**: Confirmation dialog then clears all threads
+- **Security**: 2FA toggle, Active Sessions list (2 sessions, Current badge, Revoke option)
+
+### Customize Page - Plugin Catalog (Feb 9, 2026)
+- Skills section with 8 toggleable skills
+- Manage Connectors link → Settings > Connected Apps
+- Plugin catalog: 8 plugins across 3 categories (Tools/Creative/Dev), category filter tabs, install/uninstall toggles
+
+### Other Features (Feb 8, 2026)
+- Conversation Threading, Spaces, Agent Page, Jobs (live monitoring), Cowork (inline conversations), Code (terminal), Responsive layout
 
 ## P1 - Next Phase
-- [ ] + menu refinements - each toggle functional
-- [ ] Customize tab - Manage Connectors / Browser Plugin functionality
-- [ ] Settings abilities discussion & implementation
-- [ ] WebSocket connection infrastructure
-- [ ] Replace mock state with actual API responses
+- [ ] WebSocket gateway connection infrastructure
+- [ ] Terminal alias bridge for sandboxed OpenClaw user environment
+- [ ] Replace mock state with real API responses
+- [ ] Real model switching via gateway
 
 ## P2 - Future
-- [ ] Keyboard shortcuts, componentize App.js, voice input, mobile/PWA
+- [ ] Keyboard shortcuts (Cmd+K, Cmd+/)
+- [ ] Componentize monolithic App.js (~1700 lines)
+- [ ] Voice input, Mobile/PWA, Auto-route threads to spaces
 
-## Testing: All verified via screenshots (iterations 8-9 passed 100%)
+## Testing: 100% pass rate (iteration 10 - 22 features verified)
