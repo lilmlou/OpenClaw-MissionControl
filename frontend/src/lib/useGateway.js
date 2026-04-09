@@ -279,6 +279,12 @@ export const useGateway = create(
         web: false,
         signal: false,
         telegram: false,
+        vscode: false,
+        figma: false,
+        slack: false,
+        chrome: false,
+        docker: false,
+        notion: false,
       },
       
       // Skills state  
@@ -292,6 +298,30 @@ export const useGateway = create(
       
       // Tool access
       toolAccess: "lazy",
+      
+      // Data controls
+      dataControls: { saveHistory: true, usageData: false, memoryEnabled: true },
+      
+      // Security
+      security: { twoFactor: false },
+      
+      // Plugins
+      plugins: [
+        { id: "code-interpreter", name: "Code Interpreter", desc: "Execute Python, JS, and shell commands in sandbox", installed: true, category: "Tools" },
+        { id: "web-pilot", name: "Web Pilot", desc: "Browse, extract, and summarize web content", installed: false, category: "Tools" },
+        { id: "doc-parser", name: "Doc Parser", desc: "Parse PDFs, Word docs, and spreadsheets", installed: false, category: "Tools" },
+        { id: "image-gen", name: "Image Generator", desc: "Create images from text descriptions", installed: false, category: "Creative" },
+        { id: "diagram-maker", name: "Diagram Maker", desc: "Generate flowcharts, sequence diagrams, ERDs", installed: true, category: "Creative" },
+        { id: "git-assistant", name: "Git Assistant", desc: "PR reviews, commit messages, branch management", installed: false, category: "Dev" },
+        { id: "db-query", name: "DB Query", desc: "Run SQL queries against connected databases", installed: false, category: "Dev" },
+        { id: "api-tester", name: "API Tester", desc: "Test REST/GraphQL endpoints with auto-docs", installed: false, category: "Dev" },
+      ],
+      
+      // MCP Servers
+      mcpServers: [],
+      
+      // API Keys
+      apiKeys: [],
       
       // Active page/tab
       activePage: "chat",
@@ -364,6 +394,40 @@ export const useGateway = create(
       setWritingStyle: (writingStyle) => set({ writingStyle }),
       setWebSearchEnabled: (webSearchEnabled) => set({ webSearchEnabled }),
       setToolAccess: (toolAccess) => set({ toolAccess }),
+      
+      // Data controls
+      setDataControl: (key, value) => set((s) => ({
+        dataControls: { ...s.dataControls, [key]: value }
+      })),
+      
+      // Security
+      setSecurity: (key, value) => set((s) => ({
+        security: { ...s.security, [key]: value }
+      })),
+      
+      // Plugins
+      togglePlugin: (pluginId) => set((s) => ({
+        plugins: s.plugins.map(p => p.id === pluginId ? { ...p, installed: !p.installed } : p)
+      })),
+      
+      // MCP Servers
+      addMcpServer: (url, name) => set((s) => ({
+        mcpServers: [...s.mcpServers, { id: crypto.randomUUID().slice(0, 8), url, name: name || url, connected: false, addedAt: Date.now() }]
+      })),
+      removeMcpServer: (id) => set((s) => ({
+        mcpServers: s.mcpServers.filter(m => m.id !== id)
+      })),
+      
+      // API Keys
+      addApiKey: (name, key) => set((s) => ({
+        apiKeys: [...s.apiKeys, { id: crypto.randomUUID().slice(0, 8), name, key: key.slice(0, 4) + "..." + key.slice(-4), addedAt: Date.now() }]
+      })),
+      removeApiKey: (id) => set((s) => ({
+        apiKeys: s.apiKeys.filter(k => k.id !== id)
+      })),
+      
+      // Clear all threads
+      clearAllThreads: () => set({ threads: [], activeThreadId: null, messages: [] }),
       
       // Jobs actions
       updateJobStatus: (jobId, status, progress) => set((s) => ({

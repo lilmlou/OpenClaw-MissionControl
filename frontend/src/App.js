@@ -11,7 +11,7 @@ import {
   FileCode, Folder, RefreshCw, Users, Code2, ArrowRight, AlertCircle,
   CheckCircle, XCircle, Copy, Download, Upload, GitBranch,
   Search, Lightbulb, PenTool, BarChart3, FolderKanban, MessageSquareText,
-  Cloud, Lock, Unlock, Sparkles, Package, Puzzle, Link2, ChevronLeft,
+  Cloud, Lock, Unlock, Sparkles, Package, Puzzle, Link2, ChevronLeft, Box,
   Database, FileText, Presentation, Calendar, ListTodo, FileSearch,
   Smartphone, MonitorSmartphone, FileSpreadsheet, ClipboardList, Mail,
   FolderSync, ScreenShare, Timer, Receipt, NotebookPen, Menu,
@@ -98,6 +98,12 @@ const CONNECTORS = [
   { id: "web", label: "Web Search", icon: Globe },
   { id: "signal", label: "Signal", icon: Radio },
   { id: "telegram", label: "Telegram", icon: MessageCircle },
+  { id: "vscode", label: "VS Code", icon: Code2 },
+  { id: "figma", label: "Figma", icon: Paintbrush },
+  { id: "slack", label: "Slack", icon: MessageSquare },
+  { id: "chrome", label: "Chrome Browser", icon: Globe },
+  { id: "docker", label: "Docker", icon: Box },
+  { id: "notion", label: "Notion", icon: FileText },
 ];
 
 const SKILLS = ["deep-research", "code-review", "web-scraper", "file-manager", "task-scheduler", "mcp-builder", "slack-gif-creator", "canvas-design"];
@@ -344,8 +350,11 @@ function ModelSelector({ models, providers, activeModel, onSelect }) {
 function PlusMenu({ onSelect, disabled, onModeChange }) {
   const [open, setOpen] = useState(false);
   const [sub, setSub] = useState(null);
+  const [newSpaceName, setNewSpaceName] = useState("");
   const ref = useRef(null);
-  const { connectors, toggleConnector, enabledSkills, toggleSkill, webSearchEnabled, setWebSearchEnabled, writingStyle, setWritingStyle } = useGateway();
+  const fileRef = useRef(null);
+  const navigate = useNavigate();
+  const { connectors, toggleConnector, enabledSkills, toggleSkill, webSearchEnabled, setWebSearchEnabled, writingStyle, setWritingStyle, spaces, addSpace, activeThreadId, assignThreadToSpace } = useGateway();
 
   useEffect(() => {
     if (!open) return;
@@ -354,7 +363,7 @@ function PlusMenu({ onSelect, disabled, onModeChange }) {
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
-  const close = () => { setOpen(false); setSub(null); };
+  const close = () => { setOpen(false); setSub(null); setNewSpaceName(""); };
   const hoverBg = "rgba(255,255,255,0.04)";
   const panelStyle = { background: "#151515", border: "1px solid #2a2a2a" };
 
@@ -363,7 +372,7 @@ function PlusMenu({ onSelect, disabled, onModeChange }) {
       onMouseOver={e => { e.currentTarget.style.background = hoverBg; }} onMouseOut={e => { e.currentTarget.style.background = "transparent"; }}>
       {Icon && <Icon className="w-4 h-4 shrink-0" style={{ color: "#888" }} />}
       <span className="text-[13px] flex-1">{label}</span>
-      {badge !== undefined && badge > 0 && <span className="flex items-center gap-1"><span className="text-[10px]" style={{ color: "#fbbf24" }}>🔔</span><span className="text-[10px]" style={{ color: "#888" }}>{badge}</span></span>}
+      {badge !== undefined && badge > 0 && <span className="flex items-center gap-1"><span className="text-[10px]" style={{ color: "#fbbf24" }}>!</span><span className="text-[10px]" style={{ color: "#888" }}>{badge}</span></span>}
       {active && <Check className="w-3.5 h-3.5" style={{ color: C.accent }} />}
       {hasSub && <ChevronRight className="w-3.5 h-3.5" style={{ color: "#555" }} />}
     </button>
@@ -371,28 +380,81 @@ function PlusMenu({ onSelect, disabled, onModeChange }) {
 
   const Divider = () => <div className="my-1" style={{ height: 1, background: "#1e1e1e" }} />;
 
+  const SPACE_ICONS = { FileText, Code2, Paintbrush, FolderOpen, Briefcase, Globe, Layers };
+  const getSpaceIcon = (iconName) => SPACE_ICONS[iconName] || FolderOpen;
+
+  const handleAddToSpace = (spaceId) => {
+    if (activeThreadId) { assignThreadToSpace(activeThreadId, spaceId); }
+    close();
+  };
+
+  const handleCreateSpace = () => {
+    if (!newSpaceName.trim()) return;
+    const id = addSpace(newSpaceName.trim());
+    if (activeThreadId) assignThreadToSpace(activeThreadId, id);
+    close();
+  };
+
+  const handleFileClick = () => { fileRef.current?.click(); };
+  const handleFileChange = (e) => {
+    const files = e.target.files;
+    if (files?.length) { onSelect(`[Attached: ${Array.from(files).map(f => f.name).join(", ")}] `, true); }
+    close();
+  };
+
   return (
     <div ref={ref} className="relative">
+      <input type="file" ref={fileRef} multiple className="hidden" onChange={handleFileChange} />
       <button type="button" onClick={() => { setOpen(v => !v); setSub(null); }} disabled={disabled}
         className="w-7 h-7 rounded-full flex items-center justify-center transition-all shrink-0 disabled:opacity-40"
-        style={{ background: open ? "rgba(29,140,248,0.15)" : C.surface2, border: `1px solid ${open ? C.accent : C.border}`, color: open ? C.accent : C.muted }}>
+        style={{ background: open ? "rgba(29,140,248,0.15)" : C.surface2, border: `1px solid ${open ? C.accent : C.border}`, color: open ? C.accent : C.muted }}
+        data-testid="plus-menu-trigger">
         <Plus className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? "rotate-45" : ""}`} />
       </button>
       {open && (
         <div className="absolute bottom-full left-0 mb-2 z-50 flex items-end gap-1">
           <div className="w-56 rounded-xl py-1 shadow-2xl" style={panelStyle}>
-            <Row icon={Paperclip} label="Add files or photos" onClick={close} />
-            <Row icon={FolderOpen} label="Add to project" onClick={() => { onSelect("Add the following to the project: ", true); close(); }} />
+            <Row icon={Paperclip} label="Add files or photos" onClick={handleFileClick} />
+            <Row icon={Grid3X3} label="Add to Spaces" badge={spaces.length} hasSub onClick={() => setSub(p => p === "spaces" ? null : "spaces")} />
             <Row icon={GitBranch} label="Add from GitHub" onClick={() => { onSelect("Pull from GitHub repo: ", true); close(); }} />
             <Divider />
             <Row icon={Wrench} label="Skills" badge={enabledSkills.length} hasSub onClick={() => setSub(p => p === "skills" ? null : "skills")} />
             <Row icon={Layers} label="Connectors" badge={Object.values(connectors).filter(Boolean).length} hasSub onClick={() => setSub(p => p === "connectors" ? null : "connectors")} />
-            <Row icon={Cpu} label="Plugins" onClick={close} />
+            <Row icon={Puzzle} label="Plugins" onClick={() => { navigate("/customize"); close(); }} />
             <Divider />
             <Row icon={Telescope} label="Research" onClick={() => { onModeChange?.("research"); onSelect("Do deep research on: ", true); close(); }} />
             <Row icon={Globe} label="Web search" active={webSearchEnabled} onClick={() => setWebSearchEnabled(!webSearchEnabled)} />
             <Row icon={Bot} label="Use style" hasSub onClick={() => setSub(p => p === "style" ? null : "style")} />
           </div>
+          {sub === "spaces" && (
+            <div className="w-52 rounded-xl py-1 shadow-2xl" style={panelStyle}>
+              {spaces.map(sp => {
+                const SpIcon = getSpaceIcon(sp.icon);
+                return (
+                  <button key={sp.id} type="button" onClick={() => handleAddToSpace(sp.id)}
+                    className="w-full flex items-center gap-2.5 px-3 py-[6px] text-[13px] text-left transition-colors" style={{ color: "#ccc" }}
+                    onMouseOver={e => { e.currentTarget.style.background = hoverBg; }} onMouseOut={e => { e.currentTarget.style.background = "transparent"; }}
+                    data-testid={`space-assign-${sp.id}`}>
+                    <SpIcon className="w-3.5 h-3.5" style={{ color: sp.color }} />
+                    {sp.name}
+                  </button>
+                );
+              })}
+              <Divider />
+              <div className="px-3 py-1.5">
+                <div className="flex items-center gap-1.5">
+                  <input type="text" value={newSpaceName} onChange={e => setNewSpaceName(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") handleCreateSpace(); }}
+                    placeholder="New space name..."
+                    className="flex-1 text-[12px] px-2 py-1 rounded" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text, outline: "none" }}
+                    data-testid="new-space-input" />
+                  <button type="button" onClick={handleCreateSpace} className="text-[11px] px-2 py-1 rounded font-medium"
+                    style={{ background: newSpaceName.trim() ? C.accent : C.surface2, color: newSpaceName.trim() ? "#fff" : "#555" }}
+                    data-testid="create-space-btn">Add</button>
+                </div>
+              </div>
+            </div>
+          )}
           {sub === "skills" && (
             <div className="w-52 rounded-xl py-1 shadow-2xl" style={panelStyle}>
               {SKILLS.map(sk => (
@@ -402,23 +464,23 @@ function PlusMenu({ onSelect, disabled, onModeChange }) {
                 </button>
               ))}
               <Divider />
-              <Row icon={Wrench} label="Manage skills" onClick={close} />
+              <Row icon={Wrench} label="Manage skills" onClick={() => { navigate("/customize"); close(); }} />
               <button type="button" className="w-full flex items-center gap-2.5 px-3 py-[6px] text-[13px] text-left transition-colors" style={{ color: "#888" }}
                 onMouseOver={e => { e.currentTarget.style.background = hoverBg; e.currentTarget.style.color = "#ccc"; }}
-                onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#888"; }} onClick={close}>
+                onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#888"; }} onClick={() => { navigate("/customize"); close(); }}>
                 <Plus className="w-3.5 h-3.5" /> Add skill
               </button>
             </div>
           )}
           {sub === "connectors" && (
-            <div className="w-60 rounded-xl py-1 shadow-2xl" style={panelStyle}>
+            <div className="w-60 rounded-xl py-1 shadow-2xl max-h-80 overflow-y-auto" style={panelStyle}>
               {CONNECTORS.map(c => (
                 <div key={c.id} className="flex items-center gap-2.5 px-3 py-[7px] transition-colors" style={{ color: C.text }}
                   onMouseOver={e => { e.currentTarget.style.background = hoverBg; }} onMouseOut={e => { e.currentTarget.style.background = "transparent"; }}>
                   <c.icon className="w-4 h-4 shrink-0" style={{ color: "#888" }} /><span className="text-[13px] flex-1">{c.label}</span><Toggle on={connectors[c.id]} onToggle={() => toggleConnector(c.id)} />
                 </div>
               ))}
-              <Divider /><Row icon={Wrench} label="Manage connectors" onClick={close} />
+              <Divider /><Row icon={Wrench} label="Manage connectors" onClick={() => { navigate("/settings?tab=apps"); close(); }} />
             </div>
           )}
           {sub === "style" && (
@@ -473,11 +535,6 @@ function InputBar({ onSend, disabled, placeholder, fillPrompt, onFillConsumed })
         className="w-full focus:outline-none resize-none text-[14px] font-sans" style={{ background: "transparent", border: "none", color: C.text, padding: "14px 16px 10px", minHeight: 52, maxHeight: 180, opacity: disabled ? 0.5 : 1 }} data-testid="chat-input" />
       <div className="flex items-center gap-2 px-3 pb-3">
         <PlusMenu onSelect={handleQuick} disabled={disabled} onModeChange={handleModeFromMenu} />
-        <Link to="/agent" className="w-7 h-7 rounded-full flex items-center justify-center transition-all shrink-0"
-          style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted }}
-          title="Agent workspace" data-testid="agent-shortcut-btn">
-          <Sparkles className="w-3.5 h-3.5" />
-        </Link>
         <button type="button" onClick={() => setActiveMode(activeMode === "agent" ? "research" : "agent")}
           className="flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[12px] font-medium transition-colors"
           style={{ background: `${currentMode.color}18`, border: `1px solid ${currentMode.color}40`, color: currentMode.color }}
@@ -1132,8 +1189,17 @@ function CodePage() {
 
 /* ─── Settings Page (Claude-style tabs) ───────────────────────────────────────── */
 function SettingsPage() {
-  const { connectors, toggleConnector, writingStyle, setWritingStyle, webSearchEnabled, setWebSearchEnabled, userProfile, setUserProfile, activeModel, models } = useGateway();
+  const { connectors, toggleConnector, writingStyle, setWritingStyle, webSearchEnabled, setWebSearchEnabled, userProfile, setUserProfile, activeModel, models, theme, setTheme, dataControls, setDataControl, security, setSecurity, mcpServers, addMcpServer, removeMcpServer, apiKeys, addApiKey, removeApiKey, clearAllThreads, threads } = useGateway();
   const [tab, setTab] = useState("general");
+  const [mcpUrl, setMcpUrl] = useState("");
+  const [mcpName, setMcpName] = useState("");
+  const [showMcpForm, setShowMcpForm] = useState(false);
+  const [keyName, setKeyName] = useState("");
+  const [keyValue, setKeyValue] = useState("");
+  const [showKeyForm, setShowKeyForm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [sessions] = useState([{ id: 1, device: "This device", browser: "Chrome", lastActive: "Now", current: true }, { id: 2, device: "iPhone 16", browser: "Safari", lastActive: "2 hours ago", current: false }]);
+  const [showSessions, setShowSessions] = useState(false);
 
   const TABS = [
     { id: "general", label: "General", icon: Settings },
@@ -1143,9 +1209,11 @@ function SettingsPage() {
     { id: "security", label: "Security", icon: ShieldCheck },
   ];
 
+  const handleAddMcp = () => { if (mcpUrl.trim()) { addMcpServer(mcpUrl.trim(), mcpName.trim()); setMcpUrl(""); setMcpName(""); setShowMcpForm(false); } };
+  const handleAddKey = () => { if (keyName.trim() && keyValue.trim()) { addApiKey(keyName.trim(), keyValue.trim()); setKeyName(""); setKeyValue(""); setShowKeyForm(false); } };
+
   return (
     <div className="h-full flex" style={{ color: C.text }}>
-      {/* Settings sidebar */}
       <div className="shrink-0 overflow-auto" style={{ width: 200, borderRight: `1px solid ${C.border}`, background: "#0b0b0b" }}>
         <div className="p-4 pb-2"><h1 className="text-lg font-bold">Settings</h1></div>
         <div className="px-2 pb-4">
@@ -1163,7 +1231,6 @@ function SettingsPage() {
         </div>
       </div>
 
-      {/* Settings content */}
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-xl">
           {tab === "general" && (
@@ -1172,7 +1239,9 @@ function SettingsPage() {
               <div className="p-4 rounded-xl space-y-4" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
                 <div className="flex items-center justify-between"><span className="text-sm">Theme</span>
                   <div className="flex gap-1">{["Dark", "Light", "System"].map(t => (
-                    <button key={t} className="px-3 py-1 rounded text-xs" style={{ background: t === "Dark" ? C.accent : C.surface2, color: t === "Dark" ? "#fff" : C.muted }}>{t}</button>
+                    <button key={t} onClick={() => setTheme(t.toLowerCase())} className="px-3 py-1 rounded text-xs transition-colors"
+                      style={{ background: theme === t.toLowerCase() ? C.accent : C.surface2, color: theme === t.toLowerCase() ? "#fff" : C.muted }}
+                      data-testid={`theme-${t.toLowerCase()}`}>{t}</button>
                   ))}</div>
                 </div>
                 <div className="flex items-center justify-between"><span className="text-sm">Language</span><span className="text-sm" style={{ color: C.muted }}>English</span></div>
@@ -1180,7 +1249,7 @@ function SettingsPage() {
                 <div>
                   <label className="block text-sm mb-2">Writing Style</label>
                   <div className="flex gap-2">{["Normal", "Concise", "Formal", "Explanatory"].map(s => (
-                    <button key={s} onClick={() => setWritingStyle(s)} className="px-3 py-1.5 rounded text-xs" style={{ background: writingStyle === s ? C.accent : C.surface2, color: writingStyle === s ? "#fff" : C.muted }}>{s}</button>
+                    <button key={s} onClick={() => setWritingStyle(s)} className="px-3 py-1.5 rounded text-xs transition-colors" style={{ background: writingStyle === s ? C.accent : C.surface2, color: writingStyle === s ? "#fff" : C.muted }}>{s}</button>
                   ))}</div>
                 </div>
                 <div>
@@ -1198,18 +1267,18 @@ function SettingsPage() {
                 <div>
                   <label className="block text-sm mb-1.5">Display Name</label>
                   <input type="text" value={userProfile.name} onChange={e => setUserProfile({ name: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text }} data-testid="profile-name-input" />
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text, outline: "none" }} data-testid="profile-name-input" />
                 </div>
                 <div>
                   <label className="block text-sm mb-1.5">Email</label>
                   <input type="email" value={userProfile.email} onChange={e => setUserProfile({ email: e.target.value })} placeholder="meg@example.com"
-                    className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text }} />
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text, outline: "none" }} />
                 </div>
                 <div>
                   <label className="block text-sm mb-1.5">Custom Instructions</label>
                   <p className="text-xs mb-2" style={{ color: C.muted }}>Tell OpenClaw about yourself, your preferences, or how you'd like it to respond.</p>
                   <textarea value={userProfile.customInstructions} onChange={e => setUserProfile({ customInstructions: e.target.value })} rows={4} placeholder="e.g., I'm a frontend developer who prefers TypeScript and React..."
-                    className="w-full px-3 py-2 rounded-lg text-sm resize-none" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text }} data-testid="custom-instructions-input" />
+                    className="w-full px-3 py-2 rounded-lg text-sm resize-none" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text, outline: "none" }} data-testid="custom-instructions-input" />
                 </div>
               </div>
             </div>
@@ -1233,16 +1302,52 @@ function SettingsPage() {
               <div className="p-4 rounded-xl space-y-3" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
                 <h3 className="text-sm font-medium">MCP Servers</h3>
                 <p className="text-xs" style={{ color: C.muted }}>Connect remote MCP servers for additional tool access.</p>
-                <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted }}>
-                  <Plus className="w-4 h-4" /> Add MCP Server
-                </button>
+                {mcpServers.map(s => (
+                  <div key={s.id} className="flex items-center justify-between py-1.5 px-3 rounded-lg" style={{ background: C.surface2 }}>
+                    <div><div className="text-sm">{s.name}</div><div className="text-[10px]" style={{ color: C.muted }}>{s.url}</div></div>
+                    <button onClick={() => removeMcpServer(s.id)} className="text-xs px-2 py-1 rounded" style={{ color: C.red }}>Remove</button>
+                  </div>
+                ))}
+                {showMcpForm ? (
+                  <div className="space-y-2 p-3 rounded-lg" style={{ background: C.surface2 }}>
+                    <input type="text" value={mcpName} onChange={e => setMcpName(e.target.value)} placeholder="Server name" className="w-full px-2 py-1.5 rounded text-sm" style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.text, outline: "none" }} />
+                    <input type="text" value={mcpUrl} onChange={e => setMcpUrl(e.target.value)} placeholder="wss://mcp-server.example.com" className="w-full px-2 py-1.5 rounded text-sm" style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.text, outline: "none" }}
+                      onKeyDown={e => { if (e.key === "Enter") handleAddMcp(); }} data-testid="mcp-url-input" />
+                    <div className="flex gap-2">
+                      <button onClick={handleAddMcp} className="text-xs px-3 py-1.5 rounded font-medium" style={{ background: C.accent, color: "#fff" }}>Add</button>
+                      <button onClick={() => setShowMcpForm(false)} className="text-xs px-3 py-1.5 rounded" style={{ color: C.muted }}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => setShowMcpForm(true)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-white/5" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted }} data-testid="add-mcp-btn">
+                    <Plus className="w-4 h-4" /> Add MCP Server
+                  </button>
+                )}
               </div>
               <div className="p-4 rounded-xl space-y-3" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
                 <h3 className="text-sm font-medium">API Keys</h3>
                 <p className="text-xs" style={{ color: C.muted }}>Manage API keys for external services.</p>
-                <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted }}>
-                  <Plus className="w-4 h-4" /> Add API Key
-                </button>
+                {apiKeys.map(k => (
+                  <div key={k.id} className="flex items-center justify-between py-1.5 px-3 rounded-lg" style={{ background: C.surface2 }}>
+                    <div><div className="text-sm">{k.name}</div><div className="text-[10px] font-mono" style={{ color: C.muted }}>{k.key}</div></div>
+                    <button onClick={() => removeApiKey(k.id)} className="text-xs px-2 py-1 rounded" style={{ color: C.red }}>Remove</button>
+                  </div>
+                ))}
+                {showKeyForm ? (
+                  <div className="space-y-2 p-3 rounded-lg" style={{ background: C.surface2 }}>
+                    <input type="text" value={keyName} onChange={e => setKeyName(e.target.value)} placeholder="Key name (e.g., OpenAI)" className="w-full px-2 py-1.5 rounded text-sm" style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.text, outline: "none" }} />
+                    <input type="password" value={keyValue} onChange={e => setKeyValue(e.target.value)} placeholder="sk-..." className="w-full px-2 py-1.5 rounded text-sm" style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.text, outline: "none" }}
+                      onKeyDown={e => { if (e.key === "Enter") handleAddKey(); }} data-testid="api-key-input" />
+                    <div className="flex gap-2">
+                      <button onClick={handleAddKey} className="text-xs px-3 py-1.5 rounded font-medium" style={{ background: C.accent, color: "#fff" }}>Add</button>
+                      <button onClick={() => setShowKeyForm(false)} className="text-xs px-3 py-1.5 rounded" style={{ color: C.muted }}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => setShowKeyForm(true)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-white/5" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted }} data-testid="add-key-btn">
+                    <Plus className="w-4 h-4" /> Add API Key
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1251,11 +1356,23 @@ function SettingsPage() {
             <div className="space-y-6">
               <h2 className="text-xl font-bold mb-4">Data Controls</h2>
               <div className="p-4 rounded-xl space-y-4" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-                <div className="flex items-center justify-between"><span className="text-sm">Save conversation history</span><Toggle on={true} onToggle={() => {}} /></div>
-                <div className="flex items-center justify-between"><span className="text-sm">Allow usage for improvement</span><Toggle on={false} onToggle={() => {}} /></div>
-                <div className="flex items-center justify-between"><span className="text-sm">Memory across conversations</span><Toggle on={true} onToggle={() => {}} /></div>
+                <div className="flex items-center justify-between"><span className="text-sm">Save conversation history</span><Toggle on={dataControls.saveHistory} onToggle={() => setDataControl("saveHistory", !dataControls.saveHistory)} /></div>
+                <div className="flex items-center justify-between"><span className="text-sm">Allow usage for improvement</span><Toggle on={dataControls.usageData} onToggle={() => setDataControl("usageData", !dataControls.usageData)} /></div>
+                <div className="flex items-center justify-between"><span className="text-sm">Memory across conversations</span><Toggle on={dataControls.memoryEnabled} onToggle={() => setDataControl("memoryEnabled", !dataControls.memoryEnabled)} /></div>
               </div>
-              <button className="px-4 py-2 rounded-lg text-sm" style={{ background: "rgba(239,68,68,0.1)", color: C.red, border: "1px solid rgba(239,68,68,0.3)" }}>Delete all conversations</button>
+              {showDeleteConfirm ? (
+                <div className="p-4 rounded-xl space-y-3" style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.3)" }}>
+                  <p className="text-sm" style={{ color: C.red }}>Delete all {threads.length} conversations? This cannot be undone.</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => { clearAllThreads(); setShowDeleteConfirm(false); }} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: C.red, color: "#fff" }} data-testid="confirm-delete-btn">Delete all</button>
+                    <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 rounded-lg text-sm" style={{ color: C.muted }}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setShowDeleteConfirm(true)} className="px-4 py-2 rounded-lg text-sm transition-colors hover:bg-red-500/10" style={{ background: "rgba(239,68,68,0.1)", color: C.red, border: "1px solid rgba(239,68,68,0.3)" }} data-testid="delete-conversations-btn">
+                  Delete all conversations
+                </button>
+              )}
             </div>
           )}
 
@@ -1263,11 +1380,24 @@ function SettingsPage() {
             <div className="space-y-6">
               <h2 className="text-xl font-bold mb-4">Security</h2>
               <div className="p-4 rounded-xl space-y-4" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-                <div className="flex items-center justify-between"><span className="text-sm">Two-factor authentication</span><Toggle on={false} onToggle={() => {}} /></div>
+                <div className="flex items-center justify-between"><span className="text-sm">Two-factor authentication</span><Toggle on={security.twoFactor} onToggle={() => setSecurity("twoFactor", !security.twoFactor)} /></div>
                 <div className="flex items-center justify-between">
-                  <div><span className="text-sm block">Active sessions</span><span className="text-xs" style={{ color: C.muted }}>1 active session</span></div>
-                  <button className="text-xs px-3 py-1 rounded" style={{ background: C.surface2, color: C.muted }}>Manage</button>
+                  <div><span className="text-sm block">Active sessions</span><span className="text-xs" style={{ color: C.muted }}>{sessions.length} active session{sessions.length !== 1 ? "s" : ""}</span></div>
+                  <button onClick={() => setShowSessions(!showSessions)} className="text-xs px-3 py-1 rounded transition-colors" style={{ background: C.surface2, color: C.muted }} data-testid="manage-sessions-btn">{showSessions ? "Hide" : "Manage"}</button>
                 </div>
+                {showSessions && (
+                  <div className="space-y-2 pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
+                    {sessions.map(s => (
+                      <div key={s.id} className="flex items-center justify-between py-2 px-3 rounded-lg" style={{ background: C.surface2 }}>
+                        <div>
+                          <div className="text-sm flex items-center gap-2">{s.device}{s.current && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "rgba(34,197,94,0.15)", color: C.green }}>Current</span>}</div>
+                          <div className="text-[11px]" style={{ color: C.muted }}>{s.browser} &middot; {s.lastActive}</div>
+                        </div>
+                        {!s.current && <button className="text-xs px-2 py-1 rounded" style={{ color: C.red }}>Revoke</button>}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1279,8 +1409,11 @@ function SettingsPage() {
 
 /* ─── Customize Page ─────────────────────────────────────────────────────────── */
 function CustomizePage() {
-  const { enabledSkills, toggleSkill } = useGateway();
+  const { enabledSkills, toggleSkill, plugins, togglePlugin } = useGateway();
+  const [pluginFilter, setPluginFilter] = useState("All");
   const allSkills = SKILLS;
+  const categories = ["All", ...new Set(plugins.map(p => p.category))];
+  const filtered = pluginFilter === "All" ? plugins : plugins.filter(p => p.category === pluginFilter);
   return (
     <div className="h-full overflow-auto" style={{ color: C.text }}>
       <div className="max-w-2xl mx-auto px-6 py-8">
@@ -1306,12 +1439,32 @@ function CustomizePage() {
               <ChevronRight className="w-4 h-4 ml-auto" style={{ color: C.muted }} />
             </div>
           </Link>
-          <button className="w-full p-4 rounded-xl text-left transition-colors hover:bg-white/5" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: C.surface2 }}><Puzzle className="w-5 h-5" style={{ color: C.muted }} /></div>
-              <div><div className="font-medium">Browse plugins</div><div className="text-sm" style={{ color: C.muted }}>Add pre-built knowledge for your field.</div></div>
+          <div className="p-4 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+            <div className="flex items-center justify-between mb-3">
+              <div><h2 className="text-sm font-medium">Plugins</h2><p className="text-xs mt-0.5" style={{ color: C.muted }}>Add tools and capabilities to OpenClaw.</p></div>
+              <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: C.surface2, color: C.muted }}>{plugins.filter(p => p.installed).length} installed</span>
             </div>
-          </button>
+            <div className="flex gap-1.5 mb-3">
+              {categories.map(cat => (
+                <button key={cat} onClick={() => setPluginFilter(cat)} className="text-[11px] px-2.5 py-1 rounded-full transition-colors font-medium"
+                  style={{ background: pluginFilter === cat ? "rgba(29,140,248,0.15)" : C.surface2, color: pluginFilter === cat ? C.accent : C.muted, border: `1px solid ${pluginFilter === cat ? "rgba(29,140,248,0.3)" : C.border}` }}>
+                  {cat}
+                </button>
+              ))}
+            </div>
+            <div className="space-y-2">
+              {filtered.map(plugin => (
+                <div key={plugin.id} className="flex items-center justify-between py-2 px-3 rounded-lg transition-colors" style={{ background: plugin.installed ? "rgba(29,140,248,0.04)" : "transparent" }}
+                  data-testid={`plugin-${plugin.id}`}>
+                  <div className="flex items-center gap-3">
+                    <Puzzle className="w-4 h-4" style={{ color: plugin.installed ? C.accent : C.muted }} />
+                    <div><div className="text-sm font-medium">{plugin.name}</div><div className="text-xs" style={{ color: C.muted }}>{plugin.desc}</div></div>
+                  </div>
+                  <Toggle on={plugin.installed} onToggle={() => togglePlugin(plugin.id)} />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
