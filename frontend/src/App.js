@@ -323,9 +323,9 @@ function ModelSelector({ models, providers, activeModel, onSelect }) {
                           {isActive && <Check className="w-2.5 h-2.5 shrink-0" style={{ color: C.accent }} />}
                         </div>
                         <div className="flex items-center gap-1 flex-wrap" style={{ marginTop: 1 }}>
-                          {m.costTier && <CostBadge tier={m.costTier} />}
-                          {m.context && <span className="text-[8px] px-1 rounded font-medium" style={{ background: "#1a2332", color: "#60a5fa", border: "1px solid #1e3a5f", lineHeight: "13px" }}>{m.context}</span>}
                           <CapabilityIcons caps={m.caps} size={9} gap={2} />
+                          {m.context && <span className="text-[8px] px-1 rounded font-medium" style={{ background: "#1a2332", color: "#60a5fa", border: "1px solid #1e3a5f", lineHeight: "13px" }}>{m.context}</span>}
+                          {m.costTier && <CostBadge tier={m.costTier} />}
                         </div>
                       </button>
                     );
