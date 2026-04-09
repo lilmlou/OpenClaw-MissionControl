@@ -15,12 +15,13 @@ Complete the OpenClaw Mission Control dashboard interface to match Claude's desk
 - Sidebar shows recent threads with click-to-load and X-to-delete
 - Thread titles derived from first message content
 
-### Model Selector - Minimal 2-Step Hover (Feb 8, 2026)
+### Model Selector - Click-Based with Smart Positioning (Feb 9, 2026)
 - 6 providers: huggingface (9), ollama (11), opencode (13), opencode-go (3), openrouter (24), venice (31)
-- Flush side-by-side panels (no gap/flashing)
-- Lucide icons (Eye, Code2, Wrench, FileText, Brain, Zap) - green for supported, grey for unsupported
-- No cost badges - clean minimal design
-- Selected model name persists
+- Click-to-select provider (not hover) - matches + menu pattern
+- Models panel appears LEFT of providers, shows 8 models initially with "more..." expand button
+- Dynamic capability badges per model: Cost ($, $$, $$$, Free), Context (2M, 256K, etc.), Vision, Coding, Tools, Files, Reasoning, Fast icons
+- Smart positioning: drops up or down based on available viewport space
+- Flush side-by-side panels matching + menu styling
 
 ### Settings Page - Claude-Style Tabs (Feb 8, 2026)
 - **General**: Theme (Dark/Light/System), Language, Web Search, Writing Style, Default Model
@@ -32,8 +33,8 @@ Complete the OpenClaw Mission Control dashboard interface to match Claude's desk
 ### Spaces (Feb 8, 2026)
 - Default: Files (blue), Design (pink), Development (green)
 - "Add Space" card + "New Space" button for custom spaces
-- Click space → detail view showing threads assigned to that space
-- Thread ↔ Space association via assignThreadToSpace
+- Click space -> detail view showing threads assigned to that space
+- Thread <-> Space association via assignThreadToSpace
 
 ### Agent Page - Creative Workspace (Feb 8, 2026)
 - 4 capability toggles: Image Generation, Design Creation, Code Execution (ON default), Web Browsing
@@ -60,7 +61,13 @@ Complete the OpenClaw Mission Control dashboard interface to match Claude's desk
 - "Manage Connectors" links to Settings > Connected Apps
 - Browse plugins section
 
+### UI Cleanup (Feb 9, 2026)
+- Removed 4 suggestion cards below chat input (Select a model, Try Agent, Deep Research, Mission Control)
+- Added Agent sparkles icon next to + button in InputBar as hyperlink to /agent page
+- Clean minimal home screen with just the input bar
+
 ## P1 - Next Phase
+- [ ] + menu refinements - ensure each toggle works correctly (user priority)
 - [ ] WebSocket connection infrastructure (ready to plug in gateway URL)
 - [ ] Terminal alias bridge for sandboxed OpenClaw user account
 - [ ] Replace mock state with actual API responses
@@ -68,9 +75,9 @@ Complete the OpenClaw Mission Control dashboard interface to match Claude's desk
 
 ## P2 - Future
 - [ ] Keyboard shortcuts (Cmd+K, Cmd+/)
-- [ ] Componentize monolithic App.js
+- [ ] Componentize monolithic App.js (~1600 lines)
 - [ ] Voice input integration
 - [ ] Mobile app configuration
 - [ ] Auto-route threads to spaces based on context
 
-## Testing: 100% pass rate (iteration 7 - 28 features verified)
+## Testing: 100% pass rate (iteration 8 - 20+ features verified)
