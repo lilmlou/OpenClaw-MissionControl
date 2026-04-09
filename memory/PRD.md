@@ -9,75 +9,56 @@ Complete the OpenClaw Mission Control dashboard interface to match Claude's desk
 
 ## What's Been Implemented
 
-### Conversation Threading (Feb 8, 2026)
-- New thread button creates fresh conversation, clears messages
-- Messages auto-save to threads in localStorage via Zustand persist
-- Sidebar shows recent threads with click-to-load and X-to-delete
-- Thread titles derived from first message content
+### Model Selector - Hover-based, Mirrored + Menu Style (Feb 9, 2026)
+- `<` icon on LEFT side of provider names (mirroring + menu's `>` on right)
+- Providers dropdown appears DIRECTLY BELOW "Select Model" trigger
+- Models panel appears on HOVER (not click) to the LEFT of providers
+- Panels are flush/tight (no gap, shared border, radius adjustments)
+- Models panel bottom-aligns with providers, grows UPWARD
+- Smart auto-positioning: flips entire dropdown up when insufficient space below (< 200px)
+- Models panel direction adapts independently (up/down based on available space)
+- All models scrollable via ScrollArea (no "more..." button needed)
+- Cost badges ($, $$, $$$, Free), Context badges (2M, 256K, 125K), Capability icons per model
+- 150ms debounce on mouse leave for smooth hover transitions
+- 6 providers: huggingface(9), ollama(11), opencode(13), opencode-go(3), openrouter(24), venice(31)
 
-### Model Selector - Click-Based with Smart Positioning (Feb 9, 2026)
-- 6 providers: huggingface (9), ollama (11), opencode (13), opencode-go (3), openrouter (24), venice (31)
-- Click-to-select provider (not hover) - matches + menu pattern
-- Models panel appears LEFT of providers, shows 8 models initially with "more..." expand button
-- Dynamic capability badges per model: Cost ($, $$, $$$, Free), Context (2M, 256K, etc.), Vision, Coding, Tools, Files, Reasoning, Fast icons
-- Smart positioning: drops up or down based on available viewport space
-- Flush side-by-side panels matching + menu styling
+### Conversation Threading (Feb 8, 2026)
+- New thread button, messages auto-save to localStorage via Zustand
+- Sidebar recent threads with click-to-load and delete
 
 ### Settings Page - Claude-Style Tabs (Feb 8, 2026)
-- **General**: Theme (Dark/Light/System), Language, Web Search, Writing Style, Default Model
-- **Profile**: Display Name, Email, Custom Instructions
-- **Connected Apps**: Connectors (all OFF by default), MCP Servers, API Keys
-- **Data Controls**: Save history, Usage data, Memory toggles
-- **Security**: 2FA toggle, Active sessions
+- General, Profile, Connected Apps, Data Controls, Security
 
 ### Spaces (Feb 8, 2026)
-- Default: Files (blue), Design (pink), Development (green)
-- "Add Space" card + "New Space" button for custom spaces
-- Click space -> detail view showing threads assigned to that space
-- Thread <-> Space association via assignThreadToSpace
+- Files, Design, Development default spaces + custom
 
-### Agent Page - Creative Workspace (Feb 8, 2026)
-- 4 capability toggles: Image Generation, Design Creation, Code Execution (ON default), Web Browsing
-- Active capability chips shown in input bar
-- Warning banner linking to Settings when no connectors enabled
-- Distinct from Chat: task-oriented with tool access
+### Agent Page (Feb 8, 2026)
+- Image Gen, Design, Code Exec, Web Browsing toggles
 
 ### Jobs Page - Live Monitoring (Feb 8, 2026)
-- Active section: running jobs with animated progress bars and cancel buttons
-- History section: completed/failed/cancelled jobs
-- Sidebar badge showing active job count
-- Auto-progress tick every 3 seconds
+- Active jobs with progress bars + history
 
 ### Cowork Page - Inline Conversation (Feb 8, 2026)
-- 21 task templates with user-perspective prompts
-- Inline conversation within Cowork page
-- Left: Recents | Center: Conversation | Right: Progress/Context
+- 21 task templates with inline conversation windows
 
-### Code Page - Clean Terminal
-- Command execution, Clear, Bypass Permissions, Local/Remote toggle
-
+### Code Page - Terminal Interface (Feb 8, 2026)
 ### Customize Page (Feb 8, 2026)
-- Functional skill toggles (8 skills)
-- "Manage Connectors" links to Settings > Connected Apps
-- Browse plugins section
-
 ### UI Cleanup (Feb 9, 2026)
-- Removed 4 suggestion cards below chat input (Select a model, Try Agent, Deep Research, Mission Control)
-- Added Agent sparkles icon next to + button in InputBar as hyperlink to /agent page
-- Clean minimal home screen with just the input bar
+- Removed suggestion cards, added Agent shortcut icon next to +
 
 ## P1 - Next Phase
-- [ ] + menu refinements - ensure each toggle works correctly (user priority)
-- [ ] WebSocket connection infrastructure (ready to plug in gateway URL)
-- [ ] Terminal alias bridge for sandboxed OpenClaw user account
+- [ ] + menu refinements - each toggle working correctly
+- [ ] Customize tab - Manage Connectors / Browser Plugin functionality
+- [ ] Settings abilities discussion & implementation
+- [ ] WebSocket connection infrastructure
+- [ ] Terminal alias bridge
 - [ ] Replace mock state with actual API responses
-- [ ] Real model switching via gateway
 
 ## P2 - Future
 - [ ] Keyboard shortcuts (Cmd+K, Cmd+/)
-- [ ] Componentize monolithic App.js (~1600 lines)
+- [ ] Componentize monolithic App.js (~1650 lines)
 - [ ] Voice input integration
-- [ ] Mobile app configuration
-- [ ] Auto-route threads to spaces based on context
+- [ ] Mobile/PWA configuration
+- [ ] Auto-route threads to spaces
 
-## Testing: 100% pass rate (iteration 8 - 20+ features verified)
+## Testing: 100% pass rate (iteration 9 - 18 features verified)
