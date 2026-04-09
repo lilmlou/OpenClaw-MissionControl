@@ -210,97 +210,117 @@ function Markdown({ content }) {
   );
 }
 
-/* ─── Model Selector (Minimal 2-step hover) ───────────────────────────────── */
+/* ─── Model Selector (Click-based, smart positioning, + menu style) ─────── */
 function ModelSelector({ models, providers, activeModel, onSelect }) {
   const [open, setOpen] = useState(false);
-  const [hovProv, setHovProv] = useState(null);
+  const [selProv, setSelProv] = useState(null);
+  const [expanded, setExpanded] = useState(false);
+  const [dropUp, setDropUp] = useState(true);
   const ref = useRef(null);
-  const hoverTimer = useRef(null);
+  const SHOW_COUNT = 8;
 
   useEffect(() => {
     if (!open) return;
-    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setHovProv(null); } };
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setSelProv(null); setExpanded(false); } };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
+  // Smart positioning: check available space
+  useEffect(() => {
+    if (!open || !ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    setDropUp(spaceAbove > spaceBelow && spaceAbove > 280);
+  }, [open]);
+
   const activeName = activeModel ? (models.find(m => m.id === activeModel)?.name ?? activeModel.split("/").pop()) : null;
-  const hovModels = hovProv ? (providers.find(p => p.name === hovProv)?.models ?? []) : [];
-  const handleSelect = async (modelId) => { setOpen(false); setHovProv(null); await onSelect(modelId); };
   const label = activeName ? (activeName.length > 22 ? activeName.slice(0, 20) + "..." : activeName) : "Select model";
 
-  const handleProvHover = (name) => {
-    clearTimeout(hoverTimer.current);
-    setHovProv(name);
-  };
-  const handleProvLeave = () => {
-    hoverTimer.current = setTimeout(() => setHovProv(null), 200);
-  };
-  const handleModelsEnter = () => { clearTimeout(hoverTimer.current); };
-  const handleModelsLeave = () => { hoverTimer.current = setTimeout(() => setHovProv(null), 200); };
+  const provModels = selProv ? (providers.find(p => p.name === selProv)?.models ?? []) : [];
+  const visibleModels = expanded ? provModels : provModels.slice(0, SHOW_COUNT);
+  const hasMore = provModels.length > SHOW_COUNT && !expanded;
+
+  const handleSelect = async (modelId) => { setOpen(false); setSelProv(null); setExpanded(false); await onSelect(modelId); };
+  const handleProvClick = (name) => { setSelProv(prev => prev === name ? null : name); setExpanded(false); };
+
+  const panelStyle = { background: "#151515", border: "1px solid #2a2a2a" };
+  const hoverBg = "rgba(255,255,255,0.04)";
 
   return (
     <div ref={ref} className="relative">
-      <button type="button" onClick={() => { setOpen(v => !v); setHovProv(null); }}
+      <button type="button" onClick={() => { setOpen(v => !v); setSelProv(null); setExpanded(false); }}
         className="flex items-center gap-1 text-[12px] transition-colors" style={{ color: open ? C.text : C.muted }}
         data-testid="model-selector-trigger">
         <span className="font-medium">{label}</span>
-        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className="w-3.5 h-3.5" />
       </button>
 
       {open && (
-        <div className="absolute bottom-full right-0 mb-2 z-50 flex items-start">
-          {/* Models panel (appears on hover, LEFT of providers) */}
-          {hovProv && hovModels.length > 0 && (
-            <div className="shadow-2xl" onMouseEnter={handleModelsEnter} onMouseLeave={handleModelsLeave}
-              style={{ width: 300, maxHeight: 420, background: "#111", borderRadius: "12px 0 0 12px", borderTop: "1px solid #222", borderLeft: "1px solid #222", borderBottom: "1px solid #222", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-              <div className="px-3 py-2 shrink-0 flex items-center justify-between" style={{ borderBottom: "1px solid #1d1d1d" }}>
-                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>{hovProv}</span>
-                <CapabilityIcons caps={{ vision: true, coding: true, tools: true, files: true, reasoning: true, fast: true }} size={11} gap={5} />
+        <div className="absolute right-0 z-50 flex items-end gap-1"
+          style={dropUp ? { bottom: "100%", marginBottom: 8 } : { top: "100%", marginTop: 8 }}>
+          {/* Models panel (LEFT, appears on click) */}
+          {selProv && provModels.length > 0 && (
+            <div className="rounded-xl py-1 shadow-2xl" style={{ ...panelStyle, width: 280, maxHeight: 420, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              <div className="px-3 py-2 shrink-0 flex items-center justify-between" style={{ borderBottom: "1px solid #1e1e1e" }}>
+                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>{selProv}</span>
+                <span className="text-[10px]" style={{ color: "#444" }}>{provModels.length} models</span>
               </div>
-              <ScrollArea className="flex-1" style={{ maxHeight: 380 }}>
-                {hovModels.map(m => {
+              <ScrollArea className="flex-1" style={{ maxHeight: 370 }}>
+                {visibleModels.map(m => {
                   const isActive = m.id === activeModel;
                   return (
                     <button key={m.id} type="button" onClick={() => handleSelect(m.id)}
-                      className="w-full text-left transition-colors group"
-                      style={{ padding: "8px 12px", background: isActive ? "rgba(29,140,248,0.08)" : "transparent", borderBottom: "1px solid #1a1a1a" }}
-                      onMouseOver={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}
-                      onMouseOut={e => { if (!isActive) e.currentTarget.style.background = isActive ? "rgba(29,140,248,0.08)" : "transparent"; }}
+                      className="w-full text-left transition-colors"
+                      style={{ padding: "7px 12px", background: isActive ? "rgba(29,140,248,0.08)" : "transparent", borderBottom: "1px solid #1e1e1e" }}
+                      onMouseOver={e => { if (!isActive) e.currentTarget.style.background = hoverBg; }}
+                      onMouseOut={e => { e.currentTarget.style.background = isActive ? "rgba(29,140,248,0.08)" : "transparent"; }}
                       data-testid={`model-item-${m.name.replace(/\s+/g, "-").toLowerCase()}`}>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="text-[13px] font-semibold truncate" style={{ color: isActive ? C.accent : "#ddd", lineHeight: 1.3 }}>{m.name}</div>
-                          <div className="text-[10px] truncate" style={{ color: "#444", fontFamily: "monospace", lineHeight: 1.4 }}>{m.id.split("/").pop()}</div>
-                        </div>
-                        {isActive && <Check className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: C.accent }} />}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[13px] font-medium truncate" style={{ color: isActive ? C.accent : "#ddd" }}>{m.name}</span>
+                        {isActive && <Check className="w-3.5 h-3.5 shrink-0" style={{ color: C.accent }} />}
                       </div>
-                      <div className="mt-1"><CapabilityIcons caps={m.caps} size={12} gap={5} /></div>
+                      <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                        {m.costTier && <CostBadge tier={m.costTier} />}
+                        {m.context && <span className="text-[9px] px-1.5 py-0.5 rounded font-medium" style={{ background: "#1a2332", color: "#60a5fa", border: "1px solid #1e3a5f" }}>{m.context}</span>}
+                        <CapabilityIcons caps={m.caps} size={11} gap={4} />
+                      </div>
                     </button>
                   );
                 })}
+                {hasMore && (
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
+                    className="w-full text-center py-2.5 text-[12px] font-medium transition-colors"
+                    style={{ color: C.accent }}
+                    onMouseOver={e => { e.currentTarget.style.background = hoverBg; }}
+                    onMouseOut={e => { e.currentTarget.style.background = "transparent"; }}
+                    data-testid="model-more-btn">
+                    more... ({provModels.length - SHOW_COUNT})
+                  </button>
+                )}
               </ScrollArea>
             </div>
           )}
 
-          {/* Providers panel (always visible when open, RIGHT side) */}
-          <div className="shadow-2xl" style={{ width: 160, background: "#0f0f0f", borderRadius: hovProv ? "0 12px 12px 0" : 12, border: "1px solid #222", borderLeft: hovProv ? "none" : "1px solid #222", overflow: "hidden" }}>
-            <div className="px-3 py-2" style={{ borderBottom: "1px solid #1d1d1d" }}>
+          {/* Providers panel (RIGHT) */}
+          <div className="rounded-xl py-1 shadow-2xl" style={{ ...panelStyle, width: 160 }}>
+            <div className="px-3 py-2" style={{ borderBottom: "1px solid #1e1e1e" }}>
               <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>Providers</span>
             </div>
             <div style={{ maxHeight: 320, overflowY: "auto" }}>
               {providers.map(prov => (
                 <button key={prov.name} type="button"
-                  onMouseEnter={() => handleProvHover(prov.name)}
-                  onMouseLeave={handleProvLeave}
-                  onClick={() => handleProvHover(prov.name)}
-                  className="w-full flex items-center justify-between px-3 py-2 text-left transition-colors"
-                  style={{ background: prov.name === hovProv ? "rgba(29,140,248,0.06)" : "transparent" }}
+                  onClick={() => handleProvClick(prov.name)}
+                  className="w-full flex items-center justify-between px-3 py-[7px] text-left transition-colors"
+                  style={{ background: prov.name === selProv ? "rgba(29,140,248,0.06)" : "transparent" }}
+                  onMouseOver={e => { e.currentTarget.style.background = prov.name === selProv ? "rgba(29,140,248,0.06)" : hoverBg; }}
+                  onMouseOut={e => { e.currentTarget.style.background = prov.name === selProv ? "rgba(29,140,248,0.06)" : "transparent"; }}
                   data-testid={`provider-${prov.name}`}>
-                  <span className="text-[12px] font-medium" style={{ color: prov.name === hovProv ? "#ddd" : "#888" }}>{prov.name}</span>
+                  <span className="text-[12px] font-medium" style={{ color: prov.name === selProv ? "#ddd" : "#888" }}>{prov.name}</span>
                   <div className="flex items-center gap-1">
                     <span className="text-[10px]" style={{ color: "#444" }}>{prov.count}</span>
-                    <ChevronLeft className="w-3 h-3" style={{ color: prov.name === hovProv ? C.accent : "#333" }} />
+                    <ChevronLeft className="w-3 h-3" style={{ color: prov.name === selProv ? C.accent : "#333" }} />
                   </div>
                 </button>
               ))}
@@ -445,6 +465,11 @@ function InputBar({ onSend, disabled, placeholder, fillPrompt, onFillConsumed })
         className="w-full focus:outline-none resize-none text-[14px] font-sans" style={{ background: "transparent", border: "none", color: C.text, padding: "14px 16px 10px", minHeight: 52, maxHeight: 180, opacity: disabled ? 0.5 : 1 }} data-testid="chat-input" />
       <div className="flex items-center gap-2 px-3 pb-3">
         <PlusMenu onSelect={handleQuick} disabled={disabled} onModeChange={handleModeFromMenu} />
+        <Link to="/agent" className="w-7 h-7 rounded-full flex items-center justify-center transition-all shrink-0"
+          style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted }}
+          title="Agent workspace" data-testid="agent-shortcut-btn">
+          <Sparkles className="w-3.5 h-3.5" />
+        </Link>
         <button type="button" onClick={() => setActiveMode(activeMode === "agent" ? "research" : "agent")}
           className="flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[12px] font-medium transition-colors"
           style={{ background: `${currentMode.color}18`, border: `1px solid ${currentMode.color}40`, color: currentMode.color }}
@@ -1565,25 +1590,6 @@ function HomePage() {
           <div className="w-full" style={{ maxWidth: 680 }}>
             <div className="text-center mb-10"><h1 className="text-4xl font-bold mb-1 tracking-tight" style={{ color: C.text }}>OpenClaw <span>🦞</span></h1><p className="text-sm tracking-widest uppercase" style={{ color: C.muted }}>Mission Control</p></div>
             <div className="w-full mb-5"><InputBar onSend={doSend} disabled={status !== "connected"} fillPrompt={fillPrompt} onFillConsumed={() => setFillPrompt(null)} /></div>
-            <div className="grid grid-cols-2 gap-3 w-full">
-              {[
-                { icon: Cpu, title: "Select a model", desc: "Choose from local and cloud models", prompt: "What AI models do you have available?" },
-                { icon: Bot, title: "Try Agent", desc: "Build apps, edit files, run commands", prompt: "What are your current agent capabilities?" },
-                { icon: Telescope, title: "Deep Research", desc: "Synthesize from multiple sources", prompt: "Do deep research on: ", fill: true },
-                { icon: Rocket, title: "Mission Control", desc: "Jobs, approvals, live monitoring", prompt: "Give me a full mission control status report." },
-              ].map(card => {
-                const Icon = card.icon;
-                return (
-                  <button key={card.title} onClick={() => card.fill ? setFillPrompt(card.prompt) : doSend(card.prompt)} disabled={status !== "connected"}
-                    className="text-left p-4 rounded-xl transition-all group disabled:opacity-40" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-                    <div className="flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: C.surface2, border: `1px solid ${C.border}` }}><Icon className="w-3.5 h-3.5" style={{ color: C.muted }} /></div>
-                      <div><div className="text-[13px] font-medium mb-0.5" style={{ color: C.text }}>{card.title}</div><div className="text-[11px] leading-snug" style={{ color: C.muted }}>{card.desc}</div></div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
           </div>
         </div>
       </div>
