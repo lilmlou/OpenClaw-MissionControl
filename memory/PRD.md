@@ -9,40 +9,29 @@ Complete the OpenClaw Mission Control dashboard interface to match Claude's desk
 
 ## What's Been Implemented
 
-### Model Selector - Hover-based, Mirrored + Menu Style (Feb 9, 2026)
-- `<` icon on LEFT side of provider names (mirroring + menu)
-- Providers dropdown directly BELOW "Select Model" trigger
-- Models panel on HOVER to LEFT of providers, flush/tight, no gap
-- Models panel bottom-aligns with providers, grows upward
-- Smart auto-positioning (flips up when <200px space below)
-- Native scrollable models list (overflow-y: auto, all models accessible)
-- Tight layout: reduced padding, gaps, panel widths (providers 155px, models 260px)
-- Cost ($/$$/$$$/Free), Context (2M/256K/125K), Capability icons per model
-- 150ms debounce hover transitions
-- 6 providers: huggingface(9), ollama(11), opencode(12), opencode-go(3), openrouter(24), venice(31)
+### Model Selector - Complete (Feb 9, 2026)
+- Mirrored + menu style: `<` icon LEFT of providers, hover-triggered models panel
+- Providers dropdown directly BELOW trigger, models panel LEFT growing upward
+- Tight layout: 190px models panel, minimal padding (3px 6px), no excess space
+- ALL models have context badges (128K/256K/200K/1M/1M+/2M) sourced from cheatsheet
+- Cost ($/$$/$$$/Free), Context, and 6 Capability icons per model
+- Smart positioning (up/down based on viewport)
+- Scrollable model list, flush panels, 150ms hover debounce
+- 6 providers with full cheatsheet data: huggingface(11), ollama(10), opencode(12), opencode-go(4), openrouter(29), venice(31)
+- Added missing models: MiniMax-M2.5 HF, DeepSeek-R1, openrouter free models (Qwen3.6+, Qwen Coder, Qwen Next, Nano 30B, GLM Air, Auto Router), opencode-go M2.7
 
 ### Other Completed Features (Feb 8-9, 2026)
-- Conversation Threading with localStorage persistence
-- Settings Page (Claude-style 5 tabs)
-- Spaces (Files, Design, Development + custom)
-- Agent Page (4 capability toggles)
-- Jobs Page (live monitoring)
-- Cowork Page (21 inline task conversations)
-- Code Page (terminal interface)
-- Customize Page (skills, connectors link, plugins)
-- UI Cleanup (removed suggestion cards, added Agent shortcut icon)
+- Conversation Threading, Settings (5 Claude-style tabs), Spaces, Agent Page, Jobs, Cowork, Code, Customize
+- UI: removed suggestion cards, added Agent shortcut icon
 
 ## P1 - Next Phase
 - [ ] + menu refinements - each toggle functional
 - [ ] Customize tab - Manage Connectors / Browser Plugin functionality
 - [ ] Settings abilities discussion & implementation
 - [ ] WebSocket connection infrastructure
-- [ ] Terminal alias bridge
 - [ ] Replace mock state with actual API responses
 
 ## P2 - Future
-- [ ] Keyboard shortcuts (Cmd+K, Cmd+/)
-- [ ] Componentize monolithic App.js (~1650 lines)
-- [ ] Voice input, Mobile/PWA, Auto-route threads to spaces
+- [ ] Keyboard shortcuts, componentize App.js, voice input, mobile/PWA
 
-## Testing: 100% pass rate (iteration 9 - 18 features verified)
+## Testing: All verified via screenshots (iterations 8-9 passed 100%)

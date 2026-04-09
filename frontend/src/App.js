@@ -303,7 +303,7 @@ function ModelSelector({ models, providers, activeModel, onSelect }) {
             {/* Models panel (absolutely positioned LEFT of providers, bottom or top aligned) */}
             {hasModels && (
               <div className="shadow-2xl" onMouseEnter={handleModelsEnter} onMouseLeave={handleModelsLeave}
-                style={{ position: "absolute", right: "100%", [modelsUp ? "bottom" : "top"]: 0, width: 220, maxHeight: 400, background: panelBg, borderTop: `1px solid ${borderClr}`, borderLeft: `1px solid ${borderClr}`, borderBottom: `1px solid ${borderClr}`, borderRight: "none", borderRadius: "10px 0 0 10px", display: "flex", flexDirection: "column" }}>
+                style={{ position: "absolute", right: "100%", [modelsUp ? "bottom" : "top"]: 0, width: 190, maxHeight: 400, background: panelBg, borderTop: `1px solid ${borderClr}`, borderLeft: `1px solid ${borderClr}`, borderBottom: `1px solid ${borderClr}`, borderRight: "none", borderRadius: "10px 0 0 10px", display: "flex", flexDirection: "column" }}>
                 <div className="px-2 py-1 shrink-0 flex items-center" style={{ gap: 6, borderBottom: "1px solid #1e1e1e" }}>
                   <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>{hovProv}</span>
                   <span className="text-[9px]" style={{ color: "#444" }}>{provModels.length}</span>
@@ -314,7 +314,7 @@ function ModelSelector({ models, providers, activeModel, onSelect }) {
                     return (
                       <button key={m.id} type="button" onClick={() => handleSelect(m.id)}
                         className="w-full text-left transition-colors"
-                        style={{ padding: "3px 8px", background: isActive ? "rgba(29,140,248,0.08)" : "transparent", borderBottom: "1px solid #1e1e1e" }}
+                        style={{ padding: "3px 6px", background: isActive ? "rgba(29,140,248,0.08)" : "transparent", borderBottom: "1px solid #1e1e1e" }}
                         onMouseOver={e => { if (!isActive) e.currentTarget.style.background = hoverBg; }}
                         onMouseOut={e => { e.currentTarget.style.background = isActive ? "rgba(29,140,248,0.08)" : "transparent"; }}
                         data-testid={`model-item-${m.name.replace(/\s+/g, "-").toLowerCase()}`}>
@@ -322,9 +322,9 @@ function ModelSelector({ models, providers, activeModel, onSelect }) {
                           <span className="text-[11px] font-medium truncate" style={{ color: isActive ? C.accent : "#ddd" }}>{m.name}</span>
                           {isActive && <Check className="w-2.5 h-2.5 shrink-0" style={{ color: C.accent }} />}
                         </div>
-                        <div className="flex items-center gap-1 flex-wrap">
+                        <div className="flex items-center gap-1 flex-wrap" style={{ marginTop: 1 }}>
                           {m.costTier && <CostBadge tier={m.costTier} />}
-                          {m.context && <span className="text-[9px] px-1 rounded font-medium" style={{ background: "#1a2332", color: "#60a5fa", border: "1px solid #1e3a5f", lineHeight: "14px" }}>{m.context}</span>}
+                          {m.context && <span className="text-[8px] px-1 rounded font-medium" style={{ background: "#1a2332", color: "#60a5fa", border: "1px solid #1e3a5f", lineHeight: "13px" }}>{m.context}</span>}
                           <CapabilityIcons caps={m.caps} size={9} gap={2} />
                         </div>
                       </button>
