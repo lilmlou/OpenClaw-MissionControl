@@ -1,58 +1,61 @@
-# OpenClaw Mission Control - PRD
+# OpenClaw Mission Control — PRD
 
 ## Original Problem Statement
-Complete the OpenClaw Mission Control dashboard interface to match Claude's desktop app integration with functional UI.
+Build a clean, minimal dashboard UI (similar to Claude.ai/Perplexity) for OpenClaw Mission Control. Make all toggles, dropdowns, model selectors functional. Build functional pages: Dashboard, Jobs, Approvals, Cowork, Code, Spaces, Agent, Settings, Customize. Polish frontend until bulletproof before any backend integration.
 
 ## Architecture
-- **Frontend**: React (CRA) + JavaScript, Zustand (localStorage persist), Tailwind CSS, React Router DOM
-- **Backend**: Basic FastAPI server (frontend-focused app)
+- **Frontend:** React + Tailwind + Zustand (localStorage persistence), Lucide icons
+- **Backend:** FastAPI (untouched — mocked frontend-only)
+- **State:** `useGateway.js` Zustand store with mocked WebSocket, chat, terminal, jobs
+- **Monolith:** `App.js` (~1900 lines) — contains all pages/components (refactor planned)
 
-## What's Been Implemented
+## Completed Features
 
-### Model Selector (Feb 9, 2026)
-- Mirrored + menu style, hover-triggered, flush panels, smart positioning
-- ALL models have context badges (128K/256K/200K/1M/1M+/2M) from cheatsheet
-- Cost/Context/Capability icons per model, scrollable, 6 providers (97 total models)
+### Core UI (Done)
+- Dark-mode responsive layout with sidebar navigation
+- Model Selector: provider dropdown → hover models panel, capability/context/cost badges, smart viewport positioning
+- Plus Menu: Spaces submenu, Skills toggles, Connectors, Style, Research, Web Search
+- Input bar with model selector, +menu, agent sparkles link
 
-### + Menu - Fully Functional (Feb 9, 2026)
-- **Add files or photos**: Opens native file picker dialog
-- **Add to Spaces**: Sub-menu lists existing spaces (Files/Design/Development) with colored icons, create new space inline with name input + Add button, assigns current thread to selected space
-- **Add from GitHub**: Fills prompt with "Pull from GitHub repo:"
-- **Skills**: Toggleable skills list + "Manage skills" / "Add skill" link to /customize
-- **Connectors**: 12 connectors with toggles + "Manage connectors" link to /settings?tab=apps
-- **Plugins**: Navigates to /customize plugin catalog
-- **Research**: Sets mode + fills "Do deep research on:" prompt
-- **Web search**: Toggle with checkmark indicator
-- **Use style**: Normal/Concise/Formal/Explanatory selector
+### Pages (All Done)
+- **Chat/Home:** Thread-based conversation, streaming messages, markdown rendering
+- **Agent:** Capability toggles (Image, Design, Code, Web), workspace prompt
+- **Dashboard:** Stats (active jobs, approvals, connectors, gateway status), recent activity
+- **Jobs:** Live real-time task monitoring with progress bars, cancel
+- **Approvals:** Pending approvals with approve/reject
+- **Spaces:** Files, Design, Development workspaces
+- **Settings:** General, Profile, Connected Apps, Data Controls, Security tabs (URL param deep-linking)
+- **Cowork:** Inline Claude-style conversation windows
+- **Code:** Terminal interface
+- **Customize:** Full Claude-style Directory with Skills/Connectors/Plugins catalog (NEW)
 
-### Connectors - Desktop Apps Added (Feb 9, 2026)
-12 connectors: Control Mac, Desktop Commander, File Access, Web Search, Signal, Telegram, VS Code, Figma, Slack, Chrome Browser, Docker, Notion
+### Customize/Directory Page (Feb 2026)
+- 3-tab Directory (Skills, Connectors, Plugins) matching Claude.ai layout
+- Skills: 15 items with /skill-name, OpenClaw provider, download counts, descriptions, install/uninstall
+- Connectors: 18 items with icons, descriptions, "Interactive" badges, connect/disconnect
+- Plugins: 10 suite-level items with provider info, download counts, install/uninstall
+- Search across all tabs, Filter by category dropdown
+- URL param deep-linking (?tab=skills/connectors/plugins)
+- PlusMenu links updated to navigate to correct directory tabs
 
-### Settings - Fully Functional (Feb 9, 2026)
-- **General**: Theme (Dark/Light/System) persists to state, Web Search toggle, Writing Style selector, Default Model display
-- **Profile**: Name, Email, Custom Instructions (all editable, persisted)
-- **Connected Apps**: 12 connector toggles, Add MCP Server form (name + URL), Add API Key form (name + key), Remove buttons
-- **Data Controls**: Save history / Usage data / Memory toggles (functional, persisted)
-- **Delete all conversations**: Confirmation dialog then clears all threads
-- **Security**: 2FA toggle, Active Sessions list (2 sessions, Current badge, Revoke option)
+### Thread Model Tracking (Feb 2026)
+- Conversations track which model was selected (modelId per thread)
+- Thread sidebar shows model name indicator below title
+- Switching threads restores the associated model
 
-### Customize Page - Plugin Catalog (Feb 9, 2026)
-- Skills section with 8 toggleable skills
-- Manage Connectors link → Settings > Connected Apps
-- Plugin catalog: 8 plugins across 3 categories (Tools/Creative/Dev), category filter tabs, install/uninstall toggles
+## Testing Status
+- Iteration 11: 28/28 tests PASS (Customize Directory, PlusMenu nav, Settings URL params, Model Selector, Threads, Chat, Jobs, Approvals, Dashboard, Navigation)
 
-### Other Features (Feb 8, 2026)
-- Conversation Threading, Spaces, Agent Page, Jobs (live monitoring), Cowork (inline conversations), Code (terminal), Responsive layout
+## Backlog (Prioritized)
 
-## P1 - Next Phase
-- [ ] WebSocket gateway connection infrastructure
-- [ ] Terminal alias bridge for sandboxed OpenClaw user environment
-- [ ] Replace mock state with real API responses
-- [ ] Real model switching via gateway
+### P1 — When user approves backend work
+- Replace mock state with real API responses
+- WebSocket gateway connection in useGateway.js
+- Terminal alias bridge for sandboxed environment
 
-## P2 - Future
-- [ ] Keyboard shortcuts (Cmd+K, Cmd+/)
-- [ ] Componentize monolithic App.js (~1700 lines)
-- [ ] Voice input, Mobile/PWA, Auto-route threads to spaces
-
-## Testing: 100% pass rate (iteration 10 - 22 features verified)
+### P2 — Enhancements
+- Refactor App.js monolith (~1900 lines) into src/pages/ and src/components/
+- Keyboard shortcuts (Cmd+K, Cmd+/)
+- Voice input integration (mic button)
+- Auto-route threads to specific spaces
+- Mobile/PWA setup
