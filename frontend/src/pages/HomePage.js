@@ -11,10 +11,13 @@ export default function HomePage() {
   const [fillPrompt, setFillPrompt] = useState(null);
   const bottomRef = useRef(null);
   const location = useLocation();
-  const hasMessages = messages.length > 0 || !!streamingMessage;
+
+  // Only show streaming for the active thread
+  const activeStreaming = streamingMessage?.threadId === activeThreadId ? streamingMessage : null;
+  const hasMessages = messages.length > 0 || !!activeStreaming;
 
   useEffect(() => { initGateway(); }, []);
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length, streamingMessage?.content]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length, activeStreaming?.content]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -62,19 +65,19 @@ export default function HomePage() {
           </div>
         )}
         {messages.map(msg => <MessageRow key={msg.id} msg={msg} />)}
-        {streamingMessage && (
+        {activeStreaming && (
           <div className="flex gap-3 py-2 px-4">
             <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm shrink-0 mt-0.5" style={{ background: "rgba(29,140,248,0.1)", border: "1px solid rgba(29,140,248,0.2)" }}>&#129438;</div>
             <div className="flex-1 min-w-0">
               <div className="rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm relative" style={{ background: C.surface, border: "1px solid rgba(29,140,248,0.2)" }}>
-                {streamingMessage.content ? <Markdown content={streamingMessage.content} /> : <div className="flex gap-1 items-center py-0.5">{[0, 150, 300].map(d => <span key={d} className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: C.accent, opacity: 0.6, animationDelay: `${d}ms` }} />)}</div>}
+                {activeStreaming.content ? <Markdown content={activeStreaming.content} /> : <div className="flex gap-1 items-center py-0.5">{[0, 150, 300].map(d => <span key={d} className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: C.accent, opacity: 0.6, animationDelay: `${d}ms` }} />)}</div>}
                 <span className="absolute bottom-2 right-3 w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: C.accent }} />
               </div>
               <div className="text-[10px] mt-1" style={{ color: C.accent, opacity: 0.6 }}>typing...</div>
             </div>
           </div>
         )}
-        {streamingMessage && (
+        {activeStreaming && (
           <div className="flex justify-center py-2">
             <button onClick={() => useGateway.getState().stopGenerating()} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full transition-colors hover:bg-white/5"
               style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted }}

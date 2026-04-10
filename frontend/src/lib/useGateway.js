@@ -394,20 +394,35 @@ export const useGateway = create(
       setActivePage: (activePage) => set({ activePage }),
       setActiveTab: (activeTab) => set({ activeTab }),
       
-      // Messages
-      addMessage: (msg) => set((s) => ({ 
-        messages: [...s.messages.slice(-199), msg] 
-      })),
-      removeMessage: (id) => set((s) => ({ 
-        messages: s.messages.filter(m => m.id !== id) 
-      })),
-      clearMessages: () => set({ messages: [], streamingMessage: null }),
-      stopGenerating: () => set({ streamingMessage: null }),
+      // Thread-scoped message helper: writes to thread AND global if active
+      _addMessageToThread: (threadId, msg) => set((s) => {
+        const newThreads = s.threads.map(t =>
+          t.id === threadId
+            ? { ...t, messages: [...t.messages.slice(-199), msg], title: t.messages.length === 0 && msg.role === "user" ? msg.content?.slice(0, 40) || t.title : t.title }
+            : t
+        );
+        if (s.activeThreadId === threadId) {
+          return { threads: newThreads, messages: [...s.messages.slice(-199), msg] };
+        }
+        return { threads: newThreads };
+      }),
+
+      // Global message helpers (used by UI for display only)
+      addMessage: (msg) => set((s) => ({ messages: [...s.messages.slice(-199), msg] })),
+      removeMessage: (id) => set((s) => ({ messages: s.messages.filter(m => m.id !== id) })),
+      clearMessages: () => set((s) => {
+        const clearStream = s.streamingMessage?.threadId === s.activeThreadId;
+        return { messages: [], ...(clearStream ? { streamingMessage: null } : {}) };
+      }),
+      stopGenerating: () => {
+        const { streamingMessage } = get();
+        if (streamingMessage) {
+          set({ streamingMessage: null, pendingRunId: null });
+        }
+      },
       
       // Events
-      addEvent: (evt) => set((s) => ({ 
-        events: [...s.events.slice(-499), evt] 
-      })),
+      addEvent: (evt) => set((s) => ({ events: [...s.events.slice(-499), evt] })),
       clearEvents: () => set({ events: [] }),
       
       setStreamingMessage: (streamingMessage) => set({ streamingMessage }),
@@ -525,13 +540,20 @@ export const useGateway = create(
         return id;
       },
       setActiveThread: (threadId) => {
-        get().saveThreadMessages();
-        const { threads } = get();
-        const thread = threads.find(t => t.id === threadId);
+        // Save current thread's messages directly from global state
+        const { activeThreadId: prevId, messages: prevMsgs, threads, activeModel: prevModel } = get();
+        let updatedThreads = threads;
+        if (prevId) {
+          updatedThreads = threads.map(t => t.id === prevId ? { ...t, messages: prevMsgs, modelId: prevModel } : t);
+        }
+        // Load target thread
+        const thread = updatedThreads.find(t => t.id === threadId);
         set({
+          threads: updatedThreads,
           activeThreadId: threadId,
           messages: thread ? thread.messages : [],
           activeModel: thread?.modelId || null,
+          // DO NOT touch streamingMessage — UI filters by threadId
         });
       },
       saveThreadMessages: () => {
@@ -596,70 +618,58 @@ export const useGateway = create(
         return true;
       },
       
-      // Send message
+      // Send message — thread-isolated
       sendMessage: async (text) => {
-        const { addMessage, setStreamingMessage, setPendingRunId, addEvent, activeThreadId, createThread, saveThreadMessages, assignThreadToSpace } = get();
+        const { activeThreadId, createThread, assignThreadToSpace, addEvent } = get();
         
         // Auto-create thread if none active
         let threadId = activeThreadId;
         if (!threadId) {
           threadId = createThread(text.slice(0, 40));
-          // Auto-route the new thread based on message content
           const routedSpace = autoRouteThread(text);
           if (routedSpace) {
             assignThreadToSpace(threadId, routedSpace);
           }
         }
         
-        const userMsgId = crypto.randomUUID();
-        addMessage({
-          id: userMsgId,
-          role: "user",
-          content: text,
-          timestamp: Date.now(),
-        });
+        // Add user message to the specific thread
+        const userMsg = { id: crypto.randomUUID(), role: "user", content: text, timestamp: Date.now() };
+        get()._addMessageToThread(threadId, userMsg);
         
-        addEvent({
-          id: crypto.randomUUID(),
-          ts: Date.now(),
-          type: "message.sent",
-          payload: { content: text.slice(0, 50) }
-        });
+        addEvent({ id: crypto.randomUUID(), ts: Date.now(), type: "message.sent", payload: { content: text.slice(0, 50) } });
         
-        // Start streaming simulation
+        // Start streaming — tagged with threadId
         const runId = crypto.randomUUID();
-        setPendingRunId(runId);
-        setStreamingMessage({ id: crypto.randomUUID(), runId, content: "" });
+        set({ pendingRunId: runId, streamingMessage: { id: crypto.randomUUID(), runId, threadId, content: "" } });
         
-        // Simulate typing response
         const response = `I received your message: "${text}"\n\nThis is a placeholder response from the OpenClaw Mission Control system. The actual AI response would appear here with full markdown support.\n\n**Features:**\n- Real-time streaming\n- Markdown rendering\n- Code syntax highlighting\n\n\`\`\`javascript\nconsole.log("Hello from OpenClaw!");\n\`\`\``;
         
         let content = "";
+        let cancelled = false;
         for (const char of response) {
+          // Check if this specific run was cancelled (stopGenerating sets pendingRunId to null)
+          if (get().pendingRunId !== runId) { cancelled = true; break; }
+          
           await new Promise(r => setTimeout(r, 10));
           content += char;
-          setStreamingMessage({ id: crypto.randomUUID(), runId, content });
+          
+          // Update streaming display — always write, UI filters by threadId
+          set({ streamingMessage: { id: crypto.randomUUID(), runId, threadId, content } });
         }
         
-        // Finalize
-        addMessage({
-          id: crypto.randomUUID(),
-          role: "assistant", 
-          content: response,
-          timestamp: Date.now(),
-        });
-        setStreamingMessage(null);
-        setPendingRunId(null);
-        
-        addEvent({
-          id: crypto.randomUUID(),
-          ts: Date.now(),
-          type: "message.complete",
-          payload: { runId }
-        });
-        
-        // Auto-save thread
-        get().saveThreadMessages();
+        if (!cancelled) {
+          // Add assistant message to the specific thread (works even if user switched away)
+          const assistantMsg = { id: crypto.randomUUID(), role: "assistant", content: response, timestamp: Date.now() };
+          get()._addMessageToThread(threadId, assistantMsg);
+          
+          // Clear streaming only if this run is still current
+          const currentState = get();
+          if (currentState.pendingRunId === runId) {
+            set({ streamingMessage: null, pendingRunId: null });
+          }
+          
+          addEvent({ id: crypto.randomUUID(), ts: Date.now(), type: "message.complete", payload: { runId } });
+        }
         
         return { ok: true };
       },
@@ -697,10 +707,10 @@ export const useGateway = create(
     }),
     {
       name: "openclaw-gateway",
-      version: 2,
+      version: 3,
       migrate: (persisted, version) => {
-        if (version < 2) {
-          return { ...persisted, spaces: DEFAULT_SPACES };
+        if (version < 3) {
+          return { ...persisted, spaces: DEFAULT_SPACES, threads: [], activeThreadId: null };
         }
         return persisted;
       },
