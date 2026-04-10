@@ -1,77 +1,82 @@
 # OpenClaw Mission Control — PRD
 
 ## Original Problem Statement
-Build a clean, minimal dashboard UI (similar to Claude.ai/Perplexity) for OpenClaw Mission Control. Make all toggles, dropdowns, model selectors functional. Build functional pages: Dashboard, Jobs, Approvals, Cowork, Code, Spaces, Agent, Settings, Customize. Polish frontend until bulletproof before any backend integration.
+Build a polished, functional UI for "OpenClaw Mission Control" — a dashboard similar to Claude.ai/Perplexity. Make all toggle buttons, drop-down menus, and model selectors functional. Keep the Zustand store clean and entirely mocked until the frontend UI is perfect.
+
+## Core Requirements
+1. Model Selector: Provider dropdown → hover for models, capability badges, cost tiers, "More..." expand for large lists
+2. Functional pages: Dashboard, Jobs, Approvals, Cowork, Code, Spaces, Agent, Settings, Customize
+3. Cowork: Inline conversation windows for delegated tasks
+4. Code: Clean terminal interface
+5. Thread management: creation, switching, deletion with model persistence
+6. Clean component architecture
 
 ## Architecture
-- **Frontend:** React + Tailwind + Zustand (localStorage persistence), Lucide icons
-- **Backend:** FastAPI (untouched — mocked frontend-only)
-- **State:** `useGateway.js` Zustand store with mocked WebSocket, chat, terminal, jobs
-- **File Structure (Refactored):**
-  - `src/lib/constants.js` — All design tokens, navigation, data constants (C, NAV, CONNECTORS, SKILLS, COWORK_TASKS, DIRECTORY_*)
-  - `src/lib/useGateway.js` — Zustand store (mocked state, actions, localStorage persistence)
-  - `src/components/shared.js` — Reusable components (Toggle, Markdown, MessageRow, BinaryRain, CapabilityIcons, CostBadge)
-  - `src/components/ui/` — Shadcn UI components
-  - `src/App.js` — Page components + Layout + routing (~1900 lines, down from ~2175)
+- **Frontend**: React + Tailwind CSS + Zustand (state) + Lucide icons
+- **State**: All mocked in `useGateway.js` with localStorage persistence
+- **Backend**: FastAPI (untouched — awaiting frontend perfection)
+
+## File Structure (Post-Refactor)
+```
+frontend/src/
+├── App.js                    (~30 lines — Router only)
+├── App.css
+├── index.js
+├── components/
+│   ├── ModelSelector.js      (Provider→Model dropdown with "More..." expand)
+│   ├── PlusMenu.js           (Context menu with submenus)
+│   ├── InputBar.js           (Chat input with mode toggle)
+│   ├── shared.js             (BinaryRain, Toggle, Markdown, CapabilityIcons, CostBadge, MessageRow)
+│   ├── layout/
+│   │   └── Layout.js         (Main layout: sidebar + header + content)
+│   └── ui/                   (Shadcn components)
+├── pages/
+│   ├── HomePage.js           (Chat interface)
+│   ├── DashboardPage.js      (Stats overview)
+│   ├── JobsPage.js           (Job monitoring)
+│   ├── ApprovalsPage.js      (Permission requests)
+│   ├── SpacesPage.js         (Conversation organization)
+│   ├── CoworkPage.js         (Task delegation)
+│   ├── CodePage.js           (Terminal interface)
+│   ├── SettingsPage.js       (5 tab settings)
+│   ├── CustomizePage.js      (Directory: Skills/Connectors/Plugins)
+│   └── AgentPage.js          (Agent workspace)
+└── lib/
+    ├── useGateway.js         (Zustand store — all mocked)
+    ├── constants.js           (Shared data/constants)
+    └── utils.js
+```
 
 ## Completed Features
+- [x] Model Selector: 6 providers, hover→models, capability icons, cost badges, "More..." expand (8 initial, expand for rest)
+- [x] Model-Thread Linking: model saved per thread, restored on switch, cleared on new thread
+- [x] Thread Management: create, switch, delete, sidebar recents with model indicator
+- [x] Chat: Streaming simulation, markdown rendering, code blocks, stop generating
+- [x] PlusMenu: Files, Spaces, Skills, Connectors, Plugins, Research, Web Search, Style submenus
+- [x] Dashboard: Stats cards, active model, recent events
+- [x] Jobs: Live monitoring with progress bars, cancel, history
+- [x] Approvals: Approve/reject with risk levels, empty state
+- [x] Spaces: Create, view, organize threads by space
+- [x] Cowork: Task delegation with inline conversation, progress sidebar
+- [x] Code: Terminal with command input, bypass permissions, local/remote toggle
+- [x] Settings: 5 tabs (General, Profile, Connected Apps, Data, Security)
+- [x] Customize/Directory: Skills, Connectors, Plugins with search, filter, custom additions
+- [x] Agent: Capability toggles (Image, Design, Code, Web), workspace
+- [x] Responsive mobile layout with sidebar toggle
+- [x] App.js refactored from 1900 lines → 30 lines (14 extracted files)
 
-### Core UI
-- Dark-mode responsive layout with sidebar navigation
-- Model Selector: provider -> hover models panel, capability/context/cost badges, smart viewport positioning
-- Plus Menu: Spaces, Skills toggles, Connectors, Style, Research, Web Search
-- Input bar with model selector, +menu, agent sparkles link
-- Thread management: create/switch/delete with model tracking per conversation
-- Thread sidebar shows model name below thread title
-- Messages: copy button on hover, stop generating button during streaming
+## Upcoming Tasks (Prioritized)
+### P1
+- Thread Auto-Routing (auto-assign threads to spaces based on content context)
+- Voice Input Integration (mic button → transcribe → insert text)
+- Mobile/PWA Setup (manifest, service worker)
 
-### Pages (All Done)
-- **Chat/Home:** Thread-based conversation, streaming messages, markdown, copy, stop generating
-- **Agent:** Capability toggles (Image, Design, Code, Web), workspace prompt
-- **Dashboard:** Stats (active jobs, approvals, connectors, gateway status), recent activity
-- **Jobs:** Live monitoring with smooth progress bars, cancel
-- **Approvals:** Pending count badge, approve/reject, "All caught up" empty state
-- **Spaces:** Files, Design, Development workspaces
-- **Settings:** General, Profile, Connected Apps (Desktop Integration toggle + Browse Directory link), Data Controls, Security (URL deep-linking)
-- **Cowork:** Inline Claude-style conversation windows with 21 task templates
-- **Code:** Terminal interface
-- **Customize:** Full Claude-style Directory (Skills/Connectors/Plugins) with search, filter, add custom items
-
-### Frontend Audit Fixes (Feb 2026)
-- Copy button on hover for all messages
-- Stop generating button during AI streaming
-- Thread save-on-switch (prevents message loss)
-- New thread saves current thread before clearing
-- Approvals: pending count badge + "All caught up" state
-- Dashboard: connectors count accurate (not hardcoded /6)
-- Jobs: progress bars smooth (no oscillation)
-- Desktop Integration toggle (batch enables mac+desktop+files)
-- Settings Connected Apps: "Browse all connectors in Directory" link
-- Settings: URL param deep-linking (?tab=apps)
-
-### Refactoring (Feb 2026)
-- Extracted constants to `src/lib/constants.js` (156 lines)
-- Extracted shared components to `src/components/shared.js` (126 lines)
-- Created `src/pages/` and `src/components/` directory structure
-- App.js reduced from 2175 to 1908 lines
+### P2
+- Real WebSocket gateway connection (replace mocks in useGateway.js)
+- Terminal alias bridge configuration
+- Keyboard shortcuts (Cmd+K, Cmd+/)
 
 ## Testing Status
-- Iteration 11: 28/28 PASS (Directory page, navigation, model selector)
-- Iteration 12: 39/39 PASS (Full audit: copy, stop, threads, desktop, approvals, jobs, custom items, settings)
-
-## Backlog (Prioritized)
-
-### P1 — When user approves backend work
-- Replace mock state with real API responses
-- WebSocket gateway connection in useGateway.js
-- Terminal alias bridge for sandboxed environment
-
-### P2 — Further refactoring
-- Extract remaining pages from App.js into `src/pages/*.js`
-- Extract ModelSelector, PlusMenu, InputBar, Layout into `src/components/`
-
-### P2 — Enhancements
-- Keyboard shortcuts (Cmd+K, Cmd+/)
-- Voice input integration (mic button)
-- Auto-route threads to specific spaces
-- Mobile/PWA setup
+- iteration_11.json: 28/28 passed
+- iteration_12.json: 39/39 passed  
+- iteration_13.json: 31/31 passed (post-refactor verification)
