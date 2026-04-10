@@ -10,6 +10,8 @@ Build a polished, functional UI for "OpenClaw Mission Control" — a dashboard s
 4. Code: Clean terminal interface
 5. Thread management: creation, switching, deletion with model persistence
 6. Clean component architecture
+7. Connectors: Service connectors + Desktop App suites (Adobe, Microsoft, Google, Other) with individual toggles
+8. Space assignment: Visual indicators in sidebar (colored icon + badge) and InputBar (chip)
 
 ## Architecture
 - **Frontend**: React + Tailwind CSS + Zustand (state) + Lucide icons
@@ -24,11 +26,11 @@ frontend/src/
 ├── index.js
 ├── components/
 │   ├── ModelSelector.js      (Provider→Model dropdown with "More..." expand)
-│   ├── PlusMenu.js           (Context menu with submenus)
-│   ├── InputBar.js           (Chat input with mode toggle)
+│   ├── PlusMenu.js           (Context menu: services + desktop apps + spaces)
+│   ├── InputBar.js           (Chat input with mode toggle + space chip)
 │   ├── shared.js             (BinaryRain, Toggle, Markdown, CapabilityIcons, CostBadge, MessageRow)
 │   ├── layout/
-│   │   └── Layout.js         (Main layout: sidebar + header + content)
+│   │   └── Layout.js         (Main layout: sidebar with space-aware threads + header)
 │   └── ui/                   (Shadcn components)
 ├── pages/
 │   ├── HomePage.js           (Chat interface)
@@ -43,27 +45,21 @@ frontend/src/
 │   └── AgentPage.js          (Agent workspace)
 └── lib/
     ├── useGateway.js         (Zustand store — all mocked)
-    ├── constants.js           (Shared data/constants)
+    ├── constants.js           (Shared data/constants + DESKTOP_APP_GROUPS)
     └── utils.js
 ```
 
 ## Completed Features
-- [x] Model Selector: 6 providers, hover→models, capability icons, cost badges, "More..." expand (8 initial, expand for rest)
+- [x] Model Selector: 6 providers, hover→models, capability icons, cost badges, "More..." expand
 - [x] Model-Thread Linking: model saved per thread, restored on switch, cleared on new thread
-- [x] Thread Management: create, switch, delete, sidebar recents with model indicator
+- [x] Thread Management: create, switch, delete, sidebar recents with model+space indicator
 - [x] Chat: Streaming simulation, markdown rendering, code blocks, stop generating
-- [x] PlusMenu: Files, Spaces, Skills, Connectors, Plugins, Research, Web Search, Style submenus
-- [x] Dashboard: Stats cards, active model, recent events
-- [x] Jobs: Live monitoring with progress bars, cancel, history
-- [x] Approvals: Approve/reject with risk levels, empty state
-- [x] Spaces: Create, view, organize threads by space
-- [x] Cowork: Task delegation with inline conversation, progress sidebar
-- [x] Code: Terminal with command input, bypass permissions, local/remote toggle
-- [x] Settings: 5 tabs (General, Profile, Connected Apps, Data, Security)
-- [x] Customize/Directory: Skills, Connectors, Plugins with search, filter, custom additions
-- [x] Agent: Capability toggles (Image, Design, Code, Web), workspace
-- [x] Responsive mobile layout with sidebar toggle
-- [x] App.js refactored from 1900 lines → 30 lines (14 extracted files)
+- [x] PlusMenu: Files, Spaces, Skills, Connectors (services+desktop apps), Plugins, Research, Web Search, Style
+- [x] Connectors: 12 service connectors + Desktop App groups (Adobe 8, Microsoft 7, Google 7, Other 5)
+- [x] Space Assignment: Colored icon in sidebar + chip in InputBar + checkmark in dropdown
+- [x] Auto-color spaces: New spaces get unique colors from 15-color palette
+- [x] Dashboard, Jobs, Approvals, Spaces, Cowork, Code, Settings, Customize, Agent pages
+- [x] App.js refactored from 1900→30 lines (14 extracted files)
 
 ## Upcoming Tasks (Prioritized)
 ### P1
@@ -78,5 +74,6 @@ frontend/src/
 
 ## Testing Status
 - iteration_11.json: 28/28 passed
-- iteration_12.json: 39/39 passed  
-- iteration_13.json: 31/31 passed (post-refactor verification)
+- iteration_12.json: 39/39 passed
+- iteration_13.json: 31/31 passed (post-refactor)
+- iteration_14.json: 20/20 passed (connectors + space assignment)
