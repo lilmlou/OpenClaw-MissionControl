@@ -1,12 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ChevronDown, Globe, Wrench, Bot, Telescope, Mic, Send, FolderOpen, FileText, Code2, Paintbrush, Briefcase, Layers } from "lucide-react";
-import { C } from "@/lib/constants";
+import { ChevronDown, Globe, Wrench, Bot, Telescope, Mic, Send } from "lucide-react";
+import { C, getSpaceIcon } from "@/lib/constants";
 import { useGateway, switchModel } from "@/lib/useGateway";
 import { ModelSelector } from "@/components/ModelSelector";
 import { PlusMenu } from "@/components/PlusMenu";
-
-const SPACE_ICONS = { FileText, Code2, Paintbrush, FolderOpen, Briefcase, Globe, Layers };
-const getSpaceIcon = (iconName) => SPACE_ICONS[iconName] || FolderOpen;
 
 export function InputBar({ onSend, disabled, placeholder, fillPrompt, onFillConsumed }) {
   const [val, setVal] = useState("");

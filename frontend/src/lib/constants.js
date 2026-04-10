@@ -37,6 +37,13 @@ export const CAP_DEFS = [
 
 export const CAP_ICONS = CAP_DEFS.map(d => ({ key: d.key, icon: d.Icon, label: d.label }));
 
+/* ─── Space Icon Map (single source of truth) ─────────────────────────────── */
+export const SPACE_ICON_MAP = {
+  FileText, PenTool, Code2, Paintbrush, FolderOpen, Briefcase,
+  Globe, Layers, Database, Rocket, Folder: FolderOpen,
+};
+export const getSpaceIcon = (iconName) => SPACE_ICON_MAP[iconName] || FolderOpen;
+
 /* ─── Navigation ─────────────────────────────────────────────────────────────── */
 export const NAV = [
   { href: "/", label: "Chat", icon: MessageSquare },

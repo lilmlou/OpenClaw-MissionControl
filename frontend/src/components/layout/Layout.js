@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { MessageSquare, Plus, ChevronDown, X, Menu, Lightbulb, Package, FolderOpen, FileText, Code2, Paintbrush, Briefcase, Globe, Layers } from "lucide-react";
-import { C, NAV } from "@/lib/constants";
+import { MessageSquare, Plus, ChevronDown, X, Menu, Lightbulb, Package } from "lucide-react";
+import { C, NAV, getSpaceIcon } from "@/lib/constants";
 import { useGateway } from "@/lib/useGateway";
-
-const SPACE_ICONS = { FileText, Code2, Paintbrush, FolderOpen, Briefcase, Globe, Layers };
-const getSpaceIcon = (iconName) => SPACE_ICONS[iconName] || FolderOpen;
 
 export default function Layout({ children }) {
   const location = useLocation();

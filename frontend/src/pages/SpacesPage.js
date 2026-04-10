@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileText, PenTool, Code2, Folder, Briefcase, Globe, Database, Rocket, Plus, ChevronLeft, MessageSquare } from "lucide-react";
-import { C } from "@/lib/constants";
+import { Folder, Plus, ChevronLeft, MessageSquare } from "lucide-react";
+import { C, getSpaceIcon } from "@/lib/constants";
 import { useGateway } from "@/lib/useGateway";
 import { Button } from "@/components/ui/button";
 
@@ -12,7 +12,6 @@ export default function SpacesPage() {
   const [newName, setNewName] = useState("");
   const [selectedSpace, setSelectedSpace] = useState(null);
 
-  const SPACE_ICONS = { FileText, PenTool, Code2, Folder, Briefcase, Globe, Database, Rocket };
   const SPACE_COLORS = ["#3b82f6", "#ec4899", "#22c55e", "#f59e0b", "#8b5cf6", "#06b6d4", "#ef4444", "#84cc16"];
 
   const handleCreate = () => {
@@ -28,7 +27,7 @@ export default function SpacesPage() {
     const sp = spaces.find(s => s.id === selectedSpace);
     if (!sp) { setSelectedSpace(null); return null; }
     const spThreads = getSpaceThreads(sp.id);
-    const Icon = SPACE_ICONS[sp.icon] || Folder;
+    const Icon = getSpaceIcon(sp.icon);
     return (
       <div className="h-full flex flex-col" style={{ color: C.text }}>
         <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: `1px solid ${C.border}` }}>
@@ -67,7 +66,7 @@ export default function SpacesPage() {
       <p className="text-sm" style={{ color: C.muted }}>Organize conversations by project or topic. Threads auto-save based on context.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {spaces.map(space => {
-          const Icon = SPACE_ICONS[space.icon] || Folder;
+          const Icon = getSpaceIcon(space.icon);
           const count = getSpaceThreads(space.id).length;
           return (
             <button key={space.id} onClick={() => setSelectedSpace(space.id)}

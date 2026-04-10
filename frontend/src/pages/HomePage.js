@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "react-router-dom";
-import { Trash2, Terminal, Square, FolderOpen, FileText, Code2, Paintbrush, Briefcase, Globe, Layers } from "lucide-react";
-import { C } from "@/lib/constants";
+import { Trash2, Terminal, Square } from "lucide-react";
+import { C, getSpaceIcon } from "@/lib/constants";
 import { useGateway, initGateway, sendMessage } from "@/lib/useGateway";
 import { BinaryRain, Markdown, MessageRow } from "@/components/shared";
 import { InputBar } from "@/components/InputBar";
-
-const SPACE_ICONS = { FileText, Code2, Paintbrush, FolderOpen, Briefcase, Globe, Layers };
-const getSpaceIcon = (iconName) => SPACE_ICONS[iconName] || FolderOpen;
 
 export default function HomePage() {
   const { messages, streamingMessage, status, clearMessages, activeThreadId, threads, spaces } = useGateway();

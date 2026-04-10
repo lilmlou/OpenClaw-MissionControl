@@ -2,10 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus, ChevronRight, Check, Paperclip, Grid3X3, GitBranch, Wrench,
-  Layers, Puzzle, Telescope, Globe, Bot, Code2, FileText, Paintbrush,
-  FolderOpen, Briefcase,
+  Layers, Puzzle, Telescope, Globe, Bot,
 } from "lucide-react";
-import { C, CONNECTORS, SKILLS } from "@/lib/constants";
+import { C, CONNECTORS, SKILLS, getSpaceIcon } from "@/lib/constants";
 import { useGateway } from "@/lib/useGateway";
 import { Toggle } from "@/components/shared";
 
@@ -41,9 +40,6 @@ export function PlusMenu({ onSelect, disabled, onModeChange }) {
   );
 
   const Divider = () => <div className="my-1" style={{ height: 1, background: "#1e1e1e" }} />;
-
-  const SPACE_ICONS = { FileText, Code2, Paintbrush, FolderOpen, Briefcase, Globe, Layers };
-  const getSpaceIcon = (iconName) => SPACE_ICONS[iconName] || FolderOpen;
 
   const handleAddToSpace = (spaceId) => {
     if (activeThreadId) { assignThreadToSpace(activeThreadId, spaceId); }
