@@ -528,7 +528,11 @@ export const useGateway = create(
         get().saveThreadMessages();
         const { threads } = get();
         const thread = threads.find(t => t.id === threadId);
-        set({ activeThreadId: threadId, messages: thread ? thread.messages : [], ...(thread?.modelId ? { activeModel: thread.modelId } : {}) });
+        set({
+          activeThreadId: threadId,
+          messages: thread ? thread.messages : [],
+          activeModel: thread?.modelId || null,
+        });
       },
       saveThreadMessages: () => {
         const { activeThreadId, messages, threads, activeModel } = get();
@@ -594,10 +598,18 @@ export const useGateway = create(
       
       // Send message
       sendMessage: async (text) => {
-        const { addMessage, setStreamingMessage, setPendingRunId, addEvent, activeThreadId, createThread, saveThreadMessages } = get();
+        const { addMessage, setStreamingMessage, setPendingRunId, addEvent, activeThreadId, createThread, saveThreadMessages, assignThreadToSpace } = get();
         
         // Auto-create thread if none active
-        if (!activeThreadId) { createThread(text.slice(0, 40)); }
+        let threadId = activeThreadId;
+        if (!threadId) {
+          threadId = createThread(text.slice(0, 40));
+          // Auto-route the new thread based on message content
+          const routedSpace = autoRouteThread(text);
+          if (routedSpace) {
+            assignThreadToSpace(threadId, routedSpace);
+          }
+        }
         
         const userMsgId = crypto.randomUUID();
         addMessage({
