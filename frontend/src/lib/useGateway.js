@@ -244,6 +244,24 @@ const DEFAULT_SPACES = [
   { id: "space-dev", name: "Development", description: "Code, builds, and dev jobs", icon: "Code2", color: "#22c55e" },
 ];
 
+// ─── Auto-routing: keyword → space mapping ──────────────────────────────────
+const ROUTE_KEYWORDS = {
+  "space-dev": ["code","debug","function","api","deploy","build","test","git","npm","python","javascript","react","server","database","sql","bug","error","compile","runtime","backend","frontend","devops","docker","kubernetes","typescript","webpack","node","terminal","command","script","algorithm","refactor","merge","branch","commit","pull request"],
+  "space-design": ["design","ui","ux","color","layout","figma","font","typography","mockup","wireframe","prototype","responsive","css","style","animation","visual","brand","logo","icon","illustration","sketch","photoshop","illustrator","palette","gradient","pixel","grid","spacing"],
+  "space-files": ["file","document","report","pdf","spreadsheet","excel","csv","import","export","upload","download","backup","archive","folder","organize","rename","storage","attachment","doc","sheet","slide","presentation","template","invoice","receipt","contract"],
+};
+
+function autoRouteThread(text) {
+  const lower = text.toLowerCase();
+  let bestSpace = null;
+  let bestScore = 0;
+  for (const [spaceId, keywords] of Object.entries(ROUTE_KEYWORDS)) {
+    const score = keywords.reduce((s, kw) => s + (lower.includes(kw) ? 1 : 0), 0);
+    if (score > bestScore) { bestScore = score; bestSpace = spaceId; }
+  }
+  return bestScore >= 1 ? bestSpace : null;
+}
+
 // ─── Zustand store ───────────────────────────────────────────────────────────
 export const useGateway = create(
   persist(
