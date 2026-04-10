@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { MessageSquare, Plus, ChevronDown, X, Menu, Lightbulb, Package } from "lucide-react";
+import { MessageSquare, Plus, ChevronDown, X, Menu, Lightbulb, Package, FolderOpen, FileText, Code2, Paintbrush, Briefcase, Globe, Layers } from "lucide-react";
 import { C, NAV } from "@/lib/constants";
 import { useGateway } from "@/lib/useGateway";
+
+const SPACE_ICONS = { FileText, Code2, Paintbrush, FolderOpen, Briefcase, Globe, Layers };
+const getSpaceIcon = (iconName) => SPACE_ICONS[iconName] || FolderOpen;
 
 export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { status, clawStatus, approvals, threads, activeThreadId, setActiveThread, deleteThread } = useGateway();
+  const { status, clawStatus, approvals, threads, activeThreadId, setActiveThread, deleteThread, spaces } = useGateway();
   const clawState = clawStatus?.state ?? "Scheduled";
   const pendingApprovals = approvals.filter(a => a.status === "pending").length;
   const activeJobs = useGateway(s => s.jobs.filter(j => j.status === "running").length);
@@ -65,18 +68,26 @@ export default function Layout({ children }) {
         {recentThreads.length > 0 && (
           <div className="px-2 pt-2 flex-1 overflow-auto" style={{ borderTop: "1px solid #1a1a1a" }}>
             <div className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5" style={{ color: "#444" }}>Recents</div>
-            {recentThreads.map(t => (
-              <button key={t.id} onClick={() => handleThreadClick(t.id)}
-                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-[12px] transition-colors group"
-                style={{ background: t.id === activeThreadId ? "rgba(29,140,248,0.1)" : "transparent", color: t.id === activeThreadId ? C.accent : "#777" }}>
-                <MessageSquare className="w-3 h-3 shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0 text-left">
-                  <span className="truncate block">{t.title}</span>
-                  {t.modelId && <span className="truncate block text-[9px]" style={{ color: "#555" }}>{t.modelId.split("/").pop()}</span>}
-                </div>
-                <X className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity cursor-pointer" onClick={(e) => { e.stopPropagation(); deleteThread(t.id); }} />
-              </button>
-            ))}
+            {recentThreads.map(t => {
+              const threadSpace = t.spaceId ? spaces.find(s => s.id === t.spaceId) : null;
+              const SpIcon = threadSpace ? getSpaceIcon(threadSpace.icon) : MessageSquare;
+              const iconColor = threadSpace ? threadSpace.color : undefined;
+              return (
+                <button key={t.id} onClick={() => handleThreadClick(t.id)}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-[12px] transition-colors group"
+                  style={{ background: t.id === activeThreadId ? "rgba(29,140,248,0.1)" : "transparent", color: t.id === activeThreadId ? C.accent : "#777" }}>
+                  <SpIcon className="w-3 h-3 shrink-0 mt-0.5" style={{ color: iconColor || (t.id === activeThreadId ? C.accent : "#555") }} />
+                  <div className="flex-1 min-w-0 text-left">
+                    <span className="truncate block">{t.title}</span>
+                    <div className="flex items-center gap-1.5">
+                      {t.modelId && <span className="truncate text-[9px]" style={{ color: "#555" }}>{t.modelId.split("/").pop()}</span>}
+                      {threadSpace && <span className="text-[8px] px-1 rounded" style={{ background: `${threadSpace.color}18`, color: threadSpace.color }}>{threadSpace.name}</span>}
+                    </div>
+                  </div>
+                  <X className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity cursor-pointer" onClick={(e) => { e.stopPropagation(); deleteThread(t.id); }} />
+                </button>
+              );
+            })}
           </div>
         )}
         {recentThreads.length === 0 && <div className="flex-1" />}

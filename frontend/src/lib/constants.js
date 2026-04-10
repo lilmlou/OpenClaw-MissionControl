@@ -6,7 +6,8 @@ import {
   Palette, Hash, Pencil, CreditCard, Paintbrush, Shield, LayoutDashboard,
   Package, Sparkles, FileCode, NotebookPen, GitBranch, Link2, Grid3X3,
   Timer, Receipt, ClipboardList, Presentation, FolderSync, FileSpreadsheet,
-  FileSearch, PenTool, MessageSquareText,
+  FileSearch, PenTool, MessageSquareText, Image, Film, BookOpen, Users,
+  Table, Smartphone, Music, Camera, Video, Map, Chrome, Play, Clapperboard,
 } from "lucide-react";
 
 /* ─── Design tokens ──────────────────────────────────────────────────────────── */
@@ -60,6 +61,56 @@ export const CONNECTORS = [
   { id: "chrome", label: "Chrome Browser", icon: Globe },
   { id: "docker", label: "Docker", icon: Box },
   { id: "notion", label: "Notion", icon: FileText },
+];
+
+export const DESKTOP_APP_GROUPS = [
+  {
+    id: "adobe", name: "Adobe", icon: Paintbrush, color: "#ff0000",
+    apps: [
+      { id: "adobe-photoshop", label: "Photoshop", icon: Image },
+      { id: "adobe-illustrator", label: "Illustrator", icon: PenTool },
+      { id: "adobe-indesign", label: "InDesign", icon: FileText },
+      { id: "adobe-premiere", label: "Premiere Pro", icon: Film },
+      { id: "adobe-aftereffects", label: "After Effects", icon: Sparkles },
+      { id: "adobe-xd", label: "XD", icon: Palette },
+      { id: "adobe-lightroom", label: "Lightroom", icon: Camera },
+      { id: "adobe-acrobat", label: "Acrobat", icon: FileText },
+    ],
+  },
+  {
+    id: "microsoft", name: "Microsoft", icon: Monitor, color: "#00a4ef",
+    apps: [
+      { id: "ms-word", label: "Word", icon: FileText },
+      { id: "ms-excel", label: "Excel", icon: Table },
+      { id: "ms-powerpoint", label: "PowerPoint", icon: Presentation },
+      { id: "ms-outlook", label: "Outlook", icon: Mail },
+      { id: "ms-teams", label: "Teams", icon: Users },
+      { id: "ms-onenote", label: "OneNote", icon: BookOpen },
+      { id: "ms-vscode", label: "VS Code", icon: Code2 },
+    ],
+  },
+  {
+    id: "google", name: "Google", icon: Globe, color: "#4285f4",
+    apps: [
+      { id: "google-docs", label: "Docs", icon: FileText },
+      { id: "google-sheets", label: "Sheets", icon: Table },
+      { id: "google-slides", label: "Slides", icon: Presentation },
+      { id: "google-drive", label: "Drive", icon: FolderOpen },
+      { id: "google-calendar", label: "Calendar", icon: Calendar },
+      { id: "google-chrome", label: "Chrome", icon: Globe },
+      { id: "google-meet", label: "Meet", icon: Video },
+    ],
+  },
+  {
+    id: "other", name: "Other Apps", icon: Smartphone, color: "#888",
+    apps: [
+      { id: "other-spotify", label: "Spotify", icon: Music },
+      { id: "other-discord", label: "Discord", icon: MessageCircle },
+      { id: "other-zoom", label: "Zoom", icon: Video },
+      { id: "other-terminal", label: "Terminal", icon: Terminal },
+      { id: "other-finder", label: "Finder", icon: FolderOpen },
+    ],
+  },
 ];
 
 export const SKILLS = ["deep-research", "code-review", "web-scraper", "file-manager", "task-scheduler", "mcp-builder", "slack-gif-creator", "canvas-design"];

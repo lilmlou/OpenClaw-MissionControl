@@ -528,8 +528,14 @@ export const useGateway = create(
       
       // Space actions
       addSpace: (name, icon, color) => {
+        const SPACE_AUTO_COLORS = [
+          "#3b82f6", "#ec4899", "#22c55e", "#f59e0b", "#8b5cf6",
+          "#06b6d4", "#ef4444", "#84cc16", "#e879f9", "#fb923c",
+          "#14b8a6", "#f43f5e", "#a3e635", "#818cf8", "#fbbf24",
+        ];
         const id = `space-${crypto.randomUUID().slice(0, 8)}`;
-        set((s) => ({ spaces: [...s.spaces, { id, name, description: "", icon: icon || "Folder", color: color || "#888" }] }));
+        const autoColor = color || SPACE_AUTO_COLORS[get().spaces.length % SPACE_AUTO_COLORS.length];
+        set((s) => ({ spaces: [...s.spaces, { id, name, description: "", icon: icon || "Folder", color: autoColor }] }));
         return id;
       },
       deleteSpace: (spaceId) => set((s) => ({

@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ChevronDown, Globe, Wrench, Bot, Telescope, Mic, Send } from "lucide-react";
+import { ChevronDown, Globe, Wrench, Bot, Telescope, Mic, Send, FolderOpen, FileText, Code2, Paintbrush, Briefcase, Layers } from "lucide-react";
 import { C } from "@/lib/constants";
 import { useGateway, switchModel } from "@/lib/useGateway";
 import { ModelSelector } from "@/components/ModelSelector";
 import { PlusMenu } from "@/components/PlusMenu";
 
+const SPACE_ICONS = { FileText, Code2, Paintbrush, FolderOpen, Briefcase, Globe, Layers };
+const getSpaceIcon = (iconName) => SPACE_ICONS[iconName] || FolderOpen;
+
 export function InputBar({ onSend, disabled, placeholder, fillPrompt, onFillConsumed }) {
   const [val, setVal] = useState("");
   const ref = useRef(null);
-  const { models, providers, activeModel, webSearchEnabled, enabledSkills } = useGateway();
+  const { models, providers, activeModel, webSearchEnabled, enabledSkills, activeThreadId, threads, spaces } = useGateway();
   const [activeMode, setActiveMode] = useState("agent");
 
   useEffect(() => { if (fillPrompt) { setVal(fillPrompt); onFillConsumed?.(); setTimeout(() => ref.current?.focus(), 0); } }, [fillPrompt, onFillConsumed]);
@@ -26,6 +29,11 @@ export function InputBar({ onSend, disabled, placeholder, fillPrompt, onFillCons
   const chips = [];
   if (webSearchEnabled) chips.push({ key: "web", label: "Web", icon: Globe });
   if (enabledSkills.length > 0) chips.push({ key: "skills", label: `${enabledSkills.length} skill${enabledSkills.length > 1 ? "s" : ""}`, icon: Wrench });
+
+  // Resolve active thread's space
+  const activeThread = activeThreadId ? threads.find(t => t.id === activeThreadId) : null;
+  const threadSpace = activeThread?.spaceId ? spaces.find(s => s.id === activeThread.spaceId) : null;
+  const SpaceIconComponent = threadSpace ? getSpaceIcon(threadSpace.icon) : null;
 
   const modeConfig = {
     agent: { label: "Agent", icon: Bot, color: C.accent },
@@ -54,6 +62,11 @@ export function InputBar({ onSend, disabled, placeholder, fillPrompt, onFillCons
             </span>
           );
         })}
+        {threadSpace && SpaceIconComponent && (
+          <span className="flex items-center gap-1 h-6 px-2 rounded-full text-[11px]" style={{ background: `${threadSpace.color}15`, border: `1px solid ${threadSpace.color}35`, color: threadSpace.color }} data-testid="space-indicator-chip">
+            <SpaceIconComponent className="w-3 h-3" />{threadSpace.name}
+          </span>
+        )}
         <div className="flex-1" />
         <ModelSelector models={models} providers={providers} activeModel={activeModel} onSelect={switchModel} />
         <button type="button" className="w-7 h-7 flex items-center justify-center rounded-full transition-colors" style={{ color: C.muted }}><Mic className="w-4 h-4" /></button>
