@@ -21,6 +21,8 @@ export default function CoworkPage() {
   const [recentTasks, setRecentTasks] = useState([]);
   const [showConnectors, setShowConnectors] = useState(false);
   const [expandedGroup, setExpandedGroup] = useState(null);
+  const [coworkPlusOpen, setCoworkPlusOpen] = useState(false);
+  const coworkPlusRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   const filteredTasks = COWORK_TASKS.filter(task => {
@@ -60,6 +62,14 @@ export default function CoworkPage() {
   };
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [taskMessages, isWorking]);
+
+  // Close cowork plus menu on outside click
+  useEffect(() => {
+    if (!coworkPlusOpen) return;
+    const h = (e) => { if (coworkPlusRef.current && !coworkPlusRef.current.contains(e.target)) setCoworkPlusOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [coworkPlusOpen]);
 
   if (!activeTask) {
     return (
@@ -305,7 +315,64 @@ export default function CoworkPage() {
                 className="w-full focus:outline-none resize-none text-[14px] font-sans" style={{ background: "transparent", border: "none", color: C.text, padding: "12px 16px 8px", minHeight: 44, maxHeight: 160 }}
                 data-testid="cowork-reply-input" />
               <div className="flex items-center gap-2 px-3 pb-3">
-                <button className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted }}><Plus className="w-3 h-3" /></button>
+                <div ref={coworkPlusRef} className="relative">
+                  <button onClick={() => setCoworkPlusOpen(v => !v)}
+                    className="w-6 h-6 rounded-full flex items-center justify-center transition-all"
+                    style={{ background: coworkPlusOpen ? "rgba(29,140,248,0.15)" : C.surface2, border: `1px solid ${coworkPlusOpen ? C.accent : C.border}`, color: coworkPlusOpen ? C.accent : C.muted }}
+                    data-testid="cowork-conv-plus-btn">
+                    <Plus className={`w-3 h-3 transition-transform duration-200 ${coworkPlusOpen ? "rotate-45" : ""}`} />
+                  </button>
+                  {coworkPlusOpen && (
+                    <div className="absolute bottom-full left-0 mb-2 z-50 w-64 rounded-xl py-1 shadow-2xl max-h-[360px] overflow-y-auto" style={{ background: "#151515", border: "1px solid #2a2a2a" }}>
+                      <div className="px-3 py-1">
+                        <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>Services</span>
+                      </div>
+                      {CONNECTORS.slice(0, 6).map(c => (
+                        <div key={c.id} className="flex items-center gap-2 px-3 py-[5px] transition-colors hover:bg-white/[0.03]" style={{ color: C.text }}>
+                          <c.icon className="w-3 h-3 shrink-0" style={{ color: connectors[c.id] ? C.green : "#555" }} />
+                          <span className="text-[11px] flex-1">{c.label}</span>
+                          <Toggle on={connectors[c.id]} onToggle={() => toggleConnector(c.id)} />
+                        </div>
+                      ))}
+                      <div className="my-1" style={{ height: 1, background: "#1e1e1e" }} />
+                      <div className="px-3 py-1">
+                        <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>Desktop Apps</span>
+                      </div>
+                      {DESKTOP_APP_GROUPS.map(group => {
+                        const GroupIcon = group.icon;
+                        const isExp = expandedGroup === group.id;
+                        const gCount = group.apps.filter(a => connectors[a.id]).length;
+                        return (
+                          <div key={group.id}>
+                            <button type="button" onClick={() => setExpandedGroup(isExp ? null : group.id)}
+                              className="w-full flex items-center gap-2 px-3 py-[6px] transition-colors hover:bg-white/[0.03]"
+                              data-testid={`conv-desktop-${group.id}`}>
+                              <GroupIcon className="w-3 h-3 shrink-0" style={{ color: group.color }} />
+                              <span className="text-[11px] font-medium flex-1 text-left" style={{ color: C.text }}>{group.name}</span>
+                              {gCount > 0 && <span className="text-[9px] px-1 rounded-full" style={{ background: `${group.color}20`, color: group.color }}>{gCount}</span>}
+                              {isExp ? <ChevronDown className="w-3 h-3" style={{ color: "#555" }} /> : <ChevronRight className="w-3 h-3" style={{ color: "#555" }} />}
+                            </button>
+                            {isExp && group.apps.map(app => {
+                              const AppIcon = app.icon;
+                              return (
+                                <div key={app.id} className="flex items-center gap-2 pl-7 pr-3 py-[4px] transition-colors hover:bg-white/[0.03]">
+                                  <AppIcon className="w-3 h-3 shrink-0" style={{ color: connectors[app.id] ? group.color : "#555" }} />
+                                  <span className="text-[10px] flex-1" style={{ color: connectors[app.id] ? C.text : "#777" }}>{app.label}</span>
+                                  <Toggle on={connectors[app.id]} onToggle={() => toggleConnector(app.id)} />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                      <div className="my-1" style={{ height: 1, background: "#1e1e1e" }} />
+                      <button onClick={() => { setCoworkPlusOpen(false); }}
+                        className="w-full flex items-center gap-2 px-3 py-[6px] text-[11px] transition-colors hover:bg-white/[0.03]" style={{ color: C.muted }}>
+                        <Wrench className="w-3 h-3" /> Manage connectors
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <div className="flex-1" />
                 <ModelSelector models={models} providers={providers} activeModel={activeModel} onSelect={switchModel} />
                 <button onClick={handleReply} disabled={!replyVal.trim()} className="h-7 px-3 rounded-lg text-[12px] font-medium flex items-center gap-1.5 transition-colors"
@@ -343,6 +410,28 @@ export default function CoworkPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2"><Folder className="w-4 h-4" style={{ color: "#555" }} /><span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#666" }}>Working folder</span></div>
             <ChevronRight className="w-3.5 h-3.5" style={{ color: "#555" }} />
+          </div>
+        </div>
+        <div className="p-4" style={{ borderBottom: `1px solid ${C.border}` }}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2"><Layers className="w-4 h-4" style={{ color: "#555" }} /><span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#666" }}>Connectors</span></div>
+            <span className="text-[10px]" style={{ color: C.accent }}>{Object.values(connectors).filter(Boolean).length} active</span>
+          </div>
+          <div className="space-y-1">
+            {CONNECTORS.filter(c => connectors[c.id]).map(c => (
+              <div key={c.id} className="flex items-center gap-2 text-[11px]" style={{ color: C.muted }}>
+                <c.icon className="w-3 h-3" style={{ color: C.green }} />{c.label}
+              </div>
+            ))}
+            {DESKTOP_APP_GROUPS.flatMap(g => g.apps.filter(a => connectors[a.id]).map(a => {
+              const AppIcon = a.icon;
+              return (
+                <div key={a.id} className="flex items-center gap-2 text-[11px]" style={{ color: C.muted }}>
+                  <AppIcon className="w-3 h-3" style={{ color: g.color }} />{a.label}
+                </div>
+              );
+            }))}
+            {Object.values(connectors).filter(Boolean).length === 0 && <div className="text-[10px]" style={{ color: "#444" }}>No connectors active</div>}
           </div>
         </div>
         <div className="p-4">

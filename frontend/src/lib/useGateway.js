@@ -667,6 +667,13 @@ export const useGateway = create(
     }),
     {
       name: "openclaw-gateway",
+      version: 2,
+      migrate: (persisted, version) => {
+        if (version < 2) {
+          return { ...persisted, spaces: DEFAULT_SPACES };
+        }
+        return persisted;
+      },
       partialize: (s) => ({
         activeModel: s.activeModel,
         connectors: s.connectors,
