@@ -501,7 +501,8 @@ export const useGateway = create(
       // Thread actions
       createThread: (title) => {
         const id = crypto.randomUUID();
-        const thread = { id, title: title || "New thread", messages: [], createdAt: Date.now(), spaceId: null, modelId: get().activeModel };
+        const currentModel = get().activeModel;
+        const thread = { id, title: title || "New thread", messages: [], createdAt: Date.now(), spaceId: null, modelId: currentModel };
         set((s) => ({ threads: [thread, ...s.threads], activeThreadId: id, messages: [] }));
         return id;
       },
@@ -551,9 +552,13 @@ export const useGateway = create(
         set({ status: "connected", clawStatus: { state: "Scheduled" } });
       },
       
-      // Switch model
+      // Switch model — also persist to current thread immediately
       switchModel: async (modelId) => {
+        const { activeThreadId, threads } = get();
         set({ activeModel: modelId });
+        if (activeThreadId) {
+          set({ threads: threads.map(t => t.id === activeThreadId ? { ...t, modelId } : t) });
+        }
         get().addEvent({
           id: crypto.randomUUID(),
           ts: Date.now(),
