@@ -1,18 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Plus, ChevronRight, ChevronDown, Check, Paperclip, Grid3X3, GitBranch, Wrench,
+  Plus, ChevronRight, Check, Paperclip, Grid3X3, GitBranch, Wrench,
   Layers, Puzzle, Telescope, Globe, Bot, Code2, FileText, Paintbrush,
-  FolderOpen, Briefcase, Monitor,
+  FolderOpen, Briefcase,
 } from "lucide-react";
-import { C, CONNECTORS, SKILLS, DESKTOP_APP_GROUPS } from "@/lib/constants";
+import { C, CONNECTORS, SKILLS } from "@/lib/constants";
 import { useGateway } from "@/lib/useGateway";
 import { Toggle } from "@/components/shared";
 
 export function PlusMenu({ onSelect, disabled, onModeChange }) {
   const [open, setOpen] = useState(false);
   const [sub, setSub] = useState(null);
-  const [expandedGroup, setExpandedGroup] = useState(null);
   const [newSpaceName, setNewSpaceName] = useState("");
   const ref = useRef(null);
   const fileRef = useRef(null);
@@ -26,17 +25,14 @@ export function PlusMenu({ onSelect, disabled, onModeChange }) {
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
-  // Reset expanded group when submenu changes
-  useEffect(() => { if (sub !== "connectors") setExpandedGroup(null); }, [sub]);
-
-  const close = () => { setOpen(false); setSub(null); setNewSpaceName(""); setExpandedGroup(null); };
+  const close = () => { setOpen(false); setSub(null); setNewSpaceName(""); };
   const hoverBg = "rgba(255,255,255,0.04)";
   const panelStyle = { background: "#151515", border: "1px solid #2a2a2a" };
 
-  const Row = ({ icon: Icon, label, badge, hasSub, onClick, active, iconColor }) => (
+  const Row = ({ icon: Icon, label, badge, hasSub, onClick, active }) => (
     <button type="button" onClick={onClick} className="w-full flex items-center gap-2.5 px-3 py-[7px] transition-colors text-left" style={{ color: C.text }}
       onMouseOver={e => { e.currentTarget.style.background = hoverBg; }} onMouseOut={e => { e.currentTarget.style.background = "transparent"; }}>
-      {Icon && <Icon className="w-4 h-4 shrink-0" style={{ color: iconColor || "#888" }} />}
+      {Icon && <Icon className="w-4 h-4 shrink-0" style={{ color: "#888" }} />}
       <span className="text-[13px] flex-1">{label}</span>
       {badge !== undefined && badge > 0 && <span className="flex items-center gap-1"><span className="text-[10px]" style={{ color: "#fbbf24" }}>!</span><span className="text-[10px]" style={{ color: "#888" }}>{badge}</span></span>}
       {active && <Check className="w-3.5 h-3.5" style={{ color: C.accent }} />}
@@ -68,7 +64,6 @@ export function PlusMenu({ onSelect, disabled, onModeChange }) {
     close();
   };
 
-  const activeDesktopCount = DESKTOP_APP_GROUPS.reduce((sum, g) => sum + g.apps.filter(a => connectors[a.id]).length, 0);
   const totalConnectorsBadge = Object.values(connectors).filter(Boolean).length;
 
   return (
@@ -96,7 +91,7 @@ export function PlusMenu({ onSelect, disabled, onModeChange }) {
             <Row icon={Bot} label="Use style" hasSub onClick={() => setSub(p => p === "style" ? null : "style")} />
           </div>
 
-          {/* ── Spaces submenu ── */}
+          {/* Spaces submenu */}
           {sub === "spaces" && (
             <div className="w-52 rounded-xl py-1 shadow-2xl" style={panelStyle}>
               {spaces.map(sp => {
@@ -129,7 +124,7 @@ export function PlusMenu({ onSelect, disabled, onModeChange }) {
             </div>
           )}
 
-          {/* ── Skills submenu ── */}
+          {/* Skills submenu */}
           {sub === "skills" && (
             <div className="w-52 rounded-xl py-1 shadow-2xl" style={panelStyle}>
               {SKILLS.map(sk => (
@@ -148,82 +143,21 @@ export function PlusMenu({ onSelect, disabled, onModeChange }) {
             </div>
           )}
 
-          {/* ── Connectors submenu (services + desktop apps) ── */}
+          {/* Connectors submenu — service connectors only */}
           {sub === "connectors" && (
-            <div className="w-72 rounded-xl py-1 shadow-2xl max-h-[420px] overflow-y-auto" style={panelStyle}>
-              {/* Service connectors */}
-              <div className="px-3 py-1">
-                <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>Services</span>
-              </div>
+            <div className="w-60 rounded-xl py-1 shadow-2xl max-h-80 overflow-y-auto" style={panelStyle}>
               {CONNECTORS.map(c => (
-                <div key={c.id} className="flex items-center gap-2.5 px-3 py-[6px] transition-colors" style={{ color: C.text }}
+                <div key={c.id} className="flex items-center gap-2.5 px-3 py-[7px] transition-colors" style={{ color: C.text }}
                   onMouseOver={e => { e.currentTarget.style.background = hoverBg; }} onMouseOut={e => { e.currentTarget.style.background = "transparent"; }}>
-                  <c.icon className="w-3.5 h-3.5 shrink-0" style={{ color: connectors[c.id] ? C.green : "#666" }} />
-                  <span className="text-[12px] flex-1">{c.label}</span>
-                  <Toggle on={connectors[c.id]} onToggle={() => toggleConnector(c.id)} />
+                  <c.icon className="w-4 h-4 shrink-0" style={{ color: connectors[c.id] ? C.green : "#666" }} /><span className="text-[13px] flex-1">{c.label}</span><Toggle on={connectors[c.id]} onToggle={() => toggleConnector(c.id)} />
                 </div>
               ))}
-
               <Divider />
-
-              {/* Desktop App Groups */}
-              <div className="px-3 py-1 flex items-center justify-between">
-                <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>Desktop Apps</span>
-                {activeDesktopCount > 0 && <span className="text-[9px] font-medium" style={{ color: C.accent }}>{activeDesktopCount} linked</span>}
-              </div>
-              {DESKTOP_APP_GROUPS.map(group => {
-                const GroupIcon = group.icon;
-                const isExpanded = expandedGroup === group.id;
-                const groupActiveCount = group.apps.filter(a => connectors[a.id]).length;
-                return (
-                  <div key={group.id}>
-                    <button type="button" onClick={() => setExpandedGroup(isExpanded ? null : group.id)}
-                      className="w-full flex items-center gap-2.5 px-3 py-[7px] transition-colors"
-                      style={{ color: C.text }}
-                      onMouseOver={e => { e.currentTarget.style.background = hoverBg; }}
-                      onMouseOut={e => { e.currentTarget.style.background = "transparent"; }}
-                      data-testid={`desktop-group-${group.id}`}>
-                      <GroupIcon className="w-3.5 h-3.5 shrink-0" style={{ color: group.color }} />
-                      <span className="text-[12px] font-medium flex-1">{group.name}</span>
-                      {groupActiveCount > 0 && <span className="text-[10px] px-1.5 rounded-full" style={{ background: `${group.color}20`, color: group.color }}>{groupActiveCount}</span>}
-                      {isExpanded
-                        ? <ChevronDown className="w-3 h-3 shrink-0" style={{ color: "#555" }} />
-                        : <ChevronRight className="w-3 h-3 shrink-0" style={{ color: "#555" }} />}
-                    </button>
-                    {isExpanded && (
-                      <div style={{ background: "rgba(255,255,255,0.01)" }}>
-                        {group.apps.map(app => {
-                          const AppIcon = app.icon;
-                          return (
-                            <div key={app.id} className="flex items-center gap-2.5 pl-8 pr-3 py-[5px] transition-colors"
-                              style={{ color: C.text }}
-                              onMouseOver={e => { e.currentTarget.style.background = hoverBg; }}
-                              onMouseOut={e => { e.currentTarget.style.background = "transparent"; }}>
-                              <AppIcon className="w-3 h-3 shrink-0" style={{ color: connectors[app.id] ? group.color : "#555" }} />
-                              <span className="text-[11px] flex-1">{app.label}</span>
-                              <Toggle on={connectors[app.id]} onToggle={() => toggleConnector(app.id)} />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              <Divider />
-              <button type="button" className="w-full flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-left transition-colors" style={{ color: "#888" }}
-                onMouseOver={e => { e.currentTarget.style.background = hoverBg; e.currentTarget.style.color = "#ccc"; }}
-                onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#888"; }}
-                onClick={() => { navigate("/customize?tab=connectors"); close(); }}
-                data-testid="add-app-btn">
-                <Plus className="w-3.5 h-3.5" /> Add app
-              </button>
               <Row icon={Wrench} label="Manage connectors" onClick={() => { navigate("/settings?tab=apps"); close(); }} />
             </div>
           )}
 
-          {/* ── Style submenu ── */}
+          {/* Style submenu */}
           {sub === "style" && (
             <div className="w-48 rounded-xl py-1 shadow-2xl" style={panelStyle}>
               {["Normal", "Concise", "Formal", "Explanatory"].map(s => (

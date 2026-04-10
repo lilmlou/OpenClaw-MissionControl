@@ -72,11 +72,14 @@ export default function Layout({ children }) {
               const threadSpace = t.spaceId ? spaces.find(s => s.id === t.spaceId) : null;
               const SpIcon = threadSpace ? getSpaceIcon(threadSpace.icon) : MessageSquare;
               const iconColor = threadSpace ? threadSpace.color : undefined;
+              const isActive = t.id === activeThreadId;
+              const borderLeft = threadSpace ? `3px solid ${threadSpace.color}` : "3px solid transparent";
+              const bgTint = threadSpace && !isActive ? `${threadSpace.color}08` : isActive ? "rgba(29,140,248,0.1)" : "transparent";
               return (
                 <button key={t.id} onClick={() => handleThreadClick(t.id)}
                   className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-[12px] transition-colors group"
-                  style={{ background: t.id === activeThreadId ? "rgba(29,140,248,0.1)" : "transparent", color: t.id === activeThreadId ? C.accent : "#777" }}>
-                  <SpIcon className="w-3 h-3 shrink-0 mt-0.5" style={{ color: iconColor || (t.id === activeThreadId ? C.accent : "#555") }} />
+                  style={{ background: bgTint, color: isActive ? C.accent : "#777", borderLeft }}>
+                  <SpIcon className="w-3 h-3 shrink-0 mt-0.5" style={{ color: iconColor || (isActive ? C.accent : "#555") }} />
                   <div className="flex-1 min-w-0 text-left">
                     <span className="truncate block">{t.title}</span>
                     <div className="flex items-center gap-1.5">

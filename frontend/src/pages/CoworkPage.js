@@ -2,23 +2,25 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   Search, Mic, Plus, ChevronLeft, ChevronDown, ChevronRight, ArrowRight,
-  Folder, MonitorSmartphone, Layers, Puzzle, Smartphone, Check,
+  Folder, MonitorSmartphone, Layers, Puzzle, Smartphone, Check, Wrench,
 } from "lucide-react";
-import { C, COWORK_TASKS, COWORK_CATEGORIES } from "@/lib/constants";
+import { C, COWORK_TASKS, COWORK_CATEGORIES, CONNECTORS, DESKTOP_APP_GROUPS } from "@/lib/constants";
 import { useGateway, switchModel } from "@/lib/useGateway";
-import { Markdown } from "@/components/shared";
+import { Markdown, Toggle } from "@/components/shared";
 import { ModelSelector } from "@/components/ModelSelector";
 
 export default function CoworkPage() {
   const [category, setCategory] = useState("all");
   const [search, setSearch] = useState("");
-  const { models, providers, activeModel, connectors } = useGateway();
+  const { models, providers, activeModel, connectors, toggleConnector } = useGateway();
   const [activeTask, setActiveTask] = useState(null);
   const [replyVal, setReplyVal] = useState("");
   const [taskMessages, setTaskMessages] = useState([]);
   const [isWorking, setIsWorking] = useState(false);
   const [progressSteps, setProgressSteps] = useState([]);
   const [recentTasks, setRecentTasks] = useState([]);
+  const [showConnectors, setShowConnectors] = useState(false);
+  const [expandedGroup, setExpandedGroup] = useState(null);
   const messagesEndRef = useRef(null);
 
   const filteredTasks = COWORK_TASKS.filter(task => {
@@ -68,15 +70,97 @@ export default function CoworkPage() {
               <h1 className="text-3xl font-bold mb-2">Delegate to OpenClaw</h1>
               <p className="text-lg" style={{ color: C.muted }}>Hand off a task, get a polished deliverable</p>
             </div>
-            {activeConnectors < 4 && (
-              <div className="flex items-center justify-between p-4 rounded-xl mb-6" style={{ background: "rgba(29,140,248,0.1)", border: "1px solid rgba(29,140,248,0.2)" }}>
-                <div className="flex items-center gap-3"><MonitorSmartphone className="w-5 h-5" style={{ color: C.accent }} /><span className="text-sm">Connect your tools to unlock more capabilities</span></div>
-                <div className="flex gap-2">
-                  <Link to="/settings"><button className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm" style={{ border: `1px solid ${C.border}`, color: C.text }}><Layers className="w-3 h-3" /> Connectors <span className="text-xs bg-blue-600 px-1 rounded">{activeConnectors}</span></button></Link>
-                  <Link to="/customize"><button className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm" style={{ border: `1px solid ${C.border}`, color: C.text }}><Puzzle className="w-3 h-3" /> Plugins</button></Link>
+            {/* Connectors panel — services + desktop apps */}
+            <div className="rounded-xl mb-6 overflow-hidden" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+              <button onClick={() => setShowConnectors(v => !v)}
+                className="w-full flex items-center justify-between p-4 transition-colors hover:bg-white/[0.02]"
+                data-testid="cowork-connectors-toggle">
+                <div className="flex items-center gap-3">
+                  <MonitorSmartphone className="w-5 h-5" style={{ color: C.accent }} />
+                  <div className="text-left">
+                    <span className="text-sm font-medium">Connectors &amp; Desktop Apps</span>
+                    <span className="text-xs ml-2" style={{ color: C.muted }}>{activeConnectors} active</span>
+                  </div>
                 </div>
-              </div>
-            )}
+                <div className="flex items-center gap-2">
+                  <Link to="/customize?tab=plugins" onClick={e => e.stopPropagation()}>
+                    <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs" style={{ border: `1px solid ${C.border}`, color: C.muted }}>
+                      <Puzzle className="w-3 h-3" /> Plugins
+                    </span>
+                  </Link>
+                  {showConnectors
+                    ? <ChevronDown className="w-4 h-4" style={{ color: "#555" }} />
+                    : <ChevronRight className="w-4 h-4" style={{ color: "#555" }} />}
+                </div>
+              </button>
+              {showConnectors && (
+                <div style={{ borderTop: `1px solid ${C.border}` }}>
+                  {/* Service connectors */}
+                  <div className="px-4 pt-3 pb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>Services</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-0 px-4 pb-3">
+                    {CONNECTORS.map(c => (
+                      <div key={c.id} className="flex items-center gap-2 py-[5px]">
+                        <c.icon className="w-3.5 h-3.5 shrink-0" style={{ color: connectors[c.id] ? C.green : "#555" }} />
+                        <span className="text-[12px] flex-1 truncate" style={{ color: connectors[c.id] ? C.text : "#888" }}>{c.label}</span>
+                        <Toggle on={connectors[c.id]} onToggle={() => toggleConnector(c.id)} />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop App Groups */}
+                  <div className="px-4 pt-2 pb-1" style={{ borderTop: `1px solid ${C.border}` }}>
+                    <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>Desktop Apps</span>
+                  </div>
+                  <div className="px-2 pb-3">
+                    {DESKTOP_APP_GROUPS.map(group => {
+                      const GroupIcon = group.icon;
+                      const isExpanded = expandedGroup === group.id;
+                      const groupActiveCount = group.apps.filter(a => connectors[a.id]).length;
+                      return (
+                        <div key={group.id}>
+                          <button type="button" onClick={() => setExpandedGroup(isExpanded ? null : group.id)}
+                            className="w-full flex items-center gap-2.5 px-3 py-[7px] rounded-lg transition-colors hover:bg-white/[0.03]"
+                            data-testid={`desktop-group-${group.id}`}>
+                            <GroupIcon className="w-4 h-4 shrink-0" style={{ color: group.color }} />
+                            <span className="text-[13px] font-medium flex-1 text-left" style={{ color: C.text }}>{group.name}</span>
+                            {groupActiveCount > 0 && <span className="text-[10px] px-1.5 rounded-full" style={{ background: `${group.color}20`, color: group.color }}>{groupActiveCount}</span>}
+                            {isExpanded
+                              ? <ChevronDown className="w-3.5 h-3.5" style={{ color: "#555" }} />
+                              : <ChevronRight className="w-3.5 h-3.5" style={{ color: "#555" }} />}
+                          </button>
+                          {isExpanded && (
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-0 pl-9 pr-3 pb-2">
+                              {group.apps.map(app => {
+                                const AppIcon = app.icon;
+                                return (
+                                  <div key={app.id} className="flex items-center gap-2 py-[4px]">
+                                    <AppIcon className="w-3 h-3 shrink-0" style={{ color: connectors[app.id] ? group.color : "#555" }} />
+                                    <span className="text-[11px] flex-1 truncate" style={{ color: connectors[app.id] ? C.text : "#777" }}>{app.label}</span>
+                                    <Toggle on={connectors[app.id]} onToggle={() => toggleConnector(app.id)} />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between px-4 py-2.5" style={{ borderTop: `1px solid ${C.border}`, background: "rgba(255,255,255,0.01)" }}>
+                    <Link to="/customize?tab=connectors" className="flex items-center gap-1.5 text-xs" style={{ color: C.accent }}>
+                      <Plus className="w-3 h-3" /> Add app
+                    </Link>
+                    <Link to="/settings?tab=apps" className="flex items-center gap-1.5 text-xs" style={{ color: C.muted }}>
+                      <Wrench className="w-3 h-3" /> Manage connectors
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
               {COWORK_CATEGORIES.map(cat => {
                 const Icon = cat.icon;

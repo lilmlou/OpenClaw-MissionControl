@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "react-router-dom";
-import { Trash2, Terminal, Square } from "lucide-react";
+import { Trash2, Terminal, Square, FolderOpen, FileText, Code2, Paintbrush, Briefcase, Globe, Layers } from "lucide-react";
 import { C } from "@/lib/constants";
 import { useGateway, initGateway, sendMessage } from "@/lib/useGateway";
 import { BinaryRain, Markdown, MessageRow } from "@/components/shared";
 import { InputBar } from "@/components/InputBar";
 
+const SPACE_ICONS = { FileText, Code2, Paintbrush, FolderOpen, Briefcase, Globe, Layers };
+const getSpaceIcon = (iconName) => SPACE_ICONS[iconName] || FolderOpen;
+
 export default function HomePage() {
-  const { messages, streamingMessage, status, clearMessages } = useGateway();
+  const { messages, streamingMessage, status, clearMessages, activeThreadId, threads, spaces } = useGateway();
   const [fillPrompt, setFillPrompt] = useState(null);
   const bottomRef = useRef(null);
   const location = useLocation();
@@ -26,6 +29,11 @@ export default function HomePage() {
   }, [location]);
 
   const doSend = useCallback(async (text) => { if (!text.trim()) return; await sendMessage(text); }, []);
+
+  // Resolve active thread's space
+  const activeThread = activeThreadId ? threads.find(t => t.id === activeThreadId) : null;
+  const threadSpace = activeThread?.spaceId ? spaces.find(s => s.id === activeThread.spaceId) : null;
+  const SpaceIcon = threadSpace ? getSpaceIcon(threadSpace.icon) : null;
 
   if (!hasMessages) {
     return (
@@ -49,6 +57,13 @@ export default function HomePage() {
         <button className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full transition-colors" style={{ border: `1px solid ${C.border}`, color: "#666" }}><Terminal className="w-3 h-3" />Events</button>
       </div>
       <div className="relative z-10 flex-1 overflow-y-auto py-4">
+        {threadSpace && SpaceIcon && (
+          <div className="flex items-center gap-2 mx-4 mb-3 px-3 py-2 rounded-lg" style={{ background: `${threadSpace.color}10`, border: `1px solid ${threadSpace.color}25` }} data-testid="chat-space-banner">
+            <SpaceIcon className="w-4 h-4" style={{ color: threadSpace.color }} />
+            <span className="text-[12px] font-medium" style={{ color: threadSpace.color }}>{threadSpace.name}</span>
+            <span className="text-[10px]" style={{ color: `${threadSpace.color}88` }}>space</span>
+          </div>
+        )}
         {messages.map(msg => <MessageRow key={msg.id} msg={msg} />)}
         {streamingMessage && (
           <div className="flex gap-3 py-2 px-4">
