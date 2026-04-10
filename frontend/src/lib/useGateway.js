@@ -315,6 +315,16 @@ export const useGateway = create(
         { id: "git-assistant", name: "Git Assistant", desc: "PR reviews, commit messages, branch management", installed: false, category: "Dev" },
         { id: "db-query", name: "DB Query", desc: "Run SQL queries against connected databases", installed: false, category: "Dev" },
         { id: "api-tester", name: "API Tester", desc: "Test REST/GraphQL endpoints with auto-docs", installed: false, category: "Dev" },
+        { id: "productivity-suite", name: "Productivity", desc: "Task management and context building", installed: false, category: "Workflow" },
+        { id: "design-suite", name: "Design", desc: "Design workflows and UX tools", installed: false, category: "Creative" },
+        { id: "marketing-suite", name: "Marketing", desc: "Content and campaign management", installed: false, category: "Workflow" },
+        { id: "data-suite", name: "Data", desc: "SQL, datasets, and visualizations", installed: false, category: "Tools" },
+        { id: "engineering-suite", name: "Engineering", desc: "Engineering workflow tools", installed: false, category: "Tools" },
+        { id: "finance-suite", name: "Finance", desc: "Finance and accounting workflows", installed: false, category: "Workflow" },
+        { id: "product-mgmt", name: "Product management", desc: "Specs, roadmaps, and research", installed: false, category: "Workflow" },
+        { id: "operations-suite", name: "Operations", desc: "Business operations optimization", installed: false, category: "Workflow" },
+        { id: "legal-suite", name: "Legal", desc: "Contract review and compliance", installed: false, category: "Workflow" },
+        { id: "sales-suite", name: "Sales", desc: "Pipeline and CRM workflows", installed: false, category: "Workflow" },
       ],
       
       // MCP Servers
@@ -470,19 +480,19 @@ export const useGateway = create(
       // Thread actions
       createThread: (title) => {
         const id = crypto.randomUUID();
-        const thread = { id, title: title || "New thread", messages: [], createdAt: Date.now(), spaceId: null };
+        const thread = { id, title: title || "New thread", messages: [], createdAt: Date.now(), spaceId: null, modelId: get().activeModel };
         set((s) => ({ threads: [thread, ...s.threads], activeThreadId: id, messages: [] }));
         return id;
       },
       setActiveThread: (threadId) => {
         const { threads } = get();
         const thread = threads.find(t => t.id === threadId);
-        set({ activeThreadId: threadId, messages: thread ? thread.messages : [] });
+        set({ activeThreadId: threadId, messages: thread ? thread.messages : [], ...(thread?.modelId ? { activeModel: thread.modelId } : {}) });
       },
       saveThreadMessages: () => {
-        const { activeThreadId, messages, threads } = get();
+        const { activeThreadId, messages, threads, activeModel } = get();
         if (!activeThreadId) return;
-        set({ threads: threads.map(t => t.id === activeThreadId ? { ...t, messages, title: messages[0]?.content?.slice(0, 40) || t.title } : t) });
+        set({ threads: threads.map(t => t.id === activeThreadId ? { ...t, messages, title: messages[0]?.content?.slice(0, 40) || t.title, modelId: activeModel } : t) });
       },
       deleteThread: (threadId) => set((s) => ({
         threads: s.threads.filter(t => t.id !== threadId),

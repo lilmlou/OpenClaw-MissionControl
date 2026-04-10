@@ -157,6 +157,64 @@ const COWORK_CATEGORIES = [
   { id: "communicate", label: "Communicate", icon: MessageSquareText },
 ];
 
+/* ─── Directory Data (Customize — Skills / Connectors / Plugins catalog) ───── */
+const DIRECTORY_SKILLS = [
+  { id: "deep-research", name: "/deep-research", provider: "OpenClaw", downloads: "134.7K", desc: "Comprehensive multi-source research with synthesis and citation tracking.", icon: Telescope, category: "Research" },
+  { id: "canvas-design", name: "/canvas-design", provider: "OpenClaw", downloads: "145.2K", desc: "Create beautiful visual art in .png and .pdf documents using design philosophy.", icon: Paintbrush, category: "Design" },
+  { id: "web-artifacts-builder", name: "/web-artifacts-builder", provider: "OpenClaw", downloads: "92.2K", desc: "Suite of tools for creating multi-component HTML artifacts using modern frontend tech.", icon: Globe, category: "Development" },
+  { id: "mcp-builder", name: "/mcp-builder", provider: "OpenClaw", downloads: "75.3K", desc: "Guide for creating high-quality MCP servers that enable LLMs to interact with tools.", icon: Wrench, category: "Development" },
+  { id: "code-review", name: "/code-review", provider: "OpenClaw", downloads: "89.4K", desc: "Structured code review with best practices, security checks, and performance analysis.", icon: FileCode, category: "Development" },
+  { id: "theme-factory", name: "/theme-factory", provider: "OpenClaw", downloads: "72.4K", desc: "Toolkit for styling artifacts with a theme — slides, docs, reportings, landing pages.", icon: Palette, category: "Design" },
+  { id: "doc-coauthoring", name: "/doc-coauthoring", provider: "OpenClaw", downloads: "68.5K", desc: "Guide users through a structured workflow for co-authoring documentation.", icon: NotebookPen, category: "Writing" },
+  { id: "web-scraper", name: "/web-scraper", provider: "OpenClaw", downloads: "63.8K", desc: "Extract, parse, and analyze content from web pages with structured output.", icon: Globe, category: "Development" },
+  { id: "file-manager", name: "/file-manager", provider: "OpenClaw", downloads: "56.1K", desc: "Organize, rename, and manage file systems with intelligent categorization.", icon: FolderKanban, category: "Productivity" },
+  { id: "brand-guidelines", name: "/brand-guidelines", provider: "OpenClaw", downloads: "66.9K", desc: "Applies brand colors and typography to any artifact that benefits from branding.", icon: Paintbrush, category: "Design" },
+  { id: "algorithmic-art", name: "/algorithmic-art", provider: "OpenClaw", downloads: "55K", desc: "Creating algorithmic art with seeded randomness and interactive parameter exploration.", icon: Hash, category: "Creative" },
+  { id: "internal-comms", name: "/internal-comms", provider: "OpenClaw", downloads: "51.8K", desc: "Write all kinds of internal communications using company formats and tone.", icon: Mail, category: "Writing" },
+  { id: "task-scheduler", name: "/task-scheduler", provider: "OpenClaw", downloads: "42.3K", desc: "Schedule, manage, and automate recurring tasks with smart prioritization.", icon: Calendar, category: "Productivity" },
+  { id: "slack-gif-creator", name: "/slack-gif-creator", provider: "OpenClaw", downloads: "38.1K", desc: "Knowledge and utilities for creating animated GIFs optimized for Slack.", icon: Sparkles, category: "Creative" },
+  { id: "skill-creator", name: "/skill-creator", provider: "OpenClaw", downloads: "12.9K", desc: "Create new skills, modify existing skills, and measure skill performance.", icon: Pencil, category: "Development" },
+];
+
+const DIRECTORY_CONNECTORS = [
+  { id: "linear", name: "Linear", desc: "Manage issues, projects & team workflows in Linear", icon: ListTodo, category: "Development" },
+  { id: "huggingface_conn", name: "Hugging Face", desc: "Access the Hugging Face Hub and thousands of Gradio Apps", icon: Bot, category: "AI & ML" },
+  { id: "atlassian", name: "Atlassian Rovo", desc: "Access Jira & Confluence from OpenClaw", icon: Briefcase, category: "Productivity" },
+  { id: "figma", name: "Figma", desc: "Generate diagrams and better code from Figma context", icon: Paintbrush, category: "Design", badge: "Interactive" },
+  { id: "slack", name: "Slack", desc: "Team messaging and workflow automation", icon: MessageSquare, category: "Communication" },
+  { id: "notion", name: "Notion", desc: "Knowledge base and documentation management", icon: FileText, category: "Productivity" },
+  { id: "vscode", name: "VS Code", desc: "Code editor integration with live editing and debugging", icon: Code2, category: "Development" },
+  { id: "docker", name: "Docker", desc: "Container management, builds, and deployment", icon: Box, category: "Development" },
+  { id: "github", name: "GitHub", desc: "Code repos, pull requests, and issue management", icon: GitBranch, category: "Development" },
+  { id: "chrome", name: "Chrome Browser", desc: "Web browsing and browser automation", icon: Globe, category: "Productivity" },
+  { id: "telegram", name: "Telegram", desc: "Messaging integration for notifications and commands", icon: MessageCircle, category: "Communication" },
+  { id: "signal", name: "Signal", desc: "Private and secure messaging integration", icon: Radio, category: "Communication" },
+  { id: "cloudflare", name: "Cloudflare", desc: "Build applications with compute, storage, and AI", icon: Cloud, category: "Development" },
+  { id: "vercel", name: "Vercel", desc: "Deploy and manage web applications seamlessly", icon: Rocket, category: "Development" },
+  { id: "mac", name: "Control Mac", desc: "Control your Mac desktop with AI-powered automation", icon: Monitor, category: "Productivity" },
+  { id: "desktop", name: "Desktop Commander", desc: "Advanced desktop automation and system commands", icon: Terminal, category: "Productivity" },
+  { id: "files", name: "File Access", desc: "Read and write files on your local system", icon: FolderOpen, category: "Productivity" },
+  { id: "web", name: "Web Search", desc: "Search the web and extract information", icon: Search, category: "Research" },
+];
+
+const DIRECTORY_PLUGINS = [
+  { id: "productivity-suite", name: "Productivity", provider: "OpenClaw", downloads: "469.9K", desc: "Manage tasks, plan your day, and build up memory of important context about your work.", icon: Briefcase, category: "Workflow" },
+  { id: "design-suite", name: "Design", provider: "OpenClaw", downloads: "423.5K", desc: "Accelerate design workflows — critique, design system management, UX writing, accessibility audits.", icon: Paintbrush, category: "Creative" },
+  { id: "marketing-suite", name: "Marketing", provider: "OpenClaw", downloads: "359K", desc: "Create content, plan campaigns, and analyze performance across marketing channels.", icon: BarChart3, category: "Workflow" },
+  { id: "data-suite", name: "Data", provider: "OpenClaw", downloads: "343.1K", desc: "Write SQL, explore datasets, and generate insights faster. Build visualizations and dashboards.", icon: Database, category: "Tools" },
+  { id: "engineering-suite", name: "Engineering", provider: "OpenClaw", downloads: "324.9K", desc: "Streamline engineering workflows — standups, code review, architecture decisions, incident response.", icon: Code2, category: "Tools" },
+  { id: "finance-suite", name: "Finance", provider: "OpenClaw", downloads: "296.3K", desc: "Streamline finance and accounting workflows, from journal entries to financial statements.", icon: CreditCard, category: "Workflow" },
+  { id: "product-mgmt", name: "Product management", provider: "OpenClaw", downloads: "271.4K", desc: "Write feature specs, plan roadmaps, and synthesize user research faster.", icon: FolderKanban, category: "Workflow" },
+  { id: "operations-suite", name: "Operations", provider: "OpenClaw", downloads: "254.4K", desc: "Optimize business operations — vendor management, process docs, change management.", icon: Layers, category: "Workflow" },
+  { id: "legal-suite", name: "Legal", provider: "OpenClaw", downloads: "242.8K", desc: "Contract review, compliance checks, legal research, and document drafting.", icon: Shield, category: "Workflow" },
+  { id: "sales-suite", name: "Sales", provider: "OpenClaw", downloads: "231.3K", desc: "Pipeline management, outreach templates, CRM workflows, and sales analytics.", icon: Rocket, category: "Workflow" },
+];
+
+const SKILL_CATEGORIES = ["All", ...new Set(DIRECTORY_SKILLS.map(s => s.category))];
+const CONNECTOR_CATEGORIES = ["All", ...new Set(DIRECTORY_CONNECTORS.map(c => c.category))];
+const PLUGIN_CATEGORIES = ["All", ...new Set(DIRECTORY_PLUGINS.map(p => p.category))];
+
+
 /* ─── Shared Components ─────────────────────────────────────────────────────── */
 function BinaryRain() {
   const ref = useRef(null);
@@ -420,7 +478,7 @@ function PlusMenu({ onSelect, disabled, onModeChange }) {
             <Divider />
             <Row icon={Wrench} label="Skills" badge={enabledSkills.length} hasSub onClick={() => setSub(p => p === "skills" ? null : "skills")} />
             <Row icon={Layers} label="Connectors" badge={Object.values(connectors).filter(Boolean).length} hasSub onClick={() => setSub(p => p === "connectors" ? null : "connectors")} />
-            <Row icon={Puzzle} label="Plugins" onClick={() => { navigate("/customize"); close(); }} />
+            <Row icon={Puzzle} label="Plugins" onClick={() => { navigate("/customize?tab=plugins"); close(); }} />
             <Divider />
             <Row icon={Telescope} label="Research" onClick={() => { onModeChange?.("research"); onSelect("Do deep research on: ", true); close(); }} />
             <Row icon={Globe} label="Web search" active={webSearchEnabled} onClick={() => setWebSearchEnabled(!webSearchEnabled)} />
@@ -464,10 +522,10 @@ function PlusMenu({ onSelect, disabled, onModeChange }) {
                 </button>
               ))}
               <Divider />
-              <Row icon={Wrench} label="Manage skills" onClick={() => { navigate("/customize"); close(); }} />
+              <Row icon={Wrench} label="Manage skills" onClick={() => { navigate("/customize?tab=skills"); close(); }} />
               <button type="button" className="w-full flex items-center gap-2.5 px-3 py-[6px] text-[13px] text-left transition-colors" style={{ color: "#888" }}
                 onMouseOver={e => { e.currentTarget.style.background = hoverBg; e.currentTarget.style.color = "#ccc"; }}
-                onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#888"; }} onClick={() => { navigate("/customize"); close(); }}>
+                onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#888"; }} onClick={() => { navigate("/customize?tab=skills"); close(); }}>
                 <Plus className="w-3.5 h-3.5" /> Add skill
               </button>
             </div>
@@ -480,7 +538,7 @@ function PlusMenu({ onSelect, disabled, onModeChange }) {
                   <c.icon className="w-4 h-4 shrink-0" style={{ color: "#888" }} /><span className="text-[13px] flex-1">{c.label}</span><Toggle on={connectors[c.id]} onToggle={() => toggleConnector(c.id)} />
                 </div>
               ))}
-              <Divider /><Row icon={Wrench} label="Manage connectors" onClick={() => { navigate("/settings?tab=apps"); close(); }} />
+              <Divider /><Row icon={Wrench} label="Manage connectors" onClick={() => { navigate("/customize?tab=connectors"); close(); }} />
             </div>
           )}
           {sub === "style" && (
@@ -1191,6 +1249,12 @@ function CodePage() {
 function SettingsPage() {
   const { connectors, toggleConnector, writingStyle, setWritingStyle, webSearchEnabled, setWebSearchEnabled, userProfile, setUserProfile, activeModel, models, theme, setTheme, dataControls, setDataControl, security, setSecurity, mcpServers, addMcpServer, removeMcpServer, apiKeys, addApiKey, removeApiKey, clearAllThreads, threads } = useGateway();
   const [tab, setTab] = useState("general");
+  const settingsLocation = useLocation();
+  useEffect(() => {
+    const params = new URLSearchParams(settingsLocation.search);
+    const urlTab = params.get("tab");
+    if (urlTab && ["general", "profile", "apps", "data", "security"].includes(urlTab)) setTab(urlTab);
+  }, [settingsLocation.search]);
   const [mcpUrl, setMcpUrl] = useState("");
   const [mcpName, setMcpName] = useState("");
   const [showMcpForm, setShowMcpForm] = useState(false);
@@ -1407,64 +1471,202 @@ function SettingsPage() {
   );
 }
 
-/* ─── Customize Page ─────────────────────────────────────────────────────────── */
+/* ─── Customize Page (Claude-style Directory) ─────────────────────────────── */
 function CustomizePage() {
-  const { enabledSkills, toggleSkill, plugins, togglePlugin } = useGateway();
-  const [pluginFilter, setPluginFilter] = useState("All");
-  const allSkills = SKILLS;
-  const categories = ["All", ...new Set(plugins.map(p => p.category))];
-  const filtered = pluginFilter === "All" ? plugins : plugins.filter(p => p.category === pluginFilter);
+  const [activeTab, setActiveTab] = useState("skills");
+  const [search, setSearch] = useState("");
+  const [filterCat, setFilterCat] = useState("All");
+  const { enabledSkills, toggleSkill, plugins, togglePlugin, connectors, toggleConnector } = useGateway();
+  const location = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const urlTab = params.get("tab");
+    if (urlTab && ["skills", "connectors", "plugins"].includes(urlTab)) { setActiveTab(urlTab); setSearch(""); setFilterCat("All"); }
+  }, [location.search]);
+
+  const TABS = [
+    { id: "skills", label: "Skills", icon: Wrench },
+    { id: "connectors", label: "Connectors", icon: Link2 },
+    { id: "plugins", label: "Plugins", icon: Puzzle },
+  ];
+
+  const matchSearch = (item) => !search || item.name.toLowerCase().includes(search.toLowerCase()) || item.desc.toLowerCase().includes(search.toLowerCase());
+  const matchCat = (item) => filterCat === "All" || item.category === filterCat;
+
+  const categories = activeTab === "skills" ? SKILL_CATEGORIES : activeTab === "connectors" ? CONNECTOR_CATEGORIES : PLUGIN_CATEGORIES;
+  const fSkills = DIRECTORY_SKILLS.filter(s => matchSearch(s) && matchCat(s));
+  const fConnectors = DIRECTORY_CONNECTORS.filter(c => matchSearch(c) && matchCat(c));
+  const fPlugins = DIRECTORY_PLUGINS.filter(p => matchSearch(p) && matchCat(p));
+
+  const CardEmpty = () => <div className="col-span-2 text-center py-12 text-sm" style={{ color: C.muted }}>No results matching "{search}"</div>;
+
   return (
-    <div className="h-full overflow-auto" style={{ color: C.text }}>
-      <div className="max-w-2xl mx-auto px-6 py-8">
-        <h1 className="text-2xl font-bold mb-2">Customize OpenClaw</h1>
-        <p className="text-sm mb-6" style={{ color: C.muted }}>Teach OpenClaw your workflows and add capabilities.</p>
-        <div className="space-y-4">
-          <div className="p-4 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-            <h2 className="text-sm font-medium mb-3">Skills</h2>
-            <p className="text-xs mb-4" style={{ color: C.muted }}>Toggle skills to extend OpenClaw's capabilities.</p>
-            <div className="space-y-2">
-              {allSkills.map(skill => (
-                <div key={skill} className="flex items-center justify-between py-1.5">
-                  <div className="flex items-center gap-2"><Wrench className="w-3.5 h-3.5" style={{ color: enabledSkills.includes(skill) ? C.green : C.muted }} /><span className="text-sm">{skill}</span></div>
-                  <Toggle on={enabledSkills.includes(skill)} onToggle={() => toggleSkill(skill)} />
-                </div>
-              ))}
-            </div>
-          </div>
-          <Link to="/settings?tab=apps" className="block p-4 rounded-xl transition-colors hover:bg-white/5" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: C.surface2 }}><Link2 className="w-5 h-5" style={{ color: C.muted }} /></div>
-              <div><div className="font-medium">Manage Connectors</div><div className="text-sm" style={{ color: C.muted }}>Enable integrations in Settings &rarr; Connected Apps</div></div>
-              <ChevronRight className="w-4 h-4 ml-auto" style={{ color: C.muted }} />
-            </div>
+    <div className="h-full flex" style={{ color: C.text }}>
+      {/* Left sidebar */}
+      <div className="shrink-0 overflow-auto" style={{ width: 180, borderRight: `1px solid ${C.border}`, background: "#0b0b0b" }}>
+        <div className="p-4 pb-3">
+          <Link to="/" className="flex items-center gap-1.5 text-sm" style={{ color: C.muted }} data-testid="customize-back">
+            <ChevronLeft className="w-3.5 h-3.5" /> Customize
           </Link>
-          <div className="p-4 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-            <div className="flex items-center justify-between mb-3">
-              <div><h2 className="text-sm font-medium">Plugins</h2><p className="text-xs mt-0.5" style={{ color: C.muted }}>Add tools and capabilities to OpenClaw.</p></div>
-              <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: C.surface2, color: C.muted }}>{plugins.filter(p => p.installed).length} installed</span>
-            </div>
-            <div className="flex gap-1.5 mb-3">
-              {categories.map(cat => (
-                <button key={cat} onClick={() => setPluginFilter(cat)} className="text-[11px] px-2.5 py-1 rounded-full transition-colors font-medium"
-                  style={{ background: pluginFilter === cat ? "rgba(29,140,248,0.15)" : C.surface2, color: pluginFilter === cat ? C.accent : C.muted, border: `1px solid ${pluginFilter === cat ? "rgba(29,140,248,0.3)" : C.border}` }}>
-                  {cat}
-                </button>
-              ))}
-            </div>
-            <div className="space-y-2">
-              {filtered.map(plugin => (
-                <div key={plugin.id} className="flex items-center justify-between py-2 px-3 rounded-lg transition-colors" style={{ background: plugin.installed ? "rgba(29,140,248,0.04)" : "transparent" }}
-                  data-testid={`plugin-${plugin.id}`}>
-                  <div className="flex items-center gap-3">
-                    <Puzzle className="w-4 h-4" style={{ color: plugin.installed ? C.accent : C.muted }} />
-                    <div><div className="text-sm font-medium">{plugin.name}</div><div className="text-xs" style={{ color: C.muted }}>{plugin.desc}</div></div>
-                  </div>
-                  <Toggle on={plugin.installed} onToggle={() => togglePlugin(plugin.id)} />
-                </div>
-              ))}
+        </div>
+        <div className="px-2">
+          {TABS.map(t => {
+            const Icon = t.icon;
+            const isActive = activeTab === t.id;
+            return (
+              <button key={t.id} onClick={() => { setActiveTab(t.id); setSearch(""); setFilterCat("All"); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] transition-colors"
+                style={{ background: isActive ? "rgba(29,140,248,0.1)" : "transparent", color: isActive ? C.text : "#999" }}
+                data-testid={`customize-tab-${t.id}`}>
+                <Icon className="w-4 h-4" />{t.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Main Directory content */}
+      <div className="flex-1 overflow-auto">
+        <div className="max-w-3xl mx-auto px-6 py-6">
+          <h1 className="text-2xl font-bold mb-6">Directory</h1>
+
+          {/* Search */}
+          <div className="relative mb-4">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: C.muted }} />
+            <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+              placeholder={`Search ${activeTab}...`}
+              className="w-full pl-11 pr-4 py-3 rounded-xl text-sm"
+              style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text, outline: "none" }}
+              data-testid="directory-search" />
+          </div>
+
+          {/* Provider badge + filter */}
+          <div className="flex items-center justify-between mb-6">
+            <span className="text-xs px-3 py-1.5 rounded-full font-medium" style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text }}>
+              OpenClaw & Partners
+            </span>
+            <div className="flex items-center gap-2">
+              {categories.length > 2 && (
+                <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
+                  className="text-xs px-2.5 py-1.5 rounded-lg appearance-none cursor-pointer"
+                  style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted, outline: "none" }}
+                  data-testid="directory-filter">
+                  {categories.map(c => <option key={c} value={c}>{c === "All" ? "Filter by" : c}</option>)}
+                </select>
+              )}
             </div>
           </div>
+
+          {/* Skills tab */}
+          {activeTab === "skills" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid="skills-grid">
+              {fSkills.map(skill => {
+                const Icon = skill.icon;
+                const installed = enabledSkills.includes(skill.id);
+                return (
+                  <div key={skill.id} className="p-4 rounded-xl transition-all hover:border-[#444]"
+                    style={{ background: C.surface, border: `1px solid ${installed ? C.accent + "40" : C.border}` }}
+                    data-testid={`skill-card-${skill.id}`}>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
+                          <Icon className="w-4 h-4" style={{ color: installed ? C.accent : C.muted }} />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium">{skill.name}</div>
+                          <div className="flex items-center gap-1.5 text-[11px]" style={{ color: C.muted }}>
+                            <span>{skill.provider}</span><span style={{ color: "#444" }}>&bull;</span>
+                            <span className="flex items-center gap-0.5"><Download className="w-3 h-3" />{skill.downloads}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <button onClick={() => toggleSkill(skill.id)} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0"
+                        style={{ background: installed ? "rgba(29,140,248,0.1)" : C.surface2, border: `1px solid ${installed ? C.accent + "40" : C.border}`, color: installed ? C.accent : C.muted }}
+                        data-testid={`skill-toggle-${skill.id}`}>
+                        {installed ? <Settings className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <p className="text-xs leading-relaxed" style={{ color: "#777" }}>{skill.desc}</p>
+                  </div>
+                );
+              })}
+              {fSkills.length === 0 && <CardEmpty />}
+            </div>
+          )}
+
+          {/* Connectors tab */}
+          {activeTab === "connectors" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid="connectors-grid">
+              {fConnectors.map(conn => {
+                const Icon = conn.icon;
+                const active = !!connectors[conn.id];
+                return (
+                  <div key={conn.id} className="p-4 rounded-xl transition-all hover:border-[#444]"
+                    style={{ background: C.surface, border: `1px solid ${active ? C.green + "40" : C.border}` }}
+                    data-testid={`connector-card-${conn.id}`}>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
+                          <Icon className="w-4 h-4" style={{ color: active ? C.green : C.muted }} />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium flex items-center gap-2">
+                            {conn.name}
+                            {conn.badge && <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(139,92,246,0.1)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.2)" }}>{conn.badge}</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <button onClick={() => toggleConnector(conn.id)} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0"
+                        style={{ background: active ? "rgba(34,197,94,0.1)" : C.surface2, border: `1px solid ${active ? C.green + "40" : C.border}`, color: active ? C.green : C.muted }}
+                        data-testid={`connector-toggle-${conn.id}`}>
+                        {active ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <p className="text-xs leading-relaxed" style={{ color: "#777" }}>{conn.desc}</p>
+                  </div>
+                );
+              })}
+              {fConnectors.length === 0 && <CardEmpty />}
+            </div>
+          )}
+
+          {/* Plugins tab */}
+          {activeTab === "plugins" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid="plugins-grid">
+              {fPlugins.map(plugin => {
+                const Icon = plugin.icon;
+                const installed = plugins.find(p => p.id === plugin.id)?.installed || false;
+                return (
+                  <div key={plugin.id} className="p-4 rounded-xl transition-all hover:border-[#444]"
+                    style={{ background: C.surface, border: `1px solid ${installed ? C.accent + "40" : C.border}` }}
+                    data-testid={`plugin-card-${plugin.id}`}>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
+                          <Icon className="w-4 h-4" style={{ color: installed ? C.accent : C.muted }} />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium">{plugin.name}</div>
+                          <div className="flex items-center gap-1.5 text-[11px]" style={{ color: C.muted }}>
+                            <span>{plugin.provider}</span><span style={{ color: "#444" }}>&bull;</span>
+                            <span className="flex items-center gap-0.5"><Download className="w-3 h-3" />{plugin.downloads}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <button onClick={() => togglePlugin(plugin.id)} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0"
+                        style={{ background: installed ? "rgba(29,140,248,0.1)" : C.surface2, border: `1px solid ${installed ? C.accent + "40" : C.border}`, color: installed ? C.accent : C.muted }}
+                        data-testid={`plugin-toggle-${plugin.id}`}>
+                        {installed ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <p className="text-xs leading-relaxed" style={{ color: "#777" }}>{plugin.desc}</p>
+                  </div>
+                );
+              })}
+              {fPlugins.length === 0 && <CardEmpty />}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1670,10 +1872,13 @@ function Layout({ children }) {
             <div className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5" style={{ color: "#444" }}>Recents</div>
             {recentThreads.map(t => (
               <button key={t.id} onClick={() => handleThreadClick(t.id)}
-                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-[12px] truncate transition-colors group"
+                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-[12px] transition-colors group"
                 style={{ background: t.id === activeThreadId ? "rgba(29,140,248,0.1)" : "transparent", color: t.id === activeThreadId ? C.accent : "#777" }}>
-                <MessageSquare className="w-3 h-3 shrink-0" />
-                <span className="truncate flex-1 text-left">{t.title}</span>
+                <MessageSquare className="w-3 h-3 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0 text-left">
+                  <span className="truncate block">{t.title}</span>
+                  {t.modelId && <span className="truncate block text-[9px]" style={{ color: "#555" }}>{t.modelId.split("/").pop()}</span>}
+                </div>
                 <X className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity cursor-pointer" onClick={(e) => { e.stopPropagation(); deleteThread(t.id); }} />
               </button>
             ))}
