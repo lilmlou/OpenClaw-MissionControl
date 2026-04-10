@@ -333,6 +333,11 @@ export const useGateway = create(
       // API Keys
       apiKeys: [],
       
+      // Custom items (user-created)
+      customSkills: [],
+      customConnectors: [],
+      customPlugins: [],
+      
       // Active page/tab
       activePage: "chat",
       activeTab: "chat",
@@ -379,6 +384,7 @@ export const useGateway = create(
         messages: s.messages.filter(m => m.id !== id) 
       })),
       clearMessages: () => set({ messages: [], streamingMessage: null }),
+      stopGenerating: () => set({ streamingMessage: null }),
       
       // Events
       addEvent: (evt) => set((s) => ({ 
@@ -419,6 +425,21 @@ export const useGateway = create(
       togglePlugin: (pluginId) => set((s) => ({
         plugins: s.plugins.map(p => p.id === pluginId ? { ...p, installed: !p.installed } : p)
       })),
+      
+      // Custom item creation
+      addCustomSkill: (name, desc) => set((s) => ({ customSkills: [...s.customSkills, { id: `custom-${crypto.randomUUID().slice(0,8)}`, name: `/${name.replace(/\s+/g, '-').toLowerCase()}`, desc, provider: "Custom", downloads: "0", category: "Custom" }] })),
+      addCustomConnector: (name, desc) => set((s) => ({ customConnectors: [...s.customConnectors, { id: `custom-${crypto.randomUUID().slice(0,8)}`, name, desc, category: "Custom" }] })),
+      addCustomPlugin: (name, desc) => set((s) => ({ customPlugins: [...s.customPlugins, { id: `custom-${crypto.randomUUID().slice(0,8)}`, name, desc, provider: "Custom", downloads: "0", category: "Custom" }] })),
+      removeCustomSkill: (id) => set((s) => ({ customSkills: s.customSkills.filter(sk => sk.id !== id) })),
+      removeCustomConnector: (id) => set((s) => ({ customConnectors: s.customConnectors.filter(c => c.id !== id) })),
+      removeCustomPlugin: (id) => set((s) => ({ customPlugins: s.customPlugins.filter(p => p.id !== id) })),
+      
+      // Batch connector toggle (for Desktop Integration)
+      setConnectorBatch: (ids, value) => set((s) => {
+        const c = { ...s.connectors };
+        ids.forEach(id => { c[id] = value; });
+        return { connectors: c };
+      }),
       
       // MCP Servers
       addMcpServer: (url, name) => set((s) => ({
@@ -485,6 +506,7 @@ export const useGateway = create(
         return id;
       },
       setActiveThread: (threadId) => {
+        get().saveThreadMessages();
         const { threads } = get();
         const thread = threads.find(t => t.id === threadId);
         set({ activeThreadId: threadId, messages: thread ? thread.messages : [], ...(thread?.modelId ? { activeModel: thread.modelId } : {}) });
@@ -647,6 +669,9 @@ export const useGateway = create(
         userProfile: s.userProfile,
         theme: s.theme,
         defaultModel: s.defaultModel,
+        customSkills: s.customSkills,
+        customConnectors: s.customConnectors,
+        customPlugins: s.customPlugins,
       }),
     }
   )

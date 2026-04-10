@@ -619,23 +619,35 @@ function InputBar({ onSend, disabled, placeholder, fillPrompt, onFillConsumed })
 
 /* ─── Message Row ────────────────────────────────────────────────────────────── */
 function MessageRow({ msg }) {
+  const [copied, setCopied] = useState(false);
   const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const handleCopy = () => { navigator.clipboard.writeText(msg.content); setCopied(true); setTimeout(() => setCopied(false), 1500); };
   if (msg.role === "user") {
     return (
-      <div className="flex justify-end py-2 px-4">
+      <div className="flex justify-end py-2 px-4 group">
         <div className="max-w-[75%]">
           <div className="rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm whitespace-pre-wrap break-words" style={{ background: "rgba(29,140,248,0.15)", border: "1px solid rgba(29,140,248,0.2)", color: C.text }}>{msg.content}</div>
-          <div className="text-[10px] text-right mt-1" style={{ color: "#555" }}>{fmtTime(msg.timestamp)}</div>
+          <div className="flex items-center justify-end gap-2 mt-1">
+            <button onClick={handleCopy} className="opacity-0 group-hover:opacity-60 transition-opacity" data-testid={`copy-msg-${msg.id}`}>
+              {copied ? <Check className="w-3 h-3" style={{ color: C.green }} /> : <Copy className="w-3 h-3" style={{ color: "#555" }} />}
+            </button>
+            <span className="text-[10px]" style={{ color: "#555" }}>{fmtTime(msg.timestamp)}</span>
+          </div>
         </div>
       </div>
     );
   }
   return (
-    <div className="flex gap-3 py-2 px-4">
-      <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm shrink-0 mt-0.5" style={{ background: "rgba(29,140,248,0.1)", border: "1px solid rgba(29,140,248,0.2)" }}>🦞</div>
+    <div className="flex gap-3 py-2 px-4 group">
+      <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm shrink-0 mt-0.5" style={{ background: "rgba(29,140,248,0.1)", border: "1px solid rgba(29,140,248,0.2)" }}>&#129438;</div>
       <div className="flex-1 min-w-0">
         <div className="rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm" style={{ background: C.surface, border: `1px solid ${C.border}` }}><Markdown content={msg.content} /></div>
-        <div className="text-[10px] mt-1" style={{ color: "#555" }}>{fmtTime(msg.timestamp)}</div>
+        <div className="flex items-center gap-2 mt-1">
+          <button onClick={handleCopy} className="opacity-0 group-hover:opacity-60 transition-opacity" data-testid={`copy-msg-${msg.id}`}>
+            {copied ? <Check className="w-3 h-3" style={{ color: C.green }} /> : <Copy className="w-3 h-3" style={{ color: "#555" }} />}
+          </button>
+          <span className="text-[10px]" style={{ color: "#555" }}>{fmtTime(msg.timestamp)}</span>
+        </div>
       </div>
     </div>
   );
@@ -650,7 +662,7 @@ function DashboardPage() {
   const stats = [
     { label: "Active Jobs", value: runningJobs, icon: Briefcase, color: C.accent },
     { label: "Pending Approvals", value: pendingApprovals, icon: AlertTriangle, color: C.yellow },
-    { label: "Connectors", value: `${activeConnectors}/6`, icon: Layers, color: C.green },
+    { label: "Connectors", value: activeConnectors, icon: Layers, color: C.green },
     { label: "Gateway", value: status, icon: Radio, color: status === "connected" ? C.green : C.yellow },
   ];
   return (
@@ -711,9 +723,9 @@ function JobsPage() {
                 <div key={job.id} className="p-4 rounded-xl" style={{ background: C.surface, border: "1px solid rgba(59,130,246,0.2)" }}>
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3"><div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#3b82f6" }} /><div><div className="font-medium">{job.name}</div><div className="text-xs" style={{ color: C.muted }}>Agent: {job.agent}</div></div></div>
-                    <div className="flex items-center gap-2"><span className="text-xs font-mono" style={{ color: "#3b82f6" }}>{Math.min(job.progress + tick % 5, 99)}%</span><Button variant="ghost" size="sm" onClick={() => cancelJob(job.id)} style={{ color: C.red }} data-testid={`cancel-job-${job.id}`}><Square className="w-3.5 h-3.5" /></Button></div>
+                    <div className="flex items-center gap-2"><span className="text-xs font-mono" style={{ color: "#3b82f6" }}>{Math.min(job.progress + tick, 99)}%</span><Button variant="ghost" size="sm" onClick={() => cancelJob(job.id)} style={{ color: C.red }} data-testid={`cancel-job-${job.id}`}><Square className="w-3.5 h-3.5" /></Button></div>
                   </div>
-                  <Progress value={Math.min(job.progress + tick % 5, 99)} className="h-1.5" />
+                  <Progress value={Math.min(job.progress + tick, 99)} className="h-1.5" />
                 </div>
               ))}
             </div>
@@ -746,22 +758,39 @@ function ApprovalsPage() {
   const { approvals, approveRequest, rejectRequest } = useGateway();
   const getRiskColor = (risk) => { switch (risk) { case "low": return C.green; case "medium": return C.yellow; case "high": return C.red; default: return C.muted; } };
   const getStatusBadge = (status) => { const colors = { pending: { bg: `${C.yellow}20`, color: C.yellow }, approved: { bg: `${C.green}20`, color: C.green }, rejected: { bg: `${C.red}20`, color: C.red } }; return colors[status] || colors.pending; };
+  const pendingCount = approvals.filter(a => a.status === "pending").length;
   return (
-    <div className="p-6 space-y-4" style={{ color: C.text }}>
-      <h1 className="text-2xl font-bold">Approvals</h1>
-      <div className="space-y-3">
-        {approvals.map(approval => (
-          <div key={approval.id} className="p-4 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-3"><Shield className="w-5 h-5" style={{ color: getRiskColor(approval.risk) }} /><div><div className="font-medium">{approval.title}</div><div className="text-sm" style={{ color: C.muted }}>{approval.description}</div></div></div>
-              <span className="text-xs px-2 py-1 rounded-full capitalize" style={getStatusBadge(approval.status)}>{approval.status}</span>
-            </div>
-            <div className="flex items-center justify-between mt-3">
-              <div className="flex items-center gap-4 text-xs" style={{ color: C.muted }}><span>Agent: {approval.agent}</span><span>Risk: <span style={{ color: getRiskColor(approval.risk) }}>{approval.risk}</span></span></div>
-              {approval.status === "pending" && <div className="flex gap-2"><Button size="sm" onClick={() => approveRequest(approval.id)} style={{ background: C.green }}><Check className="w-4 h-4 mr-1" /> Approve</Button><Button size="sm" variant="outline" onClick={() => rejectRequest(approval.id)} style={{ borderColor: C.red, color: C.red }}><X className="w-4 h-4 mr-1" /> Reject</Button></div>}
-            </div>
+    <div className="h-full overflow-auto" style={{ color: C.text }}>
+      <div className="max-w-3xl mx-auto px-6 py-6">
+        <div className="flex items-center justify-between mb-6">
+          <div><h1 className="text-2xl font-bold">Approvals</h1><p className="text-sm" style={{ color: C.muted }}>Review and manage agent permission requests</p></div>
+          {pendingCount > 0 && (
+            <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full" style={{ background: "rgba(251,191,36,0.1)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.2)" }} data-testid="pending-count-badge">
+              <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#fbbf24" }} />{pendingCount} pending
+            </span>
+          )}
+        </div>
+        {approvals.length === 0 ? (
+          <div className="text-center py-16"><Shield className="w-10 h-10 mx-auto mb-3" style={{ color: "#333" }} /><p className="text-sm" style={{ color: C.muted }}>No approval requests yet</p></div>
+        ) : (
+          <div className="space-y-3">
+            {approvals.map(approval => (
+              <div key={approval.id} className="p-4 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }} data-testid={`approval-card-${approval.id}`}>
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-3"><Shield className="w-5 h-5" style={{ color: getRiskColor(approval.risk) }} /><div><div className="font-medium">{approval.title}</div><div className="text-sm" style={{ color: C.muted }}>{approval.description}</div></div></div>
+                  <span className="text-xs px-2 py-1 rounded-full capitalize" style={getStatusBadge(approval.status)}>{approval.status}</span>
+                </div>
+                <div className="flex items-center justify-between mt-3">
+                  <div className="flex items-center gap-4 text-xs" style={{ color: C.muted }}><span>Agent: {approval.agent}</span><span>Risk: <span style={{ color: getRiskColor(approval.risk) }}>{approval.risk}</span></span></div>
+                  {approval.status === "pending" && <div className="flex gap-2"><Button size="sm" onClick={() => approveRequest(approval.id)} style={{ background: C.green }} data-testid={`approve-${approval.id}`}><Check className="w-4 h-4 mr-1" /> Approve</Button><Button size="sm" variant="outline" onClick={() => rejectRequest(approval.id)} style={{ borderColor: C.red, color: C.red }} data-testid={`reject-${approval.id}`}><X className="w-4 h-4 mr-1" /> Reject</Button></div>}
+                </div>
+              </div>
+            ))}
+            {pendingCount === 0 && (
+              <div className="text-center py-8 mt-4"><CheckCircle className="w-8 h-8 mx-auto mb-2" style={{ color: C.green }} /><p className="text-sm" style={{ color: C.muted }}>All caught up — no pending approvals</p></div>
+            )}
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
@@ -1352,6 +1381,27 @@ function SettingsPage() {
             <div className="space-y-6">
               <h2 className="text-xl font-bold mb-4">Connected Apps</h2>
               <p className="text-sm" style={{ color: C.muted }}>Manage integrations and connectors. Enable only the services you need.</p>
+              {/* Desktop Integration toggle */}
+              <div className="p-4 rounded-xl" style={{ background: C.surface, border: `1px solid ${connectors.mac && connectors.desktop && connectors.files ? C.accent + "40" : C.border}` }}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: `${C.accent}20` }}><Monitor className="w-5 h-5" style={{ color: C.accent }} /></div>
+                    <div>
+                      <h3 className="text-sm font-medium">Desktop Integration</h3>
+                      <p className="text-xs" style={{ color: C.muted }}>Control desktop, access files, and run commands</p>
+                    </div>
+                  </div>
+                  <Toggle on={connectors.mac && connectors.desktop && connectors.files} onToggle={() => {
+                    const on = !(connectors.mac && connectors.desktop && connectors.files);
+                    useGateway.getState().setConnectorBatch(["mac", "desktop", "files"], on);
+                  }} />
+                </div>
+                <div className="flex gap-1.5 mt-3 ml-[52px]">
+                  {[{id:"mac",l:"Mac Control"},{id:"desktop",l:"Commands"},{id:"files",l:"File Access"}].map(d => (
+                    <span key={d.id} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: connectors[d.id] ? `${C.accent}15` : C.surface2, color: connectors[d.id] ? C.accent : C.muted, border: `1px solid ${connectors[d.id] ? C.accent + "30" : C.border}` }}>{d.l}</span>
+                  ))}
+                </div>
+              </div>
               <div className="p-4 rounded-xl space-y-4" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
                 <h3 className="text-sm font-medium">Connectors</h3>
                 <div className="space-y-3">
@@ -1362,6 +1412,9 @@ function SettingsPage() {
                     </div>
                   ))}
                 </div>
+                <Link to="/customize?tab=connectors" className="flex items-center gap-2 text-sm pt-3 mt-1" style={{ color: C.accent, borderTop: `1px solid ${C.border}` }} data-testid="browse-directory-link">
+                  Browse all connectors in Directory <ExternalLink className="w-3 h-3" />
+                </Link>
               </div>
               <div className="p-4 rounded-xl space-y-3" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
                 <h3 className="text-sm font-medium">MCP Servers</h3>
@@ -1476,7 +1529,10 @@ function CustomizePage() {
   const [activeTab, setActiveTab] = useState("skills");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("All");
-  const { enabledSkills, toggleSkill, plugins, togglePlugin, connectors, toggleConnector } = useGateway();
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addDesc, setAddDesc] = useState("");
+  const { enabledSkills, toggleSkill, plugins, togglePlugin, connectors, toggleConnector, customSkills, customConnectors, customPlugins, addCustomSkill, addCustomConnector, addCustomPlugin, removeCustomSkill, removeCustomConnector, removeCustomPlugin } = useGateway();
   const location = useLocation();
 
   useEffect(() => {
@@ -1494,12 +1550,138 @@ function CustomizePage() {
   const matchSearch = (item) => !search || item.name.toLowerCase().includes(search.toLowerCase()) || item.desc.toLowerCase().includes(search.toLowerCase());
   const matchCat = (item) => filterCat === "All" || item.category === filterCat;
 
-  const categories = activeTab === "skills" ? SKILL_CATEGORIES : activeTab === "connectors" ? CONNECTOR_CATEGORIES : PLUGIN_CATEGORIES;
-  const fSkills = DIRECTORY_SKILLS.filter(s => matchSearch(s) && matchCat(s));
-  const fConnectors = DIRECTORY_CONNECTORS.filter(c => matchSearch(c) && matchCat(c));
-  const fPlugins = DIRECTORY_PLUGINS.filter(p => matchSearch(p) && matchCat(p));
+  const allSkills = [...DIRECTORY_SKILLS, ...customSkills.map(s => ({ ...s, icon: Wrench }))];
+  const allConnectors = [...DIRECTORY_CONNECTORS, ...customConnectors.map(c => ({ ...c, icon: Link2 }))];
+  const allPlugins = [...DIRECTORY_PLUGINS, ...customPlugins.map(p => ({ ...p, icon: Puzzle }))];
+
+  const allCategories = activeTab === "skills" ? [...SKILL_CATEGORIES, ...(customSkills.length ? ["Custom"] : [])]
+    : activeTab === "connectors" ? [...CONNECTOR_CATEGORIES, ...(customConnectors.length ? ["Custom"] : [])]
+    : [...PLUGIN_CATEGORIES, ...(customPlugins.length ? ["Custom"] : [])];
+  const categories = [...new Set(allCategories)];
+
+  const fSkills = allSkills.filter(s => matchSearch(s) && matchCat(s));
+  const fConnectors = allConnectors.filter(c => matchSearch(c) && matchCat(c));
+  const fPlugins = allPlugins.filter(p => matchSearch(p) && matchCat(p));
+
+  const handleAdd = () => {
+    if (!addName.trim()) return;
+    if (activeTab === "skills") addCustomSkill(addName.trim(), addDesc.trim());
+    else if (activeTab === "connectors") addCustomConnector(addName.trim(), addDesc.trim());
+    else addCustomPlugin(addName.trim(), addDesc.trim());
+    setAddName(""); setAddDesc(""); setShowAddForm(false);
+  };
+
+  const handleRemoveCustom = (id) => {
+    if (activeTab === "skills") removeCustomSkill(id);
+    else if (activeTab === "connectors") removeCustomConnector(id);
+    else removeCustomPlugin(id);
+  };
 
   const CardEmpty = () => <div className="col-span-2 text-center py-12 text-sm" style={{ color: C.muted }}>No results matching "{search}"</div>;
+
+  const SkillCard = ({ skill }) => {
+    const Icon = skill.icon;
+    const installed = enabledSkills.includes(skill.id);
+    const isCustom = skill.id.startsWith("custom-");
+    return (
+      <div className="p-4 rounded-xl transition-all hover:border-[#444]"
+        style={{ background: C.surface, border: `1px solid ${installed ? C.accent + "40" : C.border}` }}
+        data-testid={`skill-card-${skill.id}`}>
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
+              <Icon className="w-4 h-4" style={{ color: installed ? C.accent : C.muted }} />
+            </div>
+            <div>
+              <div className="text-sm font-medium">{skill.name}</div>
+              <div className="flex items-center gap-1.5 text-[11px]" style={{ color: C.muted }}>
+                <span>{skill.provider}</span><span style={{ color: "#444" }}>&bull;</span>
+                <span className="flex items-center gap-0.5"><Download className="w-3 h-3" />{skill.downloads}</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            {isCustom && <button onClick={() => handleRemoveCustom(skill.id)} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0" style={{ color: C.red }}><Trash2 className="w-3.5 h-3.5" /></button>}
+            <button onClick={() => toggleSkill(skill.id)} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0"
+              style={{ background: installed ? "rgba(29,140,248,0.1)" : C.surface2, border: `1px solid ${installed ? C.accent + "40" : C.border}`, color: installed ? C.accent : C.muted }}
+              data-testid={`skill-toggle-${skill.id}`}>
+              {installed ? <Settings className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
+        <p className="text-xs leading-relaxed" style={{ color: "#777" }}>{skill.desc}</p>
+      </div>
+    );
+  };
+
+  const ConnectorCard = ({ conn }) => {
+    const Icon = conn.icon;
+    const active = !!connectors[conn.id];
+    const isCustom = conn.id.startsWith("custom-");
+    return (
+      <div className="p-4 rounded-xl transition-all hover:border-[#444]"
+        style={{ background: C.surface, border: `1px solid ${active ? C.green + "40" : C.border}` }}
+        data-testid={`connector-card-${conn.id}`}>
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
+              <Icon className="w-4 h-4" style={{ color: active ? C.green : C.muted }} />
+            </div>
+            <div>
+              <div className="text-sm font-medium flex items-center gap-2">
+                {conn.name}
+                {conn.badge && <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(139,92,246,0.1)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.2)" }}>{conn.badge}</span>}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            {isCustom && <button onClick={() => handleRemoveCustom(conn.id)} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0" style={{ color: C.red }}><Trash2 className="w-3.5 h-3.5" /></button>}
+            <button onClick={() => toggleConnector(conn.id)} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0"
+              style={{ background: active ? "rgba(34,197,94,0.1)" : C.surface2, border: `1px solid ${active ? C.green + "40" : C.border}`, color: active ? C.green : C.muted }}
+              data-testid={`connector-toggle-${conn.id}`}>
+              {active ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
+        <p className="text-xs leading-relaxed" style={{ color: "#777" }}>{conn.desc}</p>
+      </div>
+    );
+  };
+
+  const PluginCard = ({ plugin }) => {
+    const Icon = plugin.icon;
+    const installed = plugins.find(p => p.id === plugin.id)?.installed || false;
+    const isCustom = plugin.id.startsWith("custom-");
+    return (
+      <div className="p-4 rounded-xl transition-all hover:border-[#444]"
+        style={{ background: C.surface, border: `1px solid ${installed ? C.accent + "40" : C.border}` }}
+        data-testid={`plugin-card-${plugin.id}`}>
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
+              <Icon className="w-4 h-4" style={{ color: installed ? C.accent : C.muted }} />
+            </div>
+            <div>
+              <div className="text-sm font-medium">{plugin.name}</div>
+              <div className="flex items-center gap-1.5 text-[11px]" style={{ color: C.muted }}>
+                <span>{plugin.provider}</span><span style={{ color: "#444" }}>&bull;</span>
+                <span className="flex items-center gap-0.5"><Download className="w-3 h-3" />{plugin.downloads}</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            {isCustom && <button onClick={() => handleRemoveCustom(plugin.id)} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0" style={{ color: C.red }}><Trash2 className="w-3.5 h-3.5" /></button>}
+            <button onClick={() => togglePlugin(plugin.id)} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0"
+              style={{ background: installed ? "rgba(29,140,248,0.1)" : C.surface2, border: `1px solid ${installed ? C.accent + "40" : C.border}`, color: installed ? C.accent : C.muted }}
+              data-testid={`plugin-toggle-${plugin.id}`}>
+              {installed ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
+        <p className="text-xs leading-relaxed" style={{ color: "#777" }}>{plugin.desc}</p>
+      </div>
+    );
+  };
 
   return (
     <div className="h-full flex" style={{ color: C.text }}>
@@ -1515,7 +1697,7 @@ function CustomizePage() {
             const Icon = t.icon;
             const isActive = activeTab === t.id;
             return (
-              <button key={t.id} onClick={() => { setActiveTab(t.id); setSearch(""); setFilterCat("All"); }}
+              <button key={t.id} onClick={() => { setActiveTab(t.id); setSearch(""); setFilterCat("All"); setShowAddForm(false); }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] transition-colors"
                 style={{ background: isActive ? "rgba(29,140,248,0.1)" : "transparent", color: isActive ? C.text : "#999" }}
                 data-testid={`customize-tab-${t.id}`}>
@@ -1561,110 +1743,79 @@ function CustomizePage() {
           {/* Skills tab */}
           {activeTab === "skills" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid="skills-grid">
-              {fSkills.map(skill => {
-                const Icon = skill.icon;
-                const installed = enabledSkills.includes(skill.id);
-                return (
-                  <div key={skill.id} className="p-4 rounded-xl transition-all hover:border-[#444]"
-                    style={{ background: C.surface, border: `1px solid ${installed ? C.accent + "40" : C.border}` }}
-                    data-testid={`skill-card-${skill.id}`}>
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
-                          <Icon className="w-4 h-4" style={{ color: installed ? C.accent : C.muted }} />
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium">{skill.name}</div>
-                          <div className="flex items-center gap-1.5 text-[11px]" style={{ color: C.muted }}>
-                            <span>{skill.provider}</span><span style={{ color: "#444" }}>&bull;</span>
-                            <span className="flex items-center gap-0.5"><Download className="w-3 h-3" />{skill.downloads}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <button onClick={() => toggleSkill(skill.id)} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0"
-                        style={{ background: installed ? "rgba(29,140,248,0.1)" : C.surface2, border: `1px solid ${installed ? C.accent + "40" : C.border}`, color: installed ? C.accent : C.muted }}
-                        data-testid={`skill-toggle-${skill.id}`}>
-                        {installed ? <Settings className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                    <p className="text-xs leading-relaxed" style={{ color: "#777" }}>{skill.desc}</p>
+              {fSkills.map(skill => <SkillCard key={skill.id} skill={skill} />)}
+              {fSkills.length === 0 && !showAddForm && <CardEmpty />}
+              {/* Add custom skill card */}
+              {!showAddForm ? (
+                <button onClick={() => setShowAddForm(true)} className="p-4 rounded-xl flex flex-col items-center justify-center transition-colors hover:border-[#444]"
+                  style={{ border: `2px dashed ${C.border}`, color: C.muted, minHeight: 100 }} data-testid="add-custom-skill-btn">
+                  <Plus className="w-5 h-5 mb-1" /><span className="text-xs">Add custom skill</span>
+                </button>
+              ) : (
+                <div className="p-4 rounded-xl space-y-3" style={{ background: C.surface, border: `1px solid ${C.accent}40` }}>
+                  <div className="text-sm font-medium">New custom skill</div>
+                  <input type="text" value={addName} onChange={e => setAddName(e.target.value)} placeholder="Skill name (e.g., my-workflow)"
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text, outline: "none" }} data-testid="custom-skill-name" />
+                  <textarea value={addDesc} onChange={e => setAddDesc(e.target.value)} placeholder="Description..." rows={2}
+                    className="w-full px-3 py-2 rounded-lg text-sm resize-none" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text, outline: "none" }} />
+                  <div className="flex gap-2">
+                    <button onClick={handleAdd} disabled={!addName.trim()} className="text-xs px-3 py-1.5 rounded-lg font-medium" style={{ background: addName.trim() ? C.accent : C.surface2, color: addName.trim() ? "#fff" : "#555" }} data-testid="create-custom-skill-btn">Create</button>
+                    <button onClick={() => { setShowAddForm(false); setAddName(""); setAddDesc(""); }} className="text-xs px-3 py-1.5 rounded-lg" style={{ color: C.muted }}>Cancel</button>
                   </div>
-                );
-              })}
-              {fSkills.length === 0 && <CardEmpty />}
+                </div>
+              )}
             </div>
           )}
 
           {/* Connectors tab */}
           {activeTab === "connectors" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid="connectors-grid">
-              {fConnectors.map(conn => {
-                const Icon = conn.icon;
-                const active = !!connectors[conn.id];
-                return (
-                  <div key={conn.id} className="p-4 rounded-xl transition-all hover:border-[#444]"
-                    style={{ background: C.surface, border: `1px solid ${active ? C.green + "40" : C.border}` }}
-                    data-testid={`connector-card-${conn.id}`}>
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
-                          <Icon className="w-4 h-4" style={{ color: active ? C.green : C.muted }} />
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium flex items-center gap-2">
-                            {conn.name}
-                            {conn.badge && <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(139,92,246,0.1)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.2)" }}>{conn.badge}</span>}
-                          </div>
-                        </div>
-                      </div>
-                      <button onClick={() => toggleConnector(conn.id)} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0"
-                        style={{ background: active ? "rgba(34,197,94,0.1)" : C.surface2, border: `1px solid ${active ? C.green + "40" : C.border}`, color: active ? C.green : C.muted }}
-                        data-testid={`connector-toggle-${conn.id}`}>
-                        {active ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                    <p className="text-xs leading-relaxed" style={{ color: "#777" }}>{conn.desc}</p>
+              {fConnectors.map(conn => <ConnectorCard key={conn.id} conn={conn} />)}
+              {fConnectors.length === 0 && !showAddForm && <CardEmpty />}
+              {!showAddForm ? (
+                <button onClick={() => setShowAddForm(true)} className="p-4 rounded-xl flex flex-col items-center justify-center transition-colors hover:border-[#444]"
+                  style={{ border: `2px dashed ${C.border}`, color: C.muted, minHeight: 100 }} data-testid="add-custom-connector-btn">
+                  <Plus className="w-5 h-5 mb-1" /><span className="text-xs">Add custom connector</span>
+                </button>
+              ) : (
+                <div className="p-4 rounded-xl space-y-3" style={{ background: C.surface, border: `1px solid ${C.accent}40` }}>
+                  <div className="text-sm font-medium">New custom connector</div>
+                  <input type="text" value={addName} onChange={e => setAddName(e.target.value)} placeholder="Connector name"
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text, outline: "none" }} data-testid="custom-connector-name" />
+                  <textarea value={addDesc} onChange={e => setAddDesc(e.target.value)} placeholder="Description..." rows={2}
+                    className="w-full px-3 py-2 rounded-lg text-sm resize-none" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text, outline: "none" }} />
+                  <div className="flex gap-2">
+                    <button onClick={handleAdd} disabled={!addName.trim()} className="text-xs px-3 py-1.5 rounded-lg font-medium" style={{ background: addName.trim() ? C.accent : C.surface2, color: addName.trim() ? "#fff" : "#555" }} data-testid="create-custom-connector-btn">Create</button>
+                    <button onClick={() => { setShowAddForm(false); setAddName(""); setAddDesc(""); }} className="text-xs px-3 py-1.5 rounded-lg" style={{ color: C.muted }}>Cancel</button>
                   </div>
-                );
-              })}
-              {fConnectors.length === 0 && <CardEmpty />}
+                </div>
+              )}
             </div>
           )}
 
           {/* Plugins tab */}
           {activeTab === "plugins" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid="plugins-grid">
-              {fPlugins.map(plugin => {
-                const Icon = plugin.icon;
-                const installed = plugins.find(p => p.id === plugin.id)?.installed || false;
-                return (
-                  <div key={plugin.id} className="p-4 rounded-xl transition-all hover:border-[#444]"
-                    style={{ background: C.surface, border: `1px solid ${installed ? C.accent + "40" : C.border}` }}
-                    data-testid={`plugin-card-${plugin.id}`}>
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
-                          <Icon className="w-4 h-4" style={{ color: installed ? C.accent : C.muted }} />
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium">{plugin.name}</div>
-                          <div className="flex items-center gap-1.5 text-[11px]" style={{ color: C.muted }}>
-                            <span>{plugin.provider}</span><span style={{ color: "#444" }}>&bull;</span>
-                            <span className="flex items-center gap-0.5"><Download className="w-3 h-3" />{plugin.downloads}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <button onClick={() => togglePlugin(plugin.id)} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0"
-                        style={{ background: installed ? "rgba(29,140,248,0.1)" : C.surface2, border: `1px solid ${installed ? C.accent + "40" : C.border}`, color: installed ? C.accent : C.muted }}
-                        data-testid={`plugin-toggle-${plugin.id}`}>
-                        {installed ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                    <p className="text-xs leading-relaxed" style={{ color: "#777" }}>{plugin.desc}</p>
+              {fPlugins.map(plugin => <PluginCard key={plugin.id} plugin={plugin} />)}
+              {fPlugins.length === 0 && !showAddForm && <CardEmpty />}
+              {!showAddForm ? (
+                <button onClick={() => setShowAddForm(true)} className="p-4 rounded-xl flex flex-col items-center justify-center transition-colors hover:border-[#444]"
+                  style={{ border: `2px dashed ${C.border}`, color: C.muted, minHeight: 100 }} data-testid="add-custom-plugin-btn">
+                  <Plus className="w-5 h-5 mb-1" /><span className="text-xs">Add custom plugin</span>
+                </button>
+              ) : (
+                <div className="p-4 rounded-xl space-y-3" style={{ background: C.surface, border: `1px solid ${C.accent}40` }}>
+                  <div className="text-sm font-medium">New custom plugin</div>
+                  <input type="text" value={addName} onChange={e => setAddName(e.target.value)} placeholder="Plugin name"
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text, outline: "none" }} data-testid="custom-plugin-name" />
+                  <textarea value={addDesc} onChange={e => setAddDesc(e.target.value)} placeholder="Description..." rows={2}
+                    className="w-full px-3 py-2 rounded-lg text-sm resize-none" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text, outline: "none" }} />
+                  <div className="flex gap-2">
+                    <button onClick={handleAdd} disabled={!addName.trim()} className="text-xs px-3 py-1.5 rounded-lg font-medium" style={{ background: addName.trim() ? C.accent : C.surface2, color: addName.trim() ? "#fff" : "#555" }} data-testid="create-custom-plugin-btn">Create</button>
+                    <button onClick={() => { setShowAddForm(false); setAddName(""); setAddDesc(""); }} className="text-xs px-3 py-1.5 rounded-lg" style={{ color: C.muted }}>Cancel</button>
                   </div>
-                );
-              })}
-              {fPlugins.length === 0 && <CardEmpty />}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1822,6 +1973,7 @@ function Layout({ children }) {
   useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
 
   const handleNewThread = () => {
+    useGateway.getState().saveThreadMessages();
     useGateway.getState().clearMessages();
     useGateway.setState({ activeThreadId: null });
     navigate("/");
@@ -1981,6 +2133,15 @@ function HomePage() {
               </div>
               <div className="text-[10px] mt-1" style={{ color: C.accent, opacity: 0.6 }}>typing…</div>
             </div>
+          </div>
+        )}
+        {streamingMessage && (
+          <div className="flex justify-center py-2">
+            <button onClick={() => useGateway.getState().stopGenerating()} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full transition-colors hover:bg-white/5"
+              style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted }}
+              data-testid="stop-generating-btn">
+              <Square className="w-3 h-3" /> Stop generating
+            </button>
           </div>
         )}
         <div ref={bottomRef} />
