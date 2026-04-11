@@ -72,16 +72,16 @@ export default function SpacesPage() {
           const Icon = getSpaceIcon(space.icon);
           const count = getSpaceThreads(space.id).length;
           return (
-            <button key={space.id} onClick={() => setSelectedSpace(space.id)}
+            <div key={space.id} onClick={() => setSelectedSpace(space.id)}
               className="text-left p-4 rounded-xl cursor-pointer transition-all hover:border-[#444] group relative"
               style={{ background: C.surface, border: `1px solid ${C.border}` }}>
               {!DEFAULT_SPACE_IDS.includes(space.id) && (
-                <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(space.id); }}
-                  className="absolute top-2 right-2 w-6 h-6 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                <div onClick={(e) => { e.stopPropagation(); setConfirmDelete(space.id); }}
+                  className="absolute top-2 right-2 w-6 h-6 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-white/10"
                   style={{ background: C.surface2, color: C.muted }}
                   data-testid={`delete-space-${space.id}`}>
                   <Trash2 className="w-3 h-3" />
-                </button>
+                </div>
               )}
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: space.color + "18" }}>
@@ -92,7 +92,7 @@ export default function SpacesPage() {
                   <div className="text-xs" style={{ color: C.muted }}>{space.description || `${count} conversation${count !== 1 ? "s" : ""}`}</div>
                 </div>
               </div>
-            </button>
+            </div>
           );
         })}
         {showNew ? (
