@@ -412,7 +412,10 @@ export const useGateway = create(
       removeMessage: (id) => set((s) => ({ messages: s.messages.filter(m => m.id !== id) })),
       clearMessages: () => set((s) => {
         const clearStream = s.streamingMessage?.threadId === s.activeThreadId;
-        return { messages: [], ...(clearStream ? { streamingMessage: null } : {}) };
+        const newThreads = s.activeThreadId
+          ? s.threads.map(t => t.id === s.activeThreadId ? { ...t, messages: [] } : t)
+          : s.threads;
+        return { messages: [], threads: newThreads, ...(clearStream ? { streamingMessage: null, pendingRunId: null } : {}) };
       }),
       stopGenerating: () => {
         const { streamingMessage } = get();
@@ -491,7 +494,7 @@ export const useGateway = create(
       })),
       
       // Clear all threads
-      clearAllThreads: () => set({ threads: [], activeThreadId: null, messages: [] }),
+      clearAllThreads: () => set({ threads: [], activeThreadId: null, messages: [], streamingMessage: null, pendingRunId: null }),
       
       // Jobs actions
       updateJobStatus: (jobId, status, progress) => set((s) => ({
@@ -561,11 +564,15 @@ export const useGateway = create(
         if (!activeThreadId) return;
         set({ threads: threads.map(t => t.id === activeThreadId ? { ...t, messages, title: messages[0]?.content?.slice(0, 40) || t.title, modelId: activeModel } : t) });
       },
-      deleteThread: (threadId) => set((s) => ({
-        threads: s.threads.filter(t => t.id !== threadId),
-        activeThreadId: s.activeThreadId === threadId ? null : s.activeThreadId,
-        messages: s.activeThreadId === threadId ? [] : s.messages,
-      })),
+      deleteThread: (threadId) => set((s) => {
+        const clearStream = s.streamingMessage?.threadId === threadId;
+        return {
+          threads: s.threads.filter(t => t.id !== threadId),
+          activeThreadId: s.activeThreadId === threadId ? null : s.activeThreadId,
+          messages: s.activeThreadId === threadId ? [] : s.messages,
+          ...(clearStream ? { streamingMessage: null, pendingRunId: null } : {}),
+        };
+      }),
       assignThreadToSpace: (threadId, spaceId) => set((s) => ({
         threads: s.threads.map(t => t.id === threadId ? { ...t, spaceId } : t)
       })),
@@ -731,6 +738,15 @@ export const useGateway = create(
         customConnectors: s.customConnectors,
         customPlugins: s.customPlugins,
       }),
+      onRehydrateStorage: () => (state) => {
+        // After rehydration, load active thread's messages into global state
+        if (state?.activeThreadId && state?.threads) {
+          const thread = state.threads.find(t => t.id === state.activeThreadId);
+          if (thread?.messages?.length > 0) {
+            useGateway.setState({ messages: thread.messages });
+          }
+        }
+      },
     }
   )
 );

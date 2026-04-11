@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Folder, Plus, ChevronLeft, MessageSquare } from "lucide-react";
+import { Folder, Plus, ChevronLeft, MessageSquare, Trash2 } from "lucide-react";
 import { C, getSpaceIcon } from "@/lib/constants";
 import { useGateway } from "@/lib/useGateway";
 import { Button } from "@/components/ui/button";
+
+const DEFAULT_SPACE_IDS = ["space-files", "space-design", "space-dev"];
 
 export default function SpacesPage() {
   const { spaces, threads, addSpace, deleteSpace } = useGateway();
@@ -11,6 +13,7 @@ export default function SpacesPage() {
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState("");
   const [selectedSpace, setSelectedSpace] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   const SPACE_COLORS = ["#3b82f6", "#ec4899", "#22c55e", "#f59e0b", "#8b5cf6", "#06b6d4", "#ef4444", "#84cc16"];
 
@@ -70,8 +73,16 @@ export default function SpacesPage() {
           const count = getSpaceThreads(space.id).length;
           return (
             <button key={space.id} onClick={() => setSelectedSpace(space.id)}
-              className="text-left p-4 rounded-xl cursor-pointer transition-all hover:border-[#444] group"
+              className="text-left p-4 rounded-xl cursor-pointer transition-all hover:border-[#444] group relative"
               style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+              {!DEFAULT_SPACE_IDS.includes(space.id) && (
+                <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(space.id); }}
+                  className="absolute top-2 right-2 w-6 h-6 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ background: C.surface2, color: C.muted }}
+                  data-testid={`delete-space-${space.id}`}>
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              )}
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: space.color + "18" }}>
                   <Icon className="w-5 h-5" style={{ color: space.color }} />
@@ -101,6 +112,16 @@ export default function SpacesPage() {
           </button>
         )}
       </div>
+      {confirmDelete && (
+        <div className="mt-4 p-4 rounded-xl" style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.3)" }}>
+          <p className="text-sm mb-3" style={{ color: C.red }}>Delete space "{spaces.find(s => s.id === confirmDelete)?.name}"? Conversations will be unassigned.</p>
+          <div className="flex gap-2">
+            <button onClick={() => { deleteSpace(confirmDelete); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-xs font-medium"
+              style={{ background: C.red, color: "#fff" }} data-testid="confirm-delete-space-btn">Delete</button>
+            <button onClick={() => setConfirmDelete(null)} className="px-3 py-1.5 rounded-lg text-xs" style={{ color: C.muted }}>Cancel</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

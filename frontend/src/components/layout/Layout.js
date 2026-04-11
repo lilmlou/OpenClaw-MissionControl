@@ -18,8 +18,7 @@ export default function Layout({ children }) {
 
   const handleNewThread = () => {
     useGateway.getState().saveThreadMessages();
-    useGateway.getState().clearMessages();
-    useGateway.setState({ activeThreadId: null, activeModel: null });
+    useGateway.setState({ activeThreadId: null, activeModel: null, messages: [] });
     navigate("/");
   };
 

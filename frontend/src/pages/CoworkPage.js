@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Search, Mic, Plus, ChevronLeft, ChevronDown, ChevronRight, ArrowRight,
   Folder, MonitorSmartphone, Layers, Puzzle, Smartphone, Check, Wrench,
@@ -13,6 +13,7 @@ export default function CoworkPage() {
   const [category, setCategory] = useState("all");
   const [search, setSearch] = useState("");
   const { models, providers, activeModel, connectors, toggleConnector } = useGateway();
+  const navigate = useNavigate();
   const [activeTask, setActiveTask] = useState(null);
   const [replyVal, setReplyVal] = useState("");
   const [taskMessages, setTaskMessages] = useState([]);
@@ -366,7 +367,7 @@ export default function CoworkPage() {
                         );
                       })}
                       <div className="my-1" style={{ height: 1, background: "#1e1e1e" }} />
-                      <button onClick={() => { setCoworkPlusOpen(false); }}
+                      <button onClick={() => { setCoworkPlusOpen(false); navigate("/settings?tab=apps"); }}
                         className="w-full flex items-center gap-2 px-3 py-[6px] text-[11px] transition-colors hover:bg-white/[0.03]" style={{ color: C.muted }}>
                         <Wrench className="w-3 h-3" /> Manage connectors
                       </button>
