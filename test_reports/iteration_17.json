@@ -1,0 +1,53 @@
+{
+  "summary": "Completed comprehensive testing of Thread Isolation bug fix in OpenClaw Mission Control. CRITICAL BUG FIX VERIFIED: Streaming messages no longer leak between threads. All 9 requested test scenarios passed.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+
+  "passed_tests": [
+    "Thread Isolation - Streaming: Sent message in Thread A, clicked 'New thread' during streaming. New thread showed NO streaming text or typing indicator - CRITICAL FIX VERIFIED",
+    "Thread Isolation - Switch Back: After streaming completed in background, clicked Thread A in Recents. Completed AI response with full markdown (Features, code block) visible",
+    "Thread Isolation - Independent Messages: Thread A ('tell me about javascript') and Thread B ('hello from thread B') maintain separate message histories with no contamination",
+    "Thread Auto-Routing - Development: Message 'tell me about javascript' auto-assigned to Development space (green banner, green sidebar border)",
+    "Thread Auto-Routing - Design: Message 'create a wireframe for the ui design' auto-assigned to Design space (pink banner, pink 'Design' chip in input bar)",
+    "Stop Generating: Button visible during streaming, click stops streaming and no complete assistant message is added to thread",
+    "New Thread Clears State: Clicking 'New thread' shows empty landing page with 'OpenClaw Mission Control', no messages, model selector shows 'Select model'",
+    "Terminal Alias Bridge: /code page Alias button opens setup panel with 'Terminal Alias Bridge' header, 'Quick alias' and 'Bash function' snippets with copy buttons",
+    "PWA Manifest: /manifest.json returns valid JSON with name 'OpenClaw Mission Control'"
+  ],
+
+  "test_report_links": [],
+
+  "action_items": [],
+
+  "critical_code_review_comments": [
+    "Thread isolation fix correctly implemented: streamingMessage now tagged with threadId, HomePage filters by activeThreadId, sendMessage uses _addMessageToThread for thread-scoped writes",
+    "Persist version bumped to v3 ensures clean state migration",
+    "Minor observation: Stop generating button remains visible briefly after click due to async state update timing - functionally correct but could be improved with optimistic UI update"
+  ],
+
+  "updated_files": [],
+
+  "success_rate": {
+    "backend": "N/A - Frontend only testing",
+    "frontend": "100% (9/9 features passed)"
+  },
+
+  "seed_data_creation": "None - using mock data from Zustand store with persist version 3 migration",
+
+  "retest_needed": false,
+
+  "should_main_agent_self_test": true,
+
+  "context_for_next_testing_agent": "Thread isolation bug fix verified working. Key implementation: (1) streamingMessage includes threadId field, (2) HomePage line ~14 filters: activeStreaming = streamingMessage?.threadId === activeThreadId, (3) sendMessage uses _addMessageToThread which writes to specific thread's messages array, (4) setActiveThread saves/restores without touching streamingMessage. Persist version 3 clears stale localStorage. Auto-routing keywords in ROUTE_KEYWORDS map to space-dev (code/debug/api/javascript etc) and space-design (design/ui/wireframe etc). Terminal alias bridge at /code with data-testid='alias-setup-btn'. All APIs MOCKED in Zustand store.",
+
+  "mocked_apis_note": "ALL APIs are MOCKED via Zustand store - no real backend calls. Mocked: sendMessage (simulated streaming ~3s at 10ms/char), executeCommand (simulated terminal), switchModel, all state updates"
+}

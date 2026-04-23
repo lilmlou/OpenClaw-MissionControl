@@ -1,0 +1,1 @@
+[{'type': 'connect', 'threadId': 'test-thread-123'}, {'type': 'chat.message', 'id': 'test-run-456', 'threadId': 'test-thread-123', 'content': 'Hello, test message!'}, {'response}': 'except asyncio.TimeoutError:\n                print(', 'responses': 'except Exception as e:\n        print(f', 'Error': {'__main__': 'asyncio.run(test_websocket())'}}]
