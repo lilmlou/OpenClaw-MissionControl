@@ -1,21 +1,32 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ChevronDown, Globe, Wrench, Bot, Telescope, Mic, Send } from "lucide-react";
+import { ChevronDown, Globe, Wrench, Bot, Telescope, Mic, Send, Square } from "lucide-react";
 import { C, ORIGINAL_FRONTEND_THEME, getSpaceIcon } from "@/lib/constants";
 import { useGateway, switchModel } from "@/lib/useGateway";
 import { ModelSelector } from "@/components/ModelSelector";
 import { PlusMenu } from "@/components/PlusMenu";
+import { ParameterMenu } from "@/components/ParameterMenu";
 
 export function InputBar({ onSend, disabled, placeholder, fillPrompt, onFillConsumed, runtimeTheme = C }) {
   const [val, setVal] = useState("");
   const ref = useRef(null);
-  const { models, providers, activeModel, webSearchEnabled, enabledSkills, activeThreadId, threads, spaces } = useGateway();
+  const { models, providers, activeModel, webSearchEnabled, enabledSkills, activeThreadId, threads, spaces, streamingMessage, stopGenerating } = useGateway();
   const [activeMode, setActiveMode] = useState("agent");
+
+  // Active stream targets the current thread? If yes, the right-hand button morphs into "Stop".
+  const isStreamingHere = !!streamingMessage && (!activeThreadId || streamingMessage.threadId === activeThreadId);
 
   useEffect(() => { if (fillPrompt) { setVal(fillPrompt); onFillConsumed?.(); setTimeout(() => ref.current?.focus(), 0); } }, [fillPrompt, onFillConsumed]);
 
   const handleInput = (e) => { setVal(e.target.value); const el = e.target; el.style.height = "auto"; el.style.height = `${Math.min(el.scrollHeight, 180)}px`; };
-  const handleKey = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } };
-  const submit = () => { if (!val.trim() || disabled) return; onSend(val.trim()); setVal(""); if (ref.current) ref.current.style.height = "auto"; };
+  const handleKey = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      // Don't send while streaming — user has to stop first (or wait).
+      if (isStreamingHere) return;
+      submit();
+    }
+  };
+  const submit = () => { if (!val.trim() || disabled || isStreamingHere) return; onSend(val.trim()); setVal(""); if (ref.current) ref.current.style.height = "auto"; };
   const handleQuick = (prompt, fill) => {
     if (fill) { setVal(prompt); setTimeout(() => ref.current?.focus(), 0); }
     else { onSend(prompt); }
@@ -65,10 +76,33 @@ export function InputBar({ onSend, disabled, placeholder, fillPrompt, onFillCons
           </span>
         )}
         <div className="flex-1" />
+        <ParameterMenu runtimeTheme={runtimeTheme} />
         <ModelSelector models={models} providers={providers} activeModel={activeModel} onSelect={switchModel} runtimeTheme={runtimeTheme} />
         <button type="button" className="w-7 h-7 flex items-center justify-center rounded-full transition-colors" style={{ color: runtimeTheme.muted }}><Mic className="w-4 h-4" /></button>
-        <button type="button" onClick={submit} disabled={!active} className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
-          style={{ background: active ? runtimeTheme.accent : runtimeTheme.surface2, color: active ? "#fff" : runtimeTheme.muted, cursor: active ? "pointer" : "not-allowed", boxShadow: active ? `0 0 24px ${runtimeTheme.accent}55` : "none" }} title="Send" data-testid="send-btn"><Send className="w-3.5 h-3.5" /></button>
+        {isStreamingHere ? (
+          <button
+            type="button"
+            onClick={() => stopGenerating?.()}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+            style={{ background: "#ef4444", color: "#fff", cursor: "pointer", boxShadow: "0 0 24px rgba(239,68,68,0.45)" }}
+            title="Stop generating"
+            data-testid="stop-btn"
+          >
+            <Square className="w-3.5 h-3.5" fill="currentColor" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!active}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+            style={{ background: active ? runtimeTheme.accent : runtimeTheme.surface2, color: active ? "#fff" : runtimeTheme.muted, cursor: active ? "pointer" : "not-allowed", boxShadow: active ? `0 0 24px ${runtimeTheme.accent}55` : "none" }}
+            title="Send"
+            data-testid="send-btn"
+          >
+            <Send className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );

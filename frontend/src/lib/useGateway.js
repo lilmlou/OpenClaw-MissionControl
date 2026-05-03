@@ -12,9 +12,32 @@ let approvalsWs = null;
 let approvalsWsReconnectTimer = null;
 let gatewayWs = null;
 let gatewayWsReconnectTimer = null;
+const STREAM_STALE_MS = 90000;
+const streamTimers = {};
+
+function clearStreamTimer(threadId) {
+  if (threadId && streamTimers[threadId]) {
+    clearTimeout(streamTimers[threadId]);
+    delete streamTimers[threadId];
+  }
+}
+
+function armStreamTimer(threadId, runId, get, set) {
+  clearStreamTimer(threadId);
+  streamTimers[threadId] = setTimeout(() => {
+    const state = get();
+    if (state.streamingMessage?.runId === runId || state.pendingRunId === runId) {
+      set({ streamingMessage: null, pendingRunId: null, lastError: 'Response timed out' });
+      state.addEvent?.({ id: crypto.randomUUID(), ts: Date.now(), type: 'gateway.timeout', payload: { runId, threadId } });
+    }
+    clearStreamTimer(threadId);
+  }, STREAM_STALE_MS);
+}
+
 
 const getApiBase = () => (BACKEND_URL ? BACKEND_URL.replace(/\/$/, "") : "");
 const apiUrl = (path) => `${getApiBase()}${path}`;
+export { apiUrl, getApiBase };
 const wsUrl = (path) => {
   if (BACKEND_URL) {
     const base = BACKEND_URL.replace(/\/$/, "");
@@ -240,6 +263,236 @@ const MODEL_PROVIDERS_DATA = {
 };
 
 // Process models with explicit capabilities from cheatsheet
+
+const capsFromCatalogModel = (model) => ({
+  vision: Array.isArray(model?.input) ? model.input.includes("image") || model.input.includes("vision") : /vision|vl|4o|gemini|claude/i.test(model?.id || ""),
+  coding: /code|coder|codex|qwen|deepseek|claude|gpt/i.test(model?.id || ""),
+  tools: !!model?.toolCompatible,
+  files: true,
+  reasoning: !!model?.reasoning || /thinking|reasoning|r1|opus|gpt|claude/i.test(model?.id || ""),
+  fast: /fast|mini|flash|turbo/i.test(model?.id || ""),
+});
+
+const ROUTE_PROVIDERS = new Set([
+  "venice", "openrouter", "ollama", "huggingface", "siliconflow",
+  "opencode", "opencode-go", "google-gemini-cli", "openai-codex",
+]);
+
+const looksLikeRawId = (s) => {
+  if (!s || typeof s !== "string") return true;
+  // raw IDs: contain '/', start with route provider, are entirely lowercase-with-dashes/colons
+  if (s.includes("/")) return true;
+  if (/^[a-z0-9]+(?:[-:.][a-z0-9]+)+$/i.test(s)) return true;
+  // a "real" name has at least one space OR a colon-with-space pattern OR an internal capital
+  const hasSpace = /\s/.test(s);
+  const hasInternalCap = /[a-z][A-Z]/.test(s);
+  return !hasSpace && !hasInternalCap;
+};
+
+const MAKER_LABELS = {
+  openai: "OpenAI", anthropic: "Anthropic", google: "Google",
+  meta: "Meta", "meta-llama": "Meta", "x-ai": "xAI", xai: "xAI",
+  "z-ai": "Z.AI", "zai-org": "Z.AI", qwen: "Qwen", deepseek: "DeepSeek",
+  "deepseek-ai": "DeepSeek", mistralai: "Mistral", mistral: "Mistral",
+  moonshotai: "Moonshot", moonshot: "Moonshot",
+  minimaxai: "MiniMax", minimax: "MiniMax",
+  nvidia: "Nvidia", stepfun: "Stepfun",
+  cognitivecomputations: "Dolphin", nous: "Nous", "nous-research": "Nous",
+  hermes: "Hermes",
+};
+
+const prettifyMaker = (m) => MAKER_LABELS[m?.toLowerCase()] ?? m;
+
+// Map a model basename to maker + remainder when no explicit maker prefix exists.
+// e.g. "openai-gpt-55-pro" → { maker: "openai", rest: "gpt-5.5-pro" }
+//      "claude-opus-4-7"  → { maker: "anthropic", rest: "claude-opus-4.7" }
+//      "kimi-k2-6"        → { maker: "moonshot", rest: "kimi-k2.6" }
+const inferMakerFromBase = (base) => {
+  const s = String(base || "").toLowerCase();
+  if (s.startsWith("openai-")) return { maker: "openai", rest: s.replace(/^openai-/, "") };
+  if (s.startsWith("claude")) return { maker: "anthropic", rest: s };
+  if (s.startsWith("gpt")) return { maker: "openai", rest: s };
+  if (s.startsWith("kimi")) return { maker: "moonshot", rest: s };
+  if (s.startsWith("qwen")) return { maker: "qwen", rest: s };
+  if (s.startsWith("deepseek")) return { maker: "deepseek", rest: s };
+  if (s.startsWith("gemini")) return { maker: "google", rest: s };
+  if (s.startsWith("gemma")) return { maker: "google", rest: s };
+  if (s.startsWith("grok")) return { maker: "xai", rest: s };
+  if (s.startsWith("llama")) return { maker: "meta", rest: s };
+  if (s.startsWith("mistral") || s.startsWith("ministral") || s.startsWith("devstral")) return { maker: "mistral", rest: s };
+  if (s.startsWith("hermes")) return { maker: "nous", rest: s };
+  if (s.startsWith("nemotron") || s.startsWith("nvidia-")) return { maker: "nvidia", rest: s.replace(/^nvidia-/, "") };
+  if (s.startsWith("glm") || s.includes("zai-org-glm") || s.startsWith("z-ai-glm")) return { maker: "zai-org", rest: s.replace(/^zai-org-/, "").replace(/^z-ai-/, "") };
+  if (s.startsWith("minimax")) return { maker: "minimax", rest: s };
+  return { maker: null, rest: s };
+};
+
+// Restore version dots that route providers stripped:
+//   "gpt-55"     → "GPT-5.5"
+//   "gpt-54-pro" → "GPT-5.4 Pro"
+//   "k2-6"       → "K2.6"
+//   "claude-opus-4-7" → "Claude Opus 4.7"
+//   "claude-sonnet-4-5" → "Claude Sonnet 4.5"
+//   "minimax-m25"  → "MiniMax M2.5"
+const reinsertVersionDots = (s) => {
+  let out = s;
+  // gpt-NN(-suffix)? where NN is two digits → split into N.N
+  out = out.replace(/\bgpt[-\s]+(\d)(\d)(\b|[-\s])/gi, "GPT-$1.$2$3");
+  // claude/opus/sonnet/haiku N-N → N.N
+  out = out.replace(/\b(claude|opus|sonnet|haiku)([-\s]+)(\d+)[-\s]+(\d+)(\b|[-\s])/gi,
+    (_m, name, sep, a, b, after) => `${name}${sep}${a}.${b}${after}`);
+  // kimi-kN-N → K N.N
+  out = out.replace(/\bkimi[-\s]+k(\d+)[-\s]+(\d+)\b/gi, "Kimi K$1.$2");
+  // glm 4 7 / glm-4-7 → GLM-4.7  (only if both sides are single digits)
+  out = out.replace(/\bglm[-\s]+(\d+)[-\s]+(\d+)\b/gi, "GLM-$1.$2");
+  // hermes 3 405b stays as-is
+  // grok-41-fast → Grok-4.1 Fast
+  out = out.replace(/\bgrok[-\s]+(\d)(\d)([-\s])/gi, "Grok-$1.$2$3");
+  // grok-4-20 → Grok-4.20
+  out = out.replace(/\bgrok[-\s]+(\d+)[-\s]+(\d+)\b/gi, "Grok-$1.$2");
+  // qwen3-235b/qwen3-coder etc — keep "Qwen3"
+  out = out.replace(/\bqwen(\d+)\b/gi, "Qwen$1");
+  // minimax-mNN → MiniMax MN.N
+  out = out.replace(/\bminimax[-\s]+m(\d)(\d)\b/gi, "MiniMax M$1.$2");
+  return out;
+};
+
+const prettifyModelName = (raw, providerHint) => {
+  if (!raw) return "";
+  let s = String(raw);
+
+  // Strip slashed prefixes; remember the *non-route* maker if present.
+  const parts = s.split("/").filter(Boolean);
+  let maker = null;
+  if (parts.length >= 2) {
+    // last two segments: maker / model OR provider / model
+    const cand = parts[parts.length - 2].replace(/^~/, "");
+    if (!ROUTE_PROVIDERS.has(cand.toLowerCase())) maker = cand;
+    s = parts[parts.length - 1];
+  } else if (parts.length === 1) {
+    s = parts[0];
+  }
+
+  // Drop trailing route flavours and any colon-suffixed flavour ("foo:cloud", "bar:480b-cloud")
+  s = s.replace(/:(free|cloud|turbo|preview|beta|customtools)\b/gi, "");
+  s = s.replace(/:([a-z0-9.\-]+?)(?=$|[^a-z0-9.\-])/gi, (_m, tail) => `-${tail}`);
+
+  // Drop activation-parameter noise like "-a35b-" / "-a22b-" left over from MoE model names
+  s = s.replace(/-a\d+b\b/gi, "");
+  // Drop trailing "-instruct" / "-it" (instruction-tuned variants are the default for chat catalog)
+  s = s.replace(/-(instruct|it)\b/gi, "");
+
+  // If we don't yet know a maker, try inferring it from the basename
+  if (!maker) {
+    const inferred = inferMakerFromBase(s);
+    if (inferred.maker) {
+      maker = inferred.maker;
+      s = inferred.rest;
+    }
+  }
+
+  // dashes to spaces
+  s = s.replace(/-/g, " ");
+
+  // re-insert version dots stripped by route providers
+  s = reinsertVersionDots(s);
+
+  // common acronyms
+  s = s.replace(/\b(gpt|glm|llm|moe|api|llama|mmlu|qwen|sdk|cli|vl|oss|tts|nlp)\b/gi, (m) => m.toUpperCase());
+
+  // billions: "70b" → "70B", "480b" → "480B", "405b" → "405B"
+  s = s.replace(/\b(\d+)b\b/g, "$1B");
+
+  // capitalise leading words
+  s = s.replace(/\b([a-z])/g, (m) => m.toUpperCase());
+
+  // brand re-capitalisations the leading-letter pass mangles
+  s = s.replace(/\bDeepseek\b/g, "DeepSeek");
+  s = s.replace(/\bMoonshot\b/g, "Moonshot");
+  s = s.replace(/\bMinimax\b/g, "MiniMax");
+  s = s.replace(/\bOpenai\b/g, "OpenAI");
+
+  // collapse multiple spaces
+  s = s.replace(/\s+/g, " ").trim();
+
+  // never show route provider as maker
+  const makerLabel = maker && !ROUTE_PROVIDERS.has(String(maker).toLowerCase())
+    ? prettifyMaker(maker)
+    : null;
+
+  // Avoid stutter: if model already starts with maker (e.g. "OpenAI" + "OpenAI GPT 5.5"), drop dup.
+  if (makerLabel) {
+    const lower = s.toLowerCase();
+    const makerLower = makerLabel.toLowerCase();
+    if (lower.startsWith(makerLower)) return s;
+    // GPT models repeat OpenAI implicitly — fold maker in cleanly
+    return `${makerLabel}: ${s}`;
+  }
+  return s;
+};
+
+const normalizeCatalogModel = (model, group = "recommendedLive") => {
+  const id = model?.id || `${model?.provider || "unknown"}/${model?.sourceId || model?.resolvedId || "model"}`;
+  // Use backend displayName only if it actually looks like a human label;
+  // otherwise prettify the source id ourselves.
+  const backendName = model?.displayName || model?.name;
+  const usable = backendName && !looksLikeRawId(backendName);
+  const name = usable
+    ? backendName
+    : prettifyModelName(model?.sourceId || id);
+  const context = model?.contextWindow
+    ? formatContext(model.contextWindow)
+    : model?.context || null;
+  return {
+    ...model,
+    id,
+    name,
+    displayName: name,
+    rawId: model?.sourceId || id,
+    provider: model?.provider || id.split("/")[0] || "unknown",
+    group,
+    caps: model?.caps || capsFromCatalogModel(model),
+    costTier: model?.costTier || null,
+    context,
+    disabled: !model?.adapterReady || ["planned_cli", "configured_only", "excluded"].includes(model?.routeMode),
+    disabledReason: model?.reason || (!model?.adapterReady ? "Provider bridge pending" : ""),
+  };
+};
+
+const providersFromGroups = (groups) => {
+  const orderedGroups = ["recommendedLive", "localOllama", "subscriptionCli", "configuredUnavailable", "hiddenLive"];
+  const providerOrder = [
+    "venice", "openrouter", "ollama", "huggingface",
+    "anthropic", "openai-codex", "google-gemini-cli", "opencode", "opencode-go",
+    "hermes", "nous",
+  ];
+  const byProvider = new Map();
+  const seen = new Set();
+
+  for (const group of orderedGroups) {
+    const list = Array.isArray(groups?.[group]) ? groups[group] : [];
+    for (const raw of list) {
+      const model = normalizeCatalogModel(raw, group);
+      if (seen.has(model.id)) continue;
+      seen.add(model.id);
+      const provider = model.provider || "unknown";
+      if (!byProvider.has(provider)) {
+        byProvider.set(provider, { name: provider, key: provider, count: 0, models: [] });
+      }
+      byProvider.get(provider).models.push(model);
+    }
+  }
+
+  return Array.from(byProvider.values())
+    .map((provider) => ({ ...provider, count: provider.models.length }))
+    .sort((a, b) => {
+      const ai = providerOrder.indexOf(a.name);
+      const bi = providerOrder.indexOf(b.name);
+      if (ai !== -1 || bi !== -1) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      return a.name.localeCompare(b.name);
+    });
+};
+
 const processModels = () => {
   const models = [];
   Object.entries(MODEL_PROVIDERS_DATA).forEach(([provider, data]) => {
@@ -322,10 +575,39 @@ export const useGateway = create(
       // Runtime state
       activeRuntime: DEFAULT_RUNTIME,
       runtimeMeta: RUNTIME_META,
+      chatParameters: {
+        temperature: 0.1,
+        top_p: 0.3,
+        top_k: 40,
+        max_tokens: 8192,
+        frequency_penalty: 0.2,
+        presence_penalty: 0.1,
+      },
+      // Per-parameter lock — if true, resetChatParameters keeps that value.
+      lockedParameters: {
+        temperature: false,
+        top_p: false,
+        top_k: false,
+        max_tokens: false,
+        frequency_penalty: false,
+        presence_penalty: false,
+      },
+      // Voice / playback (UI-only for now, sent with every chat frame as `options`).
+      voiceSettings: {
+        ttsVoice: "Emma",
+        conversationVoice: "Eve",
+        playbackSpeed: 1,
+      },
+      // When true, backend skips injecting the runtime persona/system prompt.
+      disableSystemPrompt: false,
       
       // Models
       models: processModels(),
       providers: getProviders(),
+      modelGroups: null,
+      modelProvidersStatus: [],
+      modelsLoading: false,
+      modelsError: null,
       activeModel: null,
       
       // Messages and events
@@ -422,7 +704,15 @@ export const useGateway = create(
       approvalsBackend: "mock",
       approvalModesBySession: {},
       approvalsWsConnected: false,
-      
+
+      // Agent runtime (planner/executor/supervisor/auditor/watcher/builder/meta)
+      agentTasks: [],
+      agentTasksLoading: false,
+      agentTasksError: null,
+      agentTasksLastUpdated: null,
+      agentSubmitting: false,
+      agentFilter: "all", // all | planner | executor | supervisor | auditor | watcher | builder | meta | pipeline
+
       // Spaces
       spaces: DEFAULT_SPACES,
       
@@ -435,12 +725,38 @@ export const useGateway = create(
       codeFiles: [],
       activeFile: null,
       
-      // Cowork state
-      coworkParticipants: [
-        { id: "user", name: "Meg", role: "human", status: "active" },
-        { id: "claw", name: "OpenClaw", role: "agent", status: "idle" },
-      ],
-      coworkMessages: [],
+      // ─── Qudos state ──────────────────────────────────────────────────────
+      // Concept shell for AI co-pilot inside desktop apps.
+      // Today this is purely UI/state — backend bridges (screen capture,
+      // accessibility API, app control) are not wired yet. All session/suggestion
+      // creation goes through frontend handlers that record the intent locally;
+      // when Hermes/OpenClaw ships the macOS bridge, swap the handlers to
+      // POST /api/v2/qudos/* without changing this surface.
+      qudosEnabledApps: {},                       // { [appId]: true }
+      qudosCapabilitiesByApp: {},                 // { [appId]: { watch:bool, suggest:bool, act:bool, launch:bool } }
+      qudosActiveAppId: null,                     // currently focused app (auto-detected later)
+      qudosPermissions: {                         // macOS permissions self-reported by user
+        screenRecording: false,
+        accessibility: false,
+        microphone: false,
+        camera: false,
+      },
+      qudosOverlay: {                             // floating button settings
+        enabled: false,
+        position: "bottom-right",                 // top-left | top-right | bottom-left | bottom-right
+        hotkey: "Option+Space",
+        autoHideMs: 5000,
+        opacity: 0.85,
+        theme: "auto",                            // light | dark | auto
+      },
+      qudosPrivacy: {
+        retention: "7d",                          // none | 24h | 7d | 30d
+        excludeApps: [],                          // app ids that Qudos should never watch
+        sensitiveTags: ["banking", "passwords", "keychain"],
+        paused: false,                            // master pause
+      },
+      qudosSessions: [],                          // active/historical co-pilot sessions
+      qudosSuggestions: [],                       // assistant suggestions waiting on approve/dismiss
       
       // Actions
       setStatus: (status) => set({ status }),
@@ -453,6 +769,30 @@ export const useGateway = create(
         return thread?.runtime || activeRuntime;
       },
       setActiveModel: (activeModel) => set({ activeModel }),
+      fetchModelGroups: async ({ refresh = false } = {}) => {
+        set({ modelsLoading: true, modelsError: null });
+        try {
+          if (refresh) {
+            await fetch(apiUrl("/api/v2/models/refresh"), { method: "POST" });
+          }
+          const res = await fetch(apiUrl("/api/v2/models/groups"));
+          if (!res.ok) throw new Error(`models/groups HTTP ${res.status}`);
+          const payload = await res.json();
+          const providers = providersFromGroups(payload?.groups || {});
+          const models = providers.flatMap((p) => p.models);
+          set({
+            providers: providers.length ? providers : getProviders(),
+            models: models.length ? models : processModels(),
+            modelGroups: payload?.groups || null,
+            modelProvidersStatus: payload?.providers || [],
+            modelsLoading: false,
+          });
+          return payload;
+        } catch (err) {
+          set({ modelsLoading: false, modelsError: err?.message || String(err) });
+          return null;
+        }
+      },
       setClawStatus: (clawStatus) => set({ clawStatus }),
       setActivePage: (activePage) => set({ activePage }),
       setActiveTab: (activeTab) => set({ activeTab }),
@@ -481,10 +821,17 @@ export const useGateway = create(
         return { messages: [], threads: newThreads, ...(clearStream ? { streamingMessage: null, pendingRunId: null } : {}) };
       }),
       stopGenerating: () => {
-        const { streamingMessage } = get();
-        if (streamingMessage) {
-          set({ streamingMessage: null, pendingRunId: null });
+        const { streamingMessage, activeThreadId, addEvent } = get();
+        if (streamingMessage?.threadId) clearStreamTimer(streamingMessage.threadId);
+        if (streamingMessage?.runId && gatewayWs?.readyState === WebSocket.OPEN) {
+          gatewayWs.send(JSON.stringify({
+            type: "chat.cancel",
+            threadId: streamingMessage.threadId || activeThreadId || "default-thread",
+            runId: streamingMessage.runId,
+          }));
+          addEvent?.({ id: crypto.randomUUID(), ts: Date.now(), type: "chat.cancel", payload: { runId: streamingMessage.runId, threadId: streamingMessage.threadId } });
         }
+        set({ streamingMessage: null, pendingRunId: null });
       },
       
       // Events
@@ -493,6 +840,12 @@ export const useGateway = create(
       
       setStreamingMessage: (streamingMessage) => set({ streamingMessage }),
       setPendingRunId: (pendingRunId) => set({ pendingRunId }),
+      forceUnlockChat: (reason = "manual unlock") => {
+        const { streamingMessage, addEvent } = get();
+        if (streamingMessage?.threadId) clearStreamTimer(streamingMessage.threadId);
+        set({ streamingMessage: null, pendingRunId: null, status: "connected", lastError: null });
+        addEvent?.({ id: crypto.randomUUID(), ts: Date.now(), type: "chat.force_unlock", payload: { reason } });
+      },
       
       // Connectors
       toggleConnector: (id) => set((s) => ({
@@ -771,7 +1124,104 @@ export const useGateway = create(
           set({ approvalsWsConnected: false });
         };
       },
-      
+
+      // ─── Agent runtime actions ─────────────────────────────────────────
+      setAgentFilter: (agentFilter) => set({ agentFilter }),
+
+      fetchAgentTasks: async ({ silent = false } = {}) => {
+        if (!silent) set({ agentTasksLoading: true });
+        try {
+          const res = await fetch(apiUrl("/api/v2/agents/tasks"));
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const payload = await res.json();
+          const tasks = Array.isArray(payload?.tasks)
+            ? payload.tasks
+            : Array.isArray(payload)
+              ? payload
+              : [];
+          set({
+            agentTasks: tasks,
+            agentTasksLoading: false,
+            agentTasksError: null,
+            agentTasksLastUpdated: Date.now(),
+          });
+          return tasks;
+        } catch (err) {
+          set({
+            agentTasksLoading: false,
+            agentTasksError: err?.message || String(err),
+          });
+          return [];
+        }
+      },
+
+      submitAgentTask: async (agent, prompt) => {
+        if (!agent || !prompt?.trim()) return null;
+        set({ agentSubmitting: true });
+        try {
+          const res = await fetch(apiUrl("/api/v2/agents/tasks"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ agent, prompt: prompt.trim() }),
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body?.error || `HTTP ${res.status}`);
+          }
+          const task = await res.json();
+          // Merge into list immediately for instant feedback
+          set((s) => ({
+            agentTasks: [task, ...s.agentTasks.filter((t) => t.id !== task.id)],
+            agentSubmitting: false,
+          }));
+          // Re-poll shortly to pick up status transitions
+          setTimeout(() => get().fetchAgentTasks({ silent: true }), 600);
+          setTimeout(() => get().fetchAgentTasks({ silent: true }), 2500);
+          return task;
+        } catch (err) {
+          set({
+            agentSubmitting: false,
+            agentTasksError: err?.message || String(err),
+          });
+          return null;
+        }
+      },
+
+      runAgentPipeline: async (prompt) => {
+        if (!prompt?.trim()) return null;
+        set({ agentSubmitting: true });
+        try {
+          const res = await fetch(apiUrl("/api/v2/agents/pipeline"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt: prompt.trim() }),
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body?.error || `HTTP ${res.status}`);
+          }
+          const payload = await res.json();
+          // Pipeline returns { pipelineId, tasks[] } — merge them all
+          set((s) => {
+            const incoming = Array.isArray(payload?.tasks) ? payload.tasks : [];
+            const incomingIds = new Set(incoming.map((t) => t.id));
+            return {
+              agentTasks: [...incoming, ...s.agentTasks.filter((t) => !incomingIds.has(t.id))],
+              agentSubmitting: false,
+            };
+          });
+          setTimeout(() => get().fetchAgentTasks({ silent: true }), 800);
+          setTimeout(() => get().fetchAgentTasks({ silent: true }), 3000);
+          return payload;
+        } catch (err) {
+          set({
+            agentSubmitting: false,
+            agentTasksError: err?.message || String(err),
+          });
+          return null;
+        }
+      },
+
       // Terminal actions
       addTerminalOutput: (line) => set((s) => ({
         terminalOutput: [...s.terminalOutput.slice(-500), { id: crypto.randomUUID(), content: line, timestamp: Date.now() }]
@@ -784,15 +1234,139 @@ export const useGateway = create(
         codeFiles: s.codeFiles.map(f => f.id === fileId ? { ...f, content } : f)
       })),
       
-      // Cowork actions
-      addCoworkMessage: (msg) => set((s) => ({
-        coworkMessages: [...s.coworkMessages.slice(-99), msg]
+      // ─── Qudos actions ────────────────────────────────────────────────────
+      // Toggle whether Qudos is enabled for an app.
+      toggleQudosApp: (appId) => set((s) => {
+        const next = { ...s.qudosEnabledApps };
+        if (next[appId]) delete next[appId];
+        else next[appId] = true;
+        return { qudosEnabledApps: next };
+      }),
+      setQudosCapability: (appId, key, on) => set((s) => {
+        const cur = s.qudosCapabilitiesByApp[appId] || { watch: true, suggest: true, act: false, launch: true };
+        return {
+          qudosCapabilitiesByApp: { ...s.qudosCapabilitiesByApp, [appId]: { ...cur, [key]: !!on } },
+        };
+      }),
+      setQudosPermission: (key, on) => set((s) => ({
+        qudosPermissions: { ...s.qudosPermissions, [key]: !!on },
       })),
-      updateParticipantStatus: (participantId, status) => set((s) => ({
-        coworkParticipants: s.coworkParticipants.map(p => 
-          p.id === participantId ? { ...p, status } : p
-        )
+      setQudosActiveApp: (appId) => set({ qudosActiveAppId: appId || null }),
+      updateQudosOverlay: (patch) => set((s) => ({
+        qudosOverlay: { ...s.qudosOverlay, ...patch },
       })),
+      updateQudosPrivacy: (patch) => set((s) => ({
+        qudosPrivacy: { ...s.qudosPrivacy, ...patch },
+      })),
+      excludeQudosApp: (appId) => set((s) => ({
+        qudosPrivacy: {
+          ...s.qudosPrivacy,
+          excludeApps: s.qudosPrivacy.excludeApps.includes(appId)
+            ? s.qudosPrivacy.excludeApps.filter((id) => id !== appId)
+            : [...s.qudosPrivacy.excludeApps, appId],
+        },
+      })),
+      pauseQudos: (paused = true) => set((s) => ({
+        qudosPrivacy: { ...s.qudosPrivacy, paused: !!paused },
+      })),
+      // ─── Qudos session lifecycle ──────────────────────────────────────────
+      // A Qudos session creates a corresponding Job record and emits Events so
+      // the Agents → Jobs → Events tabs all surface the same activity.
+      // TODO (backend): replace local-only state with:
+      //   POST /api/v2/qudos/sessions { appId, task, agent, capabilities }
+      //     → { id, jobId, status }
+      //   POST /api/v2/qudos/sessions/:id/pause
+      //   POST /api/v2/qudos/sessions/:id/stop
+      //   WS  /api/ws/qudos/events     ← step + suggestion stream
+      // The frontend already produces the same shape; swap the body of these
+      // three actions to dispatch the HTTP/WS calls when the backend lands.
+      startQudosSession: (appId, taskTitle, opts = {}) => {
+        const id = crypto.randomUUID();
+        const jobId = crypto.randomUUID();
+        const now = Date.now();
+        const agent = opts.agent || get().activeRuntime || "openclaw";
+        const capabilities = opts.capabilities || get().qudosCapabilitiesByApp?.[appId] || { watch: true, suggest: true, act: false, launch: true };
+        const session = {
+          id,
+          jobId,
+          appId: appId || null,
+          task: taskTitle || "Untitled task",
+          agent,
+          capabilities,
+          status: "running",
+          createdAt: now,
+          updatedAt: now,
+          steps: [{ id: crypto.randomUUID(), label: "Session created", done: true, ts: now }],
+        };
+        const job = {
+          id: jobId,
+          name: `Qudos · ${taskTitle || "Untitled"}`,
+          status: "running",
+          progress: 5,
+          agent,
+          started: now,
+          source: "qudos",
+          sessionId: id,
+        };
+        set((s) => ({
+          qudosSessions: [session, ...s.qudosSessions].slice(0, 50),
+          jobs: [job, ...s.jobs.filter((j) => j.id !== jobId)].slice(0, 200),
+        }));
+        get().addEvent?.({ id: crypto.randomUUID(), ts: now, type: "qudos.session.start", payload: { sessionId: id, jobId, appId, taskTitle, agent } });
+        return { sessionId: id, jobId };
+      },
+      pauseQudosSession: (id) => set((s) => {
+        const session = s.qudosSessions.find((q) => q.id === id);
+        if (!session) return {};
+        const nextStatus = session.status === "paused" ? "running" : "paused";
+        const ts = Date.now();
+        get().addEvent?.({ id: crypto.randomUUID(), ts, type: "qudos.session.pause", payload: { sessionId: id, jobId: session.jobId, status: nextStatus } });
+        return {
+          qudosSessions: s.qudosSessions.map((q) => q.id === id ? { ...q, status: nextStatus, updatedAt: ts } : q),
+          jobs: s.jobs.map((j) => j.id === session.jobId ? { ...j, status: nextStatus } : j),
+        };
+      }),
+      stopQudosSession: (id) => set((s) => {
+        const session = s.qudosSessions.find((q) => q.id === id);
+        if (!session) return {};
+        const ts = Date.now();
+        get().addEvent?.({ id: crypto.randomUUID(), ts, type: "qudos.session.stop", payload: { sessionId: id, jobId: session.jobId } });
+        return {
+          qudosSessions: s.qudosSessions.map((q) => q.id === id ? { ...q, status: "completed", updatedAt: ts } : q),
+          jobs: s.jobs.map((j) => j.id === session.jobId ? { ...j, status: "completed", progress: 100 } : j),
+        };
+      }),
+      appendQudosStep: (id, label) => set((s) => {
+        const ts = Date.now();
+        const session = s.qudosSessions.find((q) => q.id === id);
+        if (!session) return {};
+        get().addEvent?.({ id: crypto.randomUUID(), ts, type: "qudos.session.step", payload: { sessionId: id, jobId: session.jobId, label } });
+        return {
+          qudosSessions: s.qudosSessions.map((q) => q.id === id
+            ? { ...q, updatedAt: ts, steps: [...(q.steps || []), { id: crypto.randomUUID(), label, done: true, ts }] }
+            : q
+          ),
+          jobs: s.jobs.map((j) => j.id === session.jobId ? { ...j, updatedAt: ts, progress: Math.min(95, (j.progress || 0) + 7) } : j),
+        };
+      }),
+      // ─── Suggestions feed ─────────────────────────────────────────────────
+      // TODO (backend): replace with WS /api/ws/qudos/suggestions push +
+      //   POST /api/v2/qudos/suggestions/:id/approve
+      //   POST /api/v2/qudos/suggestions/:id/dismiss
+      addQudosSuggestion: (suggestion) => {
+        const ts = Date.now();
+        const item = { id: crypto.randomUUID(), createdAt: ts, status: "pending", ...suggestion };
+        get().addEvent?.({ id: crypto.randomUUID(), ts, type: "qudos.suggestion", payload: { suggestionId: item.id, sessionId: item.sessionId, appId: item.appId, text: item.text } });
+        set((s) => ({ qudosSuggestions: [item, ...s.qudosSuggestions].slice(0, 100) }));
+        return item.id;
+      },
+      resolveQudosSuggestion: (id, decision) => set((s) => {
+        const ts = Date.now();
+        const next = s.qudosSuggestions.map((q) => q.id === id ? { ...q, status: decision, resolvedAt: ts } : q);
+        const target = next.find((q) => q.id === id);
+        if (target) get().addEvent?.({ id: crypto.randomUUID(), ts, type: "qudos.suggestion.resolve", payload: { suggestionId: id, sessionId: target.sessionId, decision } });
+        return { qudosSuggestions: next };
+      }),
       
       // Thread actions
       createThread: (title) => {
@@ -871,17 +1445,66 @@ export const useGateway = create(
         set({ status: "connected", clawStatus: { state: "Scheduled" } });
         await get().fetchPendingApprovals();
         await get().fetchApprovalHistory();
+        await get().fetchModelGroups({ refresh: true });
         get().connectApprovalsWebSocket();
       },
       
       // Switch model — also persist to current thread immediately
+      setChatParameters: (patch) => set((state) => ({ chatParameters: { ...state.chatParameters, ...patch } })),
+      resetChatParameters: () => set((state) => {
+        const defaults = { temperature: 0.1, top_p: 0.3, top_k: 40, max_tokens: 8192, frequency_penalty: 0.2, presence_penalty: 0.1 };
+        const locked = state.lockedParameters || {};
+        const next = {};
+        for (const k of Object.keys(defaults)) {
+          next[k] = locked[k] ? (state.chatParameters?.[k] ?? defaults[k]) : defaults[k];
+        }
+        return { chatParameters: next };
+      }),
+      toggleParameterLock: (key) => set((state) => ({
+        lockedParameters: { ...state.lockedParameters, [key]: !state.lockedParameters?.[key] },
+      })),
+      setVoiceSetting: (key, value) => set((state) => ({
+        voiceSettings: { ...state.voiceSettings, [key]: value },
+      })),
+      setDisableSystemPrompt: (value) => set({ disableSystemPrompt: !!value }),
+
       switchModel: async (modelId) => {
-        const { activeThreadId, threads } = get();
+        const { activeThreadId, threads, streamingMessage, stopGenerating, models, addEvent } = get();
+        const selected = models.find((m) => m.id === modelId);
+        if (selected?.disabled) {
+          const reason = selected.disabledReason || "Provider bridge pending";
+          set({ lastError: reason });
+          addEvent({ id: crypto.randomUUID(), ts: Date.now(), type: "model.not_routable", payload: { model: modelId, reason } });
+          return false;
+        }
+
+        try {
+          const res = await fetch(apiUrl("/api/v2/models/resolve"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ model: modelId }),
+          });
+          if (res.ok) {
+            const resolved = await res.json();
+            if (resolved?.status === "not_routable" || resolved?.adapterReady === false) {
+              const reason = resolved?.reason || "Provider bridge pending";
+              set({ lastError: reason });
+              addEvent({ id: crypto.randomUUID(), ts: Date.now(), type: "model.not_routable", payload: { model: modelId, reason } });
+              return false;
+            }
+          }
+        } catch {
+          // If resolver endpoint is unreachable, allow selection and let chat.error handle it.
+        }
+
+        if (streamingMessage?.threadId === activeThreadId) {
+          stopGenerating();
+        }
         set({ activeModel: modelId });
         if (activeThreadId) {
           set({ threads: threads.map(t => t.id === activeThreadId ? { ...t, modelId } : t) });
         }
-        get().addEvent({
+        addEvent({
           id: crypto.randomUUID(),
           ts: Date.now(),
           type: "model.switch",
@@ -892,7 +1515,11 @@ export const useGateway = create(
       
       // Send message — thread-isolated with real gateway connection
       sendMessage: async (text) => {
-        const { activeThreadId, createThread, assignThreadToSpace, addEvent, activeModel, getRuntimeForActiveThread, activeRuntime } = get();
+        const {
+          activeThreadId, createThread, assignThreadToSpace, addEvent, activeModel,
+          getRuntimeForActiveThread, activeRuntime,
+          chatParameters, voiceSettings, disableSystemPrompt,
+        } = get();
         
         // Auto-create thread if none active
         let threadId = activeThreadId;
@@ -913,6 +1540,7 @@ export const useGateway = create(
         // Start streaming — tagged with threadId
         const runId = crypto.randomUUID();
         set({ pendingRunId: runId, streamingMessage: { id: crypto.randomUUID(), runId, threadId, content: "" } });
+        armStreamTimer(threadId, runId, get, set);
         
         // Resolve runtime from active thread first; fall back to active runtime toggle.
         const runtime = activeThreadId ? getRuntimeForActiveThread() : activeRuntime;
@@ -943,11 +1571,26 @@ export const useGateway = create(
           runtime,
           content: text,
           model: activeModel || "huggingface/Qwen/Qwen3-Coder-480B-A35B-Instruct",
+          parameters: chatParameters,
+          options: {
+            disableSystemPrompt: !!disableSystemPrompt,
+            voice: voiceSettings,
+          },
           timestamp: Date.now(),
         };
         
         if (gatewayWs && gatewayWs.readyState === WebSocket.OPEN) {
           gatewayWs.send(JSON.stringify(messagePayload));
+        } else {
+          clearStreamTimer(threadId);
+          set({ streamingMessage: null, pendingRunId: null, status: "connected", lastError: "Gateway WebSocket is not connected. Please try again." });
+          get()._addMessageToThread(threadId, {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: "❌ Gateway is not connected. Please try again.",
+            timestamp: Date.now(),
+          });
+          return { ok: false, error: "gateway websocket not connected" };
         }
         
         return { ok: true };
@@ -958,6 +1601,10 @@ export const useGateway = create(
         const { addEvent } = get();
         
         if (gatewayWs) {
+          // Intentional reconnect/switch. Prevent onclose from marking the app
+          // disconnected and locking the input while we immediately open a new WS.
+          gatewayWs.onclose = null;
+          gatewayWs.onerror = null;
           gatewayWs.close();
         }
         
@@ -992,19 +1639,21 @@ export const useGateway = create(
               const data = JSON.parse(event.data);
               
               switch (data.type) {
-                case "chat.chunk":
-                  // Streaming response chunk
-                  const { streamingMessage, pendingRunId } = get();
+                case "chat.chunk": {
+                  const { streamingMessage } = get();
                   if (streamingMessage && streamingMessage.runId === data.runId) {
+                    const threadId = data.threadId || streamingMessage.threadId;
+                    armStreamTimer(threadId, data.runId, get, set);
                     const newContent = streamingMessage.content + data.chunk;
-                    set({ streamingMessage: { ...streamingMessage, content: newContent } });
+                    set({ streamingMessage: { ...streamingMessage, threadId, content: newContent } });
                   }
                   break;
+                }
                   
-                case "chat.complete":
-                  // Message complete
-                  const { pendingRunId: currentRunId } = get();
-                  if (currentRunId === data.runId) {
+                case "chat.complete": {
+                  const { pendingRunId: currentRunId, streamingMessage } = get();
+                  if (currentRunId === data.runId || streamingMessage?.runId === data.runId) {
+                    clearStreamTimer(data.threadId || streamingMessage?.threadId);
                     const assistantMsg = {
                       id: crypto.randomUUID(),
                       role: "assistant",
@@ -1013,14 +1662,39 @@ export const useGateway = create(
                     };
                     get()._addMessageToThread(data.threadId, assistantMsg);
                     set({ streamingMessage: null, pendingRunId: null });
-                    addEvent({ id: crypto.randomUUID(), ts: Date.now(), type: "message.complete", payload: { runId: data.runId } });
+                    addEvent({ id: crypto.randomUUID(), ts: Date.now(), type: "message.complete", payload: { runId: data.runId, threadId: data.threadId } });
                   }
                   break;
+                }
                   
-                case "chat.error":
-                  set({ lastError: data.error, status: "error" });
-                  addEvent({ id: crypto.randomUUID(), ts: Date.now(), type: "gateway.error", payload: { error: data.error } });
+                case "chat.error": {
+                  const { pendingRunId: currentRunId, streamingMessage, _addMessageToThread } = get();
+                  const isActiveRun = !data.runId || currentRunId === data.runId || streamingMessage?.runId === data.runId;
+                  const threadId = data.threadId || (isActiveRun ? streamingMessage?.threadId : null);
+                  const errorText = data.error || "The backend reported an error.";
+                  const userError = "❌ Something went wrong while generating the response. Please try again.";
+
+                  if (isActiveRun) {
+                    clearStreamTimer(threadId);
+                    // Clear streaming state but KEEP status "connected" so the input
+                    // unlocks immediately. lastError keeps the error visible to the UI.
+                    set({ streamingMessage: null, pendingRunId: null, lastError: errorText, status: "connected" });
+                    if (threadId) {
+                      _addMessageToThread(threadId, {
+                        id: crypto.randomUUID(),
+                        role: "assistant",
+                        content: userError,
+                        timestamp: Date.now(),
+                      });
+                    }
+                  } else {
+                    // Don't flip global status for an unrelated thread's error.
+                    set({ lastError: errorText });
+                  }
+
+                  addEvent({ id: crypto.randomUUID(), ts: Date.now(), type: "gateway.error", payload: { error: errorText, runId: data.runId, threadId, activeRun: isActiveRun } });
                   break;
+                }
                   
                 case "tool.permission_request":
                   // Forward to approval system
@@ -1037,6 +1711,23 @@ export const useGateway = create(
           
           gatewayWs.onclose = () => {
             console.log("Gateway connection closed");
+            
+            const { streamingMessage, pendingRunId, _addMessageToThread, lastError } = get();
+            if ((streamingMessage || pendingRunId) && lastError !== "WebSocket error") {
+              const threadId = streamingMessage?.threadId;
+              clearStreamTimer(threadId);
+              set({ streamingMessage: null, pendingRunId: null });
+              
+              if (threadId) {
+                _addMessageToThread(threadId, {
+                  id: crypto.randomUUID(),
+                  role: "assistant",
+                  content: "❌ Connection closed unexpectedly. Please try again.",
+                  timestamp: Date.now(),
+                });
+              }
+            }
+            
             set({ status: "disconnected" });
             
             // Attempt reconnect
@@ -1050,6 +1741,23 @@ export const useGateway = create(
           
           gatewayWs.onerror = (error) => {
             console.error("Gateway error:", error);
+            
+            const { streamingMessage, pendingRunId, _addMessageToThread } = get();
+            if (streamingMessage || pendingRunId) {
+              const threadId = streamingMessage?.threadId;
+              clearStreamTimer(threadId);
+              set({ streamingMessage: null, pendingRunId: null });
+              
+              if (threadId) {
+                _addMessageToThread(threadId, {
+                  id: crypto.randomUUID(),
+                  role: "assistant",
+                  content: "❌ WebSocket error occurred. Please try again.",
+                  timestamp: Date.now(),
+                });
+              }
+            }
+            
             set({ status: "error", lastError: "WebSocket error" });
           };
           
@@ -1074,9 +1782,10 @@ export const useGateway = create(
 
       // Legacy init function - now connects to gateway
       initGateway: async () => {
-        const { connectGateway } = get();
+        const { connectGateway, fetchModelGroups } = get();
         set({ status: "connecting" });
         await connectGateway();
+        await fetchModelGroups({ refresh: true });
       },
       
       // Execute terminal command (simulated)
@@ -1112,15 +1821,36 @@ export const useGateway = create(
     }),
     {
       name: "openclaw-gateway",
-      version: 3,
+      version: 4,
       migrate: (persisted, version) => {
         if (version < 3) {
           return { ...persisted, spaces: DEFAULT_SPACES, threads: [], activeThreadId: null };
+        }
+        if (version < 4) {
+          // v4: added top_k default + lockedParameters + voiceSettings + disableSystemPrompt
+          return {
+            ...persisted,
+            chatParameters: {
+              temperature: 0.1, top_p: 0.3, top_k: 40, max_tokens: 8192,
+              frequency_penalty: 0.2, presence_penalty: 0.1,
+              ...(persisted?.chatParameters || {}),
+            },
+            lockedParameters: persisted?.lockedParameters || {
+              temperature: false, top_p: false, top_k: false,
+              max_tokens: false, frequency_penalty: false, presence_penalty: false,
+            },
+            voiceSettings: persisted?.voiceSettings || { ttsVoice: "Emma", conversationVoice: "Eve", playbackSpeed: 1 },
+            disableSystemPrompt: !!persisted?.disableSystemPrompt,
+          };
         }
         return persisted;
       },
       partialize: (s) => ({
         activeModel: s.activeModel,
+        chatParameters: s.chatParameters,
+        lockedParameters: s.lockedParameters,
+        voiceSettings: s.voiceSettings,
+        disableSystemPrompt: s.disableSystemPrompt,
         connectors: s.connectors,
         enabledSkills: s.enabledSkills,
         writingStyle: s.writingStyle,
@@ -1132,9 +1862,17 @@ export const useGateway = create(
         userProfile: s.userProfile,
         theme: s.theme,
         defaultModel: s.defaultModel,
+        dataControls: s.dataControls,
+        security: s.security,
+        activeRuntime: s.activeRuntime,
         customSkills: s.customSkills,
         customConnectors: s.customConnectors,
         customPlugins: s.customPlugins,
+        qudosEnabledApps: s.qudosEnabledApps,
+        qudosCapabilitiesByApp: s.qudosCapabilitiesByApp,
+        qudosPermissions: s.qudosPermissions,
+        qudosOverlay: s.qudosOverlay,
+        qudosPrivacy: s.qudosPrivacy,
       }),
       onRehydrateStorage: () => (state) => {
         if (state?.threads?.length) {
@@ -1156,6 +1894,121 @@ export const useGateway = create(
     }
   )
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Agents health derivation
+// Returns a single object the UI can read anywhere:
+//   { state: "healthy" | "warning" | "stalled" | "error" | "loading",
+//     lastWatcherAt, ageMs, label, detail, env, findingsCount, runningCount }
+// "warning" = watcher reported environment problems (e.g. missing API keys)
+// "stalled" = watcher hasn't ticked in >2 minutes
+// "error"   = backend agent fetch failed
+// ─────────────────────────────────────────────────────────────────────────────
+const WATCHER_STALL_MS = 2 * 60 * 1000;
+
+const parseWatcherFindings = (text) => {
+  const out = { ok: true, items: [] };
+  if (!text) return out;
+  const checks = String(text).split("\n");
+  for (const line of checks) {
+    const m = line.match(/^([A-Z][^:]+):\s*(.+)$/);
+    if (!m) continue;
+    const key = m[1].trim();
+    const val = m[2].trim();
+    // Treat "false" / "missing" / "0KB" / "not found" as warnings
+    if (/false|missing|not found|0kb/i.test(val)) {
+      out.ok = false;
+      out.items.push({ key, val, severity: "warn" });
+    }
+  }
+  return out;
+};
+
+export const selectAgentsHealth = (state) => {
+  const { agentTasks, agentTasksError, agentTasksLastUpdated, agentTasksLoading, status } = state;
+  if (agentTasksError) {
+    return {
+      state: "error",
+      label: "Agents offline",
+      detail: agentTasksError,
+      lastWatcherAt: null,
+      ageMs: null,
+      env: { ok: false, items: [] },
+      findingsCount: 0,
+      runningCount: 0,
+    };
+  }
+  if (!agentTasks?.length && agentTasksLoading) {
+    return { state: "loading", label: "Loading agents…", detail: null, lastWatcherAt: null, ageMs: null, env: { ok: true, items: [] }, findingsCount: 0, runningCount: 0 };
+  }
+  const watchers = (agentTasks || []).filter((t) => t.agent === "watcher" && t.status === "done");
+  const latest = watchers[0];
+  const lastAt = latest?.completedAt || latest?.createdAt || null;
+  const ageMs = lastAt ? Date.now() - lastAt : null;
+  const env = parseWatcherFindings(latest?.result || "");
+  const failedTasks = (agentTasks || []).filter((t) => t.status === "failed");
+  const runningCount = (agentTasks || []).filter((t) => t.status === "running").length;
+  const findingsCount = failedTasks.length + (env.ok ? 0 : env.items.length);
+
+  if (!lastAt) {
+    return {
+      state: status === "connected" ? "loading" : "error",
+      label: status === "connected" ? "Waiting for watcher…" : "Gateway offline",
+      detail: null,
+      lastWatcherAt: null, ageMs: null,
+      env, findingsCount, runningCount,
+    };
+  }
+  if (ageMs > WATCHER_STALL_MS) {
+    return {
+      state: "stalled",
+      label: "Watcher stalled",
+      detail: `Last tick ${Math.floor(ageMs / 60000)} min ago`,
+      lastWatcherAt: lastAt, ageMs,
+      env, findingsCount, runningCount,
+    };
+  }
+  if (failedTasks.length > 0) {
+    return {
+      state: "error",
+      label: `${failedTasks.length} failed task${failedTasks.length === 1 ? "" : "s"}`,
+      detail: failedTasks[0]?.result?.slice(0, 120) || null,
+      lastWatcherAt: lastAt, ageMs,
+      env, findingsCount, runningCount,
+    };
+  }
+  if (!env.ok) {
+    return {
+      state: "warning",
+      label: "Watcher: env warnings",
+      detail: env.items.map((i) => `${i.key}: ${i.val}`).join(" · "),
+      lastWatcherAt: lastAt, ageMs,
+      env, findingsCount, runningCount,
+    };
+  }
+  return {
+    state: "healthy",
+    label: "Healthy",
+    detail: `Watcher ticked ${Math.max(1, Math.floor((ageMs || 0) / 1000))}s ago`,
+    lastWatcherAt: lastAt, ageMs,
+    env, findingsCount, runningCount,
+  };
+};
+
+// Boot a single global polling loop the moment the store first hydrates so
+// the Layout health pill works on every page, not only when AgentsPage is mounted.
+let __agentsPollTimer = null;
+const startAgentsPolling = () => {
+  if (__agentsPollTimer || typeof window === "undefined") return;
+  const tick = () => useGateway.getState().fetchAgentTasks?.({ silent: true });
+  // Initial fetch on next macrotask so the store is fully constructed
+  setTimeout(tick, 50);
+  __agentsPollTimer = setInterval(tick, 15_000);
+};
+if (typeof window !== "undefined") {
+  // Defer until store definition has executed
+  setTimeout(startAgentsPolling, 0);
+}
 
 // Export helper functions
 export const initGateway = () => useGateway.getState().initGateway();

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "react-router-dom";
-import { Trash2, Terminal, Square } from "lucide-react";
+import { Trash2, Terminal } from "lucide-react";
 import { getSpaceIcon, getRuntimeTheme, getRuntimeMeta } from "@/lib/constants";
 import { useGateway, initGateway, sendMessage } from "@/lib/useGateway";
 import { RuntimeBackdrop, Markdown, MessageRow } from "@/components/shared";
@@ -18,6 +18,15 @@ export default function HomePage() {
   // Only show streaming for the active thread
   const activeStreaming = streamingMessage?.threadId === activeThreadId ? streamingMessage : null;
   const hasMessages = messages.length > 0 || !!activeStreaming;
+  // Do not lock the chat box during streaming — the user should be able to queue the next prompt.
+  // The send button morphs into a Stop button while streaming (see InputBar). Only disable during
+  // initial connect; error/disconnected remain retryable because sendMessage reconnects on demand.
+  const inputDisabled = status === "connecting";
+  const inputPlaceholder = status === "connecting"
+    ? "Connecting to gateway..."
+    : activeStreaming
+      ? "Type next message…  (current response is streaming)"
+      : runtimeMeta.placeholder;
 
   useEffect(() => { initGateway(); }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length, activeStreaming?.content]);
@@ -60,7 +69,7 @@ export default function HomePage() {
                 </p>
               )}
             </div>
-            <div className="w-full mb-5"><InputBar onSend={doSend} disabled={status !== "connected"} fillPrompt={fillPrompt} onFillConsumed={() => setFillPrompt(null)} placeholder={runtimeMeta.placeholder} runtimeTheme={runtimeTheme} /></div>
+            <div className="w-full mb-5"><InputBar onSend={doSend} disabled={inputDisabled} fillPrompt={fillPrompt} onFillConsumed={() => setFillPrompt(null)} placeholder={inputPlaceholder} runtimeTheme={runtimeTheme} /></div>
           </div>
         </div>
       </div>
@@ -98,18 +107,9 @@ export default function HomePage() {
             </div>
           </div>
         )}
-        {activeStreaming && (
-          <div className="flex justify-center py-2">
-            <button onClick={() => useGateway.getState().stopGenerating()} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full transition-colors hover:bg-white/5"
-              style={{ background: runtimeTheme.surface, border: `1px solid ${runtimeTheme.border}`, color: runtimeTheme.muted }}
-              data-testid="stop-generating-btn">
-              <Square className="w-3 h-3" /> Stop generating
-            </button>
-          </div>
-        )}
         <div ref={bottomRef} />
       </div>
-      <div className="relative z-10 px-4 pb-4 pt-2 shrink-0"><InputBar onSend={doSend} disabled={status !== "connected"} placeholder={runtimeMeta.placeholder} runtimeTheme={runtimeTheme} /></div>
+      <div className="relative z-10 px-4 pb-4 pt-2 shrink-0"><InputBar onSend={doSend} disabled={inputDisabled} placeholder={inputPlaceholder} runtimeTheme={runtimeTheme} /></div>
     </div>
   );
 }

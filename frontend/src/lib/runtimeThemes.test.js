@@ -56,3 +56,11 @@ test('returns fallback theme/meta for unknown runtimes', () => {
   expect(getRuntimeBackground('unknown')).toEqual(getRuntimeBackground('openclaw'));
   expect(getRuntimeChrome('unknown')).toEqual(getRuntimeChrome('openclaw'));
 });
+
+
+test('defines merged meta runtime theme and naming', () => {
+  expect(RUNTIME_META.meta.label).toBe('Meta');
+  expect(RUNTIME_META.meta.assistantName).toBe('OpenClaw + Hermes');
+  expect(RUNTIME_THEMES.meta.accent).toBeDefined();
+  expect(getRuntimeBackground('meta').mode).toBe('haze');
+});

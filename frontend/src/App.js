@@ -8,17 +8,21 @@ import EventsPage from "@/pages/EventsPage";
 import ApprovalsPage from "@/pages/ApprovalsPage";
 import AgentsPage from "@/pages/AgentsPage";
 import SpacesPage from "@/pages/SpacesPage";
-import CoworkPage from "@/pages/CoworkPage";
+import QudosPage from "@/pages/QudosPage";
 import CodePage from "@/pages/CodePage";
 import SessionsPage from "@/pages/SessionsPage";
 import SettingsPage from "@/pages/SettingsPage";
 import CustomizePage from "@/pages/CustomizePage";
 import AgentPage from "@/pages/AgentPage";
+import { Toaster } from "@/components/ui/toaster";
+import { HealthToastBridge } from "@/components/HealthToastBridge";
 import "./App.css";
 
 function App() {
   return (
     <Layout>
+      <Toaster />
+      <HealthToastBridge />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/projects" element={<SpacesPage />} />
@@ -28,7 +32,8 @@ function App() {
         <Route path="/events" element={<EventsPage />} />
         <Route path="/agents" element={<AgentsPage />} />
         <Route path="/sessions" element={<SessionsPage />} />
-        <Route path="/cowork" element={<CoworkPage />} />
+        <Route path="/qudos" element={<QudosPage />} />
+        <Route path="/cowork" element={<Navigate to="/qudos" replace />} />
         <Route path="/code" element={<CodePage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/customize" element={<CustomizePage />} />

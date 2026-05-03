@@ -30,6 +30,14 @@ export const RUNTIME_META = {
     placeholder: "Message Hermes Agent...",
     statusLabel: "Assistant",
   },
+  meta: {
+    id: "meta",
+    label: "Meta",
+    title: "Meta Runtime",
+    assistantName: "OpenClaw + Hermes",
+    placeholder: "Message the merged OpenClaw + Hermes runtime...",
+    statusLabel: "Merged",
+  },
 };
 
 export const RUNTIME_THEMES = {
@@ -59,6 +67,19 @@ export const RUNTIME_THEMES = {
     red: "#d4865d",
     orange: "#e3a24c",
   },
+  meta: {
+    bg: "#100b09",
+    surface: "rgba(42, 25, 12, 0.78)",
+    surface2: "rgba(58, 35, 18, 0.70)",
+    accent: "#f6c453",
+    text: "#fff7e6",
+    muted: "#d9b574",
+    border: "rgba(246, 196, 83, 0.30)",
+    green: "#9db37a",
+    yellow: "#f6c453",
+    red: "#ff6a3d",
+    orange: "#e89b3d",
+  },
 };
 
 export const RUNTIME_BACKGROUNDS = {
@@ -69,6 +90,23 @@ export const RUNTIME_BACKGROUNDS = {
     size: "cover",
     overlay: "linear-gradient(180deg, rgba(2, 8, 20, 0.72) 0%, rgba(5, 9, 20, 0.78) 42%, rgba(5, 8, 18, 0.88) 100%)",
     accentGlow: "rgba(255, 48, 78, 0.18)",
+  },
+  meta: {
+    mode: "haze",
+    base: [
+      "radial-gradient(circle at 22% 18%, rgba(246, 196, 83, 0.30) 0%, rgba(246, 196, 83, 0) 34%)",
+      "radial-gradient(circle at 78% 24%, rgba(255, 48, 78, 0.18) 0%, rgba(255, 48, 78, 0) 30%)",
+      "radial-gradient(circle at 52% 82%, rgba(232, 155, 61, 0.18) 0%, rgba(232, 155, 61, 0) 36%)",
+      "linear-gradient(180deg, #100b09 0%, #24170c 50%, #0b0908 100%)",
+    ].join(', '),
+    overlay: "rgba(18, 12, 8, 0.42)",
+    orbs: [
+      { size: 340, top: "8%", left: "8%", color: "rgba(246, 196, 83, 0.22)", blur: 76 },
+      { size: 300, top: "16%", right: "8%", color: "rgba(255, 48, 78, 0.14)", blur: 92 },
+      { size: 380, bottom: "-4%", left: "28%", color: "rgba(232, 155, 61, 0.16)", blur: 100 },
+    ],
+    blur: 20,
+    noise: 0.03,
   },
   hermes: {
     mode: "haze",
@@ -107,6 +145,15 @@ export const RUNTIME_CHROME = {
     sidebar: "rgba(31, 22, 11, 0.78)",
     textMuted: "#d8b980",
     glow: "rgba(240, 192, 64, 0.34)",
+  },
+  meta: {
+    panel: "rgba(42, 25, 12, 0.78)",
+    panelAlt: "rgba(58, 35, 18, 0.70)",
+    panelBorder: "rgba(246, 196, 83, 0.30)",
+    nav: "rgba(28, 17, 9, 0.60)",
+    sidebar: "rgba(28, 17, 9, 0.82)",
+    textMuted: "#d9b574",
+    glow: "rgba(246, 196, 83, 0.34)",
   },
 };
 
@@ -155,10 +202,12 @@ export const NAV = [
   { href: "/design", label: "Design", icon: Sparkles },
   { href: "/projects", label: "Projects", icon: Grid3X3 },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/qudos", label: "Qudos", icon: Monitor },
   { href: "/jobs", label: "Jobs", icon: Briefcase },
   { href: "/approvals", label: "Approvals", icon: ShieldAlert },
   { href: "/events", label: "Events", icon: Terminal },
   { href: "/agents", label: "Agents", icon: Users },
+  { href: "/customize", label: "Customize", icon: Palette },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

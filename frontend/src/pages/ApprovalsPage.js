@@ -56,7 +56,9 @@ export default function ApprovalsPage() {
   const pending = approvals.filter((a) => a.status === "pending");
 
   return (
-    <div className="p-6 space-y-5" style={{ color: C.text }}>
+    <div className="h-full flex flex-col" style={{ color: C.text }}>
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6 space-y-5 max-w-4xl mx-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Approvals</h1>
         <p className="text-sm" style={{ color: C.muted }}>
@@ -178,6 +180,8 @@ export default function ApprovalsPage() {
               </div>
             </div>
           ))}
+        </div>
+      </div>
         </div>
       </div>
     </div>

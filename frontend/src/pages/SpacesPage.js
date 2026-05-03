@@ -61,7 +61,9 @@ export default function SpacesPage() {
   }
 
   return (
-    <div className="p-6 space-y-4" style={{ color: C.text }}>
+    <div className="h-full flex flex-col" style={{ color: C.text }}>
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6 space-y-4 max-w-6xl mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Projects</h1>
         <Button className="gap-2" style={{ background: C.accent }} onClick={() => setShowNew(true)} data-testid="new-space-btn"><Plus className="w-4 h-4" /> New Project</Button>
@@ -122,6 +124,8 @@ export default function SpacesPage() {
           </div>
         </div>
       )}
+      </div>
+      </div>
     </div>
   );
 }

@@ -23,7 +23,9 @@ export default function JobsPage() {
   const { jobs, cancelJob } = useGateway();
 
   return (
-    <div className="p-6 space-y-4" style={{ color: C.text }}>
+    <div className="h-full flex flex-col" style={{ color: C.text }}>
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6 space-y-4 max-w-5xl mx-auto">
       <div>
         <h1 className="text-5xl font-bold tracking-tight">Jobs &amp; Schedules</h1>
         <p className="text-lg" style={{ color: C.muted }}>Agent runs, heartbeats, and cron schedules.</p>
@@ -67,6 +69,8 @@ export default function JobsPage() {
             )}
           </div>
         );})}
+      </div>
+        </div>
       </div>
     </div>
   );

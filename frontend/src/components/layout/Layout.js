@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { MessageSquare, Plus, ChevronDown, X, Menu, Package, Settings, Layers } from "lucide-react";
+import {
+  MessageSquare, Plus, ChevronDown, X, Menu, Package, Settings, Layers,
+  CheckCircle2, AlertTriangle, AlertOctagon, Clock, Loader2,
+} from "lucide-react";
 import { C, NAV, getSpaceIcon, getRuntimeTheme, getRuntimeMeta } from "@/lib/constants";
-import { useGateway } from "@/lib/useGateway";
+import { useGateway, selectAgentsHealth } from "@/lib/useGateway";
+
+const HEALTH_STYLES = {
+  healthy: { color: "#22c55e", icon: CheckCircle2 },
+  warning: { color: "#fbbf24", icon: AlertTriangle },
+  stalled: { color: "#fb923c", icon: Clock },
+  error:   { color: "#ef4444", icon: AlertOctagon },
+  loading: { color: "#94a3b8", icon: Loader2 },
+};
 
 const tintColor = (hex, alpha) => {
   if (!hex || typeof hex !== "string") return `rgba(255,255,255,${alpha})`;
@@ -33,7 +44,13 @@ export default function Layout({ children }) {
   } = useGateway();
   const clawState = clawStatus?.state ?? "Scheduled";
   const activeJobs = useGateway(s => s.jobs.filter(j => j.status === "running").length);
-  const currentTab = location.pathname === "/cowork" ? "cowork" : location.pathname === "/code" ? "code" : "chat";
+  const agentsHealth = useGateway(selectAgentsHealth);
+  const findingsCount = agentsHealth.findingsCount || 0;
+  const currentTab = location.pathname === "/qudos" || location.pathname === "/cowork"
+    ? "qudos"
+    : location.pathname === "/code"
+      ? "code"
+      : "chat";
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const activeTheme = getRuntimeTheme(activeRuntime);
   const runtimeMeta = getRuntimeMeta(activeRuntime);
@@ -60,7 +77,7 @@ export default function Layout({ children }) {
     return [active, ...base.slice(0, 11)];
   })();
   const navByHref = Object.fromEntries(NAV.map(item => [item.href, item]));
-  const interfaceTabs = ["/", "/design", "/projects"];
+  const interfaceTabs = ["/", "/qudos", "/design", "/projects"];
   const operationsTabs = ["/dashboard", "/sessions", "/jobs", "/approvals", "/events"];
   const configureTabs = ["/agents", "/customize"];
 
@@ -68,13 +85,34 @@ export default function Layout({ children }) {
     const item = navByHref[href] || (href === "/sessions" ? { href, label: "Sessions", icon: Layers } : null);
     if (!item) return null;
     const active = location.pathname === item.href;
-    const badge = item.href === "/jobs" ? activeJobs : null;
+    let badge = null;
+    let badgeTone = "accent";
+    if (item.href === "/jobs") badge = activeJobs;
+    else if (item.href === "/agents" && findingsCount > 0) {
+      badge = findingsCount;
+      badgeTone = agentsHealth.state === "error" ? "red" : agentsHealth.state === "warning" ? "yellow" : "accent";
+    }
+    const badgeBg = badgeTone === "red"
+      ? "rgba(239,68,68,0.2)"
+      : badgeTone === "yellow"
+        ? "rgba(251,191,36,0.2)"
+        : tintColor(activeTheme.accent, 0.2);
+    const badgeFg = badgeTone === "red"
+      ? "#ef4444"
+      : badgeTone === "yellow"
+        ? "#fbbf24"
+        : activeTheme.accent;
 
     return (
       <Link key={item.href} to={item.href} className="flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors"
         style={{ background: active ? tintColor(activeTheme.accent, 0.14) : "transparent", color: active ? activeTheme.accent : activeTheme.text }}>
         <div className="flex items-center gap-2.5"><item.icon className="w-4 h-4" />{item.label}</div>
-        {badge > 0 && <span className="flex h-4 min-w-4 px-1 items-center justify-center rounded-full text-[10px] font-semibold" style={{ background: tintColor(activeTheme.accent, 0.2), color: activeTheme.accent }}>{badge}</span>}
+        {badge > 0 && (
+          <span className="flex h-4 min-w-4 px-1 items-center justify-center rounded-full text-[10px] font-semibold"
+            style={{ background: badgeBg, color: badgeFg }}>
+            {badge}
+          </span>
+        )}
       </Link>
     );
   };
@@ -96,6 +134,7 @@ export default function Layout({ children }) {
             {[
               { id: "openclaw", label: "OpenClaw" },
               { id: "hermes", label: "Hermes" },
+              { id: "meta", label: "Meta" },
             ].map((opt) => (
               <button
                 key={opt.id}
@@ -171,7 +210,7 @@ export default function Layout({ children }) {
             </button>
           </div>
           <div className="flex items-center gap-1">
-            {["Chat", "Cowork", "Code"].map(tab => {
+            {["Chat", "Qudos", "Code"].map(tab => {
               const isActive = currentTab === tab.toLowerCase();
               return (
                 <Link key={tab} to={tab === "Chat" ? "/" : `/${tab.toLowerCase()}`}
@@ -184,11 +223,44 @@ export default function Layout({ children }) {
           </div>
           <div className="flex items-center justify-end gap-2 text-[12px]" style={{ color: activeTheme.muted, minWidth: 180 }}>
             <span className="hidden sm:inline text-[11px] uppercase tracking-wide">{runtimeMeta.label}</span>
-            <div className="relative flex h-2 w-2">
-              {status === "connected" ? <><span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: activeTheme.green }} /><span className="relative inline-flex rounded-full h-2 w-2" style={{ background: activeTheme.green }} /></>
-                : <span className="relative inline-flex rounded-full h-2 w-2 animate-pulse" style={{ background: activeTheme.yellow }} />}
+
+            {/* Gateway connection dot — separate from agents health */}
+            <div className="relative flex h-2 w-2" title={`Gateway ${status}`}>
+              {status === "connected" ? (
+                <>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: activeTheme.green }} />
+                  <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: activeTheme.green }} />
+                </>
+              ) : (
+                <span className="relative inline-flex rounded-full h-2 w-2 animate-pulse" style={{ background: activeTheme.yellow }} />
+              )}
             </div>
-            <span className="capitalize status-text-mobile">{clawState}</span>
+
+            {/* Agents health pill — links to /agents */}
+            {(() => {
+              const styleDef = HEALTH_STYLES[agentsHealth.state] || HEALTH_STYLES.loading;
+              const Icon = styleDef.icon;
+              const tip = agentsHealth.detail ? `${agentsHealth.label} — ${agentsHealth.detail}` : agentsHealth.label;
+              return (
+                <Link
+                  to="/agents"
+                  className="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-medium transition-colors hover:opacity-90"
+                  style={{
+                    background: `${styleDef.color}1f`,
+                    color: styleDef.color,
+                    border: `1px solid ${styleDef.color}40`,
+                  }}
+                  title={tip}
+                  data-testid="agents-health-pill"
+                >
+                  <Icon className={`w-3 h-3 ${agentsHealth.state === "loading" ? "animate-spin" : ""}`} />
+                  <span>{agentsHealth.label}</span>
+                  {agentsHealth.runningCount > 0 && (
+                    <span className="text-[10px] opacity-80">· {agentsHealth.runningCount} running</span>
+                  )}
+                </Link>
+              );
+            })()}
           </div>
         </header>
         <div className="flex-1 overflow-hidden relative">{children}</div>

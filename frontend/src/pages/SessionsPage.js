@@ -29,7 +29,9 @@ export default function SessionsPage() {
   const { threads, spaces, activeThreadId, setActiveThread } = useGateway();
 
   return (
-    <div className="p-3 space-y-2" style={{ color: C.text }}>
+    <div className="h-full flex flex-col" style={{ color: C.text }}>
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-3 space-y-2 max-w-5xl mx-auto">
       <div>
         <h1 className="text-lg font-bold tracking-tight">Sessions</h1>
         <p className="text-[11px]" style={{ color: C.muted }}>Active agent sessions — state owned by Gateway, reflected here.</p>
@@ -100,6 +102,8 @@ export default function SessionsPage() {
             </button>
           );
         })}
+      </div>
+        </div>
       </div>
     </div>
   );

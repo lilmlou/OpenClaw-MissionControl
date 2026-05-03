@@ -25,7 +25,9 @@ export default function EventsPage() {
   const filtered = typeFilter === "all" ? events : events.filter((e) => (e.type || "event") === typeFilter);
 
   return (
-    <div className="p-6 space-y-5" style={{ color: C.text }}>
+    <div className="h-full flex flex-col" style={{ color: C.text }}>
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6 space-y-5 max-w-5xl mx-auto">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-5xl font-bold tracking-tight">Event Stream</h1>
@@ -69,6 +71,8 @@ export default function EventsPage() {
               <span style={{ color: levelColor }}>{eventText(evt)}</span>
             </div>
           );})}
+        </div>
+      </div>
         </div>
       </div>
     </div>

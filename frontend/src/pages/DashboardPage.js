@@ -27,7 +27,9 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="p-6 space-y-5" style={{ color: C.text }}>
+    <div className="h-full flex flex-col" style={{ color: C.text }}>
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6 space-y-5 max-w-6xl mx-auto">
       <div>
         <h1 className="text-4xl font-bold tracking-tight">Mission Control</h1>
         <p className="text-lg" style={{ color: C.muted }}>Real-time operational view of your OpenClaw runtime.</p>
@@ -104,6 +106,8 @@ export default function DashboardPage() {
             <span className="text-[11px]" style={{ color: C.red }}>Pending approvals require review.</span>
           </div>
         )}
+      </div>
+        </div>
       </div>
     </div>
   );

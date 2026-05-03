@@ -1,9 +1,26 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ChevronDown, ChevronLeft, Check } from "lucide-react";
+import { ChevronDown, ChevronLeft, Check, Lock } from "lucide-react";
 import { C } from "@/lib/constants";
 import { CapabilityIcons, CostBadge } from "@/components/shared";
 
 const INITIAL_SHOW = 8;
+
+const PROVIDER_LABEL = {
+  venice: "Venice",
+  openrouter: "OpenRouter",
+  ollama: "Ollama (local)",
+  huggingface: "HuggingFace",
+  anthropic: "Anthropic (Claude Max)",
+  "openai-codex": "OpenAI Codex",
+  openai: "OpenAI",
+  "google-gemini-cli": "Google Gemini",
+  google: "Google",
+  opencode: "Opencode",
+  "opencode-go": "Opencode Go",
+  hermes: "Hermes",
+  nous: "Nous Research",
+};
+const labelForProvider = (name) => PROVIDER_LABEL[name?.toLowerCase()] ?? name;
 
 export function ModelSelector({ models, providers, activeModel, onSelect, runtimeTheme = C }) {
   const [open, setOpen] = useState(false);
@@ -40,13 +57,20 @@ export function ModelSelector({ models, providers, activeModel, onSelect, runtim
 
   useEffect(() => { setExpanded(false); }, [hovProv]);
 
-  const activeName = activeModel ? (models.find(m => m.id === activeModel)?.name ?? activeModel.split("/").pop()) : null;
-  const label = activeName ? (activeName.length > 22 ? activeName.slice(0, 20) + "..." : activeName) : "Select model";
+  const activeModelObj = activeModel ? models.find(m => m.id === activeModel) : null;
+  const rawTail = activeModel ? activeModel.split("/").pop() : null;
+  const activeName = activeModelObj?.displayName ?? activeModelObj?.name ?? rawTail;
+  const label = activeName ? (activeName.length > 28 ? activeName.slice(0, 26) + "…" : activeName) : "Select model";
   const provModels = hovProv ? (providers.find(p => p.name === hovProv)?.models ?? []) : [];
   const displayModels = expanded ? provModels : provModels.slice(0, INITIAL_SHOW);
   const hasMore = provModels.length > INITIAL_SHOW;
 
-  const handleSelect = async (id) => { setOpen(false); setHovProv(null); await onSelect(id); };
+  const handleSelect = async (model) => {
+    if (model?.disabled) return;
+    setOpen(false);
+    setHovProv(null);
+    await onSelect(model.id);
+  };
   const handleProvEnter = (name) => { clearTimeout(hoverTimer.current); setHovProv(name); };
   const handleProvLeave = () => { hoverTimer.current = setTimeout(() => setHovProv(null), 150); };
   const handleModelsEnter = () => { clearTimeout(hoverTimer.current); };
@@ -86,7 +110,7 @@ export function ModelSelector({ models, providers, activeModel, onSelect, runtim
                     onMouseOut={e => { e.currentTarget.style.background = prov.name === hovProv ? `${runtimeTheme.accent}16` : "transparent"; }}
                     data-testid={`provider-${prov.name}`}>
                     <ChevronLeft className="w-2.5 h-2.5 shrink-0" style={{ color: prov.name === hovProv ? runtimeTheme.accent : runtimeTheme.border }} />
-                    <span className="text-[11px] font-medium" style={{ color: prov.name === hovProv ? runtimeTheme.text : runtimeTheme.muted }}>{prov.name}</span>
+                    <span className="text-[11px] font-medium" style={{ color: prov.name === hovProv ? runtimeTheme.text : runtimeTheme.muted }}>{labelForProvider(prov.name)}</span>
                     <span className="text-[10px]" style={{ color: runtimeTheme.muted, marginLeft: 2, opacity: 0.7 }}>{prov.count}</span>
                   </button>
                 ))}
@@ -97,21 +121,23 @@ export function ModelSelector({ models, providers, activeModel, onSelect, runtim
               <div className="shadow-2xl" onMouseEnter={handleModelsEnter} onMouseLeave={handleModelsLeave}
                 style={{ position: "absolute", right: "100%", [modelsUp ? "bottom" : "top"]: 0, width: "auto", maxWidth: 220, minWidth: 150, maxHeight: 400, background: panelBg, borderTop: `1px solid ${borderClr}`, borderLeft: `1px solid ${borderClr}`, borderBottom: `1px solid ${borderClr}`, borderRight: "none", borderRadius: "10px 0 0 10px", display: "flex", flexDirection: "column" }}>
                 <div className="px-2 py-1 shrink-0 flex items-center" style={{ gap: 6, borderBottom: `1px solid ${runtimeTheme.border}` }}>
-                  <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: runtimeTheme.muted }}>{hovProv}</span>
+                  <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: runtimeTheme.muted }}>{labelForProvider(hovProv)}</span>
                   <span className="text-[9px]" style={{ color: runtimeTheme.muted, opacity: 0.7 }}>{provModels.length}</span>
                 </div>
                 <div style={{ overflowY: "auto", maxHeight: 370 }} data-testid="models-scroll-container">
                   {displayModels.map(m => {
                     const isActive = m.id === activeModel;
                     return (
-                      <button key={m.id} type="button" onClick={() => handleSelect(m.id)}
-                        className="w-full text-left transition-colors"
-                        style={{ padding: "3px 6px", background: isActive ? `${runtimeTheme.accent}16` : "transparent", borderBottom: `1px solid ${runtimeTheme.border}` }}
-                        onMouseOver={e => { if (!isActive) e.currentTarget.style.background = hoverBg; }}
+                      <button key={m.id} type="button" onClick={() => handleSelect(m)} disabled={m.disabled}
+                        className="w-full text-left transition-colors disabled:cursor-not-allowed"
+                        title={m.disabled ? (m.disabledReason || "Provider bridge pending") : m.id}
+                        style={{ padding: "3px 6px", opacity: m.disabled ? 0.48 : 1, background: isActive ? `${runtimeTheme.accent}16` : "transparent", borderBottom: `1px solid ${runtimeTheme.border}` }}
+                        onMouseOver={e => { if (!isActive && !m.disabled) e.currentTarget.style.background = hoverBg; }}
                         onMouseOut={e => { e.currentTarget.style.background = isActive ? `${runtimeTheme.accent}16` : "transparent"; }}
-                        data-testid={`model-item-${m.name.replace(/\s+/g, "-").toLowerCase()}`}>
+                        data-testid={`model-item-${String(m.name || m.id).replace(/\s+/g, "-").toLowerCase()}`}>
                         <div className="flex items-center gap-1">
                           <span className="text-[11px] font-medium truncate" style={{ color: isActive ? runtimeTheme.accent : runtimeTheme.text }}>{m.name}</span>
+                          {m.disabled && <Lock className="w-2.5 h-2.5 shrink-0" style={{ color: runtimeTheme.muted }} />}
                           {isActive && <Check className="w-2.5 h-2.5 shrink-0" style={{ color: runtimeTheme.accent }} />}
                         </div>
                         <div className="flex items-center" style={{ marginTop: 1, gap: 2, whiteSpace: "nowrap" }}>
