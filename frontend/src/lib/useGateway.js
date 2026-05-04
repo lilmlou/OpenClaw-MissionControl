@@ -573,8 +573,11 @@ export const useGateway = create(
       lastError: null,
 
       // Runtime state
+      // Frozen single-runtime values — kept in store so any straggler reads
+      // don't crash. Treat as read-only constants.
       activeRuntime: DEFAULT_RUNTIME,
       runtimeMeta: RUNTIME_META,
+      // ── (Hermes/Meta runtimes removed 2026-05-05; single-bot mode) ──
       chatParameters: {
         temperature: 0.1,
         top_p: 0.3,
@@ -762,12 +765,16 @@ export const useGateway = create(
       setStatus: (status) => set({ status }),
       setPhase: (phase) => set({ phase }),
       setLastError: (lastError) => set({ lastError }),
-      setActiveRuntime: (activeRuntime) => set({ activeRuntime }),
-      getRuntimeForActiveThread: () => {
-        const { activeThreadId, threads, activeRuntime } = get();
-        const thread = activeThreadId ? threads.find((t) => t.id === activeThreadId) : null;
-        return thread?.runtime || activeRuntime;
+      // Single-bot mode. Hermes/Meta runtimes removed from UI 2026-05-05.
+      // setActiveRuntime kept as a no-op so any lingering callers don't crash;
+      // backend chat frames always carry runtime: 'openclaw'.
+      setActiveRuntime: (_runtime) => {
+        if (_runtime && _runtime !== "openclaw") {
+          // eslint-disable-next-line no-console
+          console.warn(`[useGateway] setActiveRuntime("${_runtime}") ignored — single-bot mode`);
+        }
       },
+      getRuntimeForActiveThread: () => "openclaw",
       setActiveModel: (activeModel) => set({ activeModel }),
       fetchModelGroups: async ({ refresh = false } = {}) => {
         set({ modelsLoading: true, modelsError: null });
@@ -1284,7 +1291,7 @@ export const useGateway = create(
         const id = crypto.randomUUID();
         const jobId = crypto.randomUUID();
         const now = Date.now();
-        const agent = opts.agent || get().activeRuntime || "openclaw";
+        const agent = opts.agent || "openclaw";
         const capabilities = opts.capabilities || get().qudosCapabilitiesByApp?.[appId] || { watch: true, suggest: true, act: false, launch: true };
         const session = {
           id,
@@ -1372,9 +1379,8 @@ export const useGateway = create(
       createThread: (title) => {
         const id = crypto.randomUUID();
         const currentModel = get().activeModel;
-        const currentRuntime = get().activeRuntime;
         const now = Date.now();
-        const thread = { id, title: title || "New thread", runtime: currentRuntime, messages: [], createdAt: now, updatedAt: now, spaceId: null, modelId: currentModel };
+        const thread = { id, title: title || "New thread", runtime: "openclaw", messages: [], createdAt: now, updatedAt: now, spaceId: null, modelId: currentModel };
         set((s) => ({ threads: [thread, ...s.threads], activeThreadId: id, messages: [] }));
         return id;
       },
@@ -1517,7 +1523,6 @@ export const useGateway = create(
       sendMessage: async (text) => {
         const {
           activeThreadId, createThread, assignThreadToSpace, addEvent, activeModel,
-          getRuntimeForActiveThread, activeRuntime,
           chatParameters, voiceSettings, disableSystemPrompt,
         } = get();
         
@@ -1542,8 +1547,9 @@ export const useGateway = create(
         set({ pendingRunId: runId, streamingMessage: { id: crypto.randomUUID(), runId, threadId, content: "" } });
         armStreamTimer(threadId, runId, get, set);
         
-        // Resolve runtime from active thread first; fall back to active runtime toggle.
-        const runtime = activeThreadId ? getRuntimeForActiveThread() : activeRuntime;
+        // Single-bot mode: runtime is always 'openclaw'. Backend frame keeps
+        // the field for contract compatibility.
+        const runtime = "openclaw";
         
         if (!gatewayWs || gatewayWs.readyState !== WebSocket.OPEN) {
           await get().connectGateway(threadId, runtime);
@@ -1878,7 +1884,8 @@ export const useGateway = create(
         if (state?.threads?.length) {
           const migratedThreads = state.threads.map((thread) => ({
             ...thread,
-            runtime: thread.runtime || DEFAULT_RUNTIME,
+            // Force single-bot mode: any historical hermes/meta thread becomes openclaw.
+            runtime: "openclaw",
           }));
           useGateway.setState({ threads: migratedThreads });
         }
@@ -1905,6 +1912,9 @@ export const useGateway = create(
 // "error"   = backend agent fetch failed
 // ─────────────────────────────────────────────────────────────────────────────
 const WATCHER_STALL_MS = 2 * 60 * 1000;
+// Only failures within this window count toward live "error" state.
+// Anything older is treated as historical backlog and ignored by the pill.
+const RECENT_FAILURE_WINDOW_MS = 30 * 60 * 1000;
 
 const parseWatcherFindings = (text) => {
   const out = { ok: true, items: [] };
@@ -1924,76 +1934,131 @@ const parseWatcherFindings = (text) => {
   return out;
 };
 
+// PURE selector — no Date.now(), no wall-clock derivations. Output only changes
+// when underlying store state changes, so useShallow can stabilise it.
+// Time-derived strings (e.g. "5s ago") live in formatHealthDetail() below and
+// are recomputed inline by the consumer at render time.
 export const selectAgentsHealth = (state) => {
-  const { agentTasks, agentTasksError, agentTasksLastUpdated, agentTasksLoading, status } = state;
+  const { agentTasks, agentTasksError, agentTasksLoading, agentTasksLastUpdated, status } = state;
   if (agentTasksError) {
     return {
       state: "error",
       label: "Agents offline",
-      detail: agentTasksError,
+      staticDetail: agentTasksError,
       lastWatcherAt: null,
-      ageMs: null,
-      env: { ok: false, items: [] },
+      envOk: false,
+      envItemCount: 0,
+      failedFirstResult: null,
       findingsCount: 0,
       runningCount: 0,
+      historicalFailureCount: 0,
     };
   }
   if (!agentTasks?.length && agentTasksLoading) {
-    return { state: "loading", label: "Loading agents…", detail: null, lastWatcherAt: null, ageMs: null, env: { ok: true, items: [] }, findingsCount: 0, runningCount: 0 };
+    return {
+      state: "loading", label: "Loading agents…", staticDetail: null,
+      lastWatcherAt: null, envOk: true, envItemCount: 0,
+      failedFirstResult: null, findingsCount: 0, runningCount: 0,
+      historicalFailureCount: 0,
+    };
   }
   const watchers = (agentTasks || []).filter((t) => t.agent === "watcher" && t.status === "done");
   const latest = watchers[0];
   const lastAt = latest?.completedAt || latest?.createdAt || null;
-  const ageMs = lastAt ? Date.now() - lastAt : null;
   const env = parseWatcherFindings(latest?.result || "");
-  const failedTasks = (agentTasks || []).filter((t) => t.status === "failed");
+
+  // For "live" health we only count failures within the recent window so
+  // long-stale orphaned tasks (e.g. abandoned at a previous gateway crash)
+  // don't keep the pill red forever. agentTasksLastUpdated is the store's
+  // stable "now" reference — uses Date.now() only at poll time, not at every
+  // render — so the selector stays pure for Zustand's shallow equality.
+  const nowRef = agentTasksLastUpdated || lastAt || 0;
+  const allFailed = (agentTasks || []).filter((t) => t.status === "failed");
+  const recentFailed = allFailed.filter((t) => {
+    const ts = t.completedAt || t.createdAt || 0;
+    return nowRef - ts <= RECENT_FAILURE_WINDOW_MS;
+  });
   const runningCount = (agentTasks || []).filter((t) => t.status === "running").length;
-  const findingsCount = failedTasks.length + (env.ok ? 0 : env.items.length);
+  const findingsCount = recentFailed.length + (env.ok ? 0 : env.items.length);
 
   if (!lastAt) {
     return {
       state: status === "connected" ? "loading" : "error",
       label: status === "connected" ? "Waiting for watcher…" : "Gateway offline",
-      detail: null,
-      lastWatcherAt: null, ageMs: null,
-      env, findingsCount, runningCount,
+      staticDetail: null,
+      lastWatcherAt: null,
+      envOk: env.ok, envItemCount: env.items.length,
+      failedFirstResult: null,
+      findingsCount, runningCount,
+      historicalFailureCount: allFailed.length,
     };
   }
-  if (ageMs > WATCHER_STALL_MS) {
-    return {
-      state: "stalled",
-      label: "Watcher stalled",
-      detail: `Last tick ${Math.floor(ageMs / 60000)} min ago`,
-      lastWatcherAt: lastAt, ageMs,
-      env, findingsCount, runningCount,
-    };
-  }
-  if (failedTasks.length > 0) {
+  if (recentFailed.length > 0) {
     return {
       state: "error",
-      label: `${failedTasks.length} failed task${failedTasks.length === 1 ? "" : "s"}`,
-      detail: failedTasks[0]?.result?.slice(0, 120) || null,
-      lastWatcherAt: lastAt, ageMs,
-      env, findingsCount, runningCount,
+      label: `${recentFailed.length} failed task${recentFailed.length === 1 ? "" : "s"}`,
+      staticDetail: recentFailed[0]?.result?.slice(0, 120) || null,
+      lastWatcherAt: lastAt,
+      envOk: env.ok, envItemCount: env.items.length,
+      failedFirstResult: recentFailed[0]?.result?.slice(0, 120) || null,
+      findingsCount, runningCount,
+      historicalFailureCount: allFailed.length,
     };
   }
   if (!env.ok) {
     return {
       state: "warning",
       label: "Watcher: env warnings",
-      detail: env.items.map((i) => `${i.key}: ${i.val}`).join(" · "),
-      lastWatcherAt: lastAt, ageMs,
-      env, findingsCount, runningCount,
+      staticDetail: env.items.map((i) => `${i.key}: ${i.val}`).join(" · "),
+      lastWatcherAt: lastAt,
+      envOk: false, envItemCount: env.items.length,
+      failedFirstResult: null,
+      findingsCount, runningCount,
+      historicalFailureCount: allFailed.length,
     };
   }
+  // Healthy or stalled — distinguished by formatHealthDetail() at render time
+  // (state field stays "healthy" here; consumer can re-classify visually).
   return {
     state: "healthy",
     label: "Healthy",
-    detail: `Watcher ticked ${Math.max(1, Math.floor((ageMs || 0) / 1000))}s ago`,
-    lastWatcherAt: lastAt, ageMs,
-    env, findingsCount, runningCount,
+    staticDetail: null,
+    lastWatcherAt: lastAt,
+    envOk: true, envItemCount: 0,
+    failedFirstResult: null,
+    findingsCount, runningCount,
+    historicalFailureCount: allFailed.length,
   };
 };
+
+/**
+ * formatHealthDetail(health) — consumer-side derivation of the wall-clock
+ * detail string. Call this inline in render; it's NOT in the selector so
+ * Date.now() never destabilises Zustand's equality check.
+ *
+ * Also re-classifies "healthy" as "stalled" if the last watcher tick is too old.
+ */
+export function formatHealthDetail(health) {
+  if (!health) return { state: "loading", detail: null };
+  // Static detail wins (errors, env warnings, failed tasks).
+  if (health.staticDetail) return { state: health.state, detail: health.staticDetail };
+  if (!health.lastWatcherAt) return { state: health.state, detail: null };
+
+  const ageMs = Date.now() - health.lastWatcherAt;
+  if (ageMs > WATCHER_STALL_MS) {
+    return {
+      state: "stalled",
+      detail: `Last tick ${Math.floor(ageMs / 60000)} min ago`,
+    };
+  }
+  if (health.state === "healthy") {
+    return {
+      state: "healthy",
+      detail: `Watcher ticked ${Math.max(1, Math.floor(ageMs / 1000))}s ago`,
+    };
+  }
+  return { state: health.state, detail: null };
+}
 
 // Boot a single global polling loop the moment the store first hydrates so
 // the Layout health pill works on every page, not only when AgentsPage is mounted.

@@ -2,6 +2,7 @@ import React from "react";
 import { Activity, AlertTriangle, Briefcase, Laptop, Lock, MessageSquareText, ShieldAlert, Terminal } from "lucide-react";
 import { C } from "@/lib/constants";
 import { useGateway } from "@/lib/useGateway";
+import { ActivityFeedPane } from "@/components/ActivityFeedPane";
 
 function eventText(evt) {
   if (evt.text) return evt.text;
@@ -107,6 +108,10 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* 5-minute agent activity feed — wired to /api/v2/agents/tasks?since= */}
+      <ActivityFeedPane />
+
         </div>
       </div>
     </div>

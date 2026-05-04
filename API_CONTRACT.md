@@ -1,0 +1,214 @@
+# Mission Control API Contract
+
+Last updated: 2026-05-04
+Backend version: 0.7.1
+
+## Backend (your bot at :7801)
+
+### Health
+- GET  /api/health
+
+### Threads
+- GET    /api/v2/threads
+- GET    /api/v2/threads/:id/messages
+- DELETE /api/v2/threads/:id
+
+### Memory
+- GET /api/v2/memory/global
+- PUT /api/v2/memory/global
+
+### Agents
+- GET  /api/v2/agents/tasks?since=&limit=
+- POST /api/v2/agents/tasks
+- POST /api/v2/agents/pipeline
+- GET  /api/v2/agents/pipelines
+- GET  /api/v2/agents/pipelines/:id
+- GET  /api/v2/agents/pick-model
+- GET  /api/v2/agents/model-stats
+- POST /api/v2/agents/tasks/:id/outcome
+
+### Models
+- GET  /api/v2/models
+- GET  /api/v2/models/groups
+- GET  /api/v2/models/providers
+- POST /api/v2/models/refresh
+- POST /api/v2/models/resolve
+- GET  /api/v2/models/resolve/:model
+
+### System (token-gated)
+- GET  /api/v2/system/state
+- GET  /api/v2/system/stats
+- GET  /api/v2/system/services
+- POST /api/v2/system/active-window
+- POST /api/v2/system/screenshot
+- POST /api/v2/desktop/action
+
+#### GET /api/v2/system/stats
+Host hardware snapshot. Cached for 2 s; safe to poll.
+Response shape:
+```
+{
+  uptime: number,                    // seconds
+  cpu: {
+    cores: number,
+    model: string | null,
+    loadAvg: { "1": number, "5": number, "15": number },
+    utilisation1m: number            // 0..1, loadAvg[0]/cores clamped
+  },
+  memory: {
+    totalBytes, freeBytes, usedBytes: number,
+    usedPercent: number              // one decimal, e.g. 73.4
+  },
+  disk: {                            // null if df failed/timed out
+    mount: "/",
+    totalBytes, usedBytes, availableBytes: number,
+    usedPercent: number
+  } | null,
+  network: {
+    interfaces: [
+      {
+        name: string,                // e.g. "en0", "lo0", "utun4"
+        rxBytes: number,             // counter since boot
+        txBytes: number,
+        rxBytesPerSec: number | null,// null on first call after boot
+        txBytesPerSec: number | null
+      }
+    ]
+  },
+  takenAt: number                    // ms epoch
+}
+```
+Notes:
+- `rxBytesPerSec`/`txBytesPerSec` are `null` for the first call after gateway
+  boot (no baseline yet). Subsequent calls report bytes/sec since the last
+  cached sample.
+- All shell-outs (`df`, `netstat`) have a 2 s timeout. If one fails the
+  affected field reports `null` or an empty array; the rest of the response
+  still returns 200.
+
+#### GET /api/v2/system/services
+Connection status for the things the bot depends on. Cached 5 s.
+Probes run in parallel — total cold-cache latency ~3-4 s on the worst
+service. Frontend should render a per-service loading spinner on first
+paint, not block.
+
+Response:
+```
+{
+  services: ServiceStatus[],
+  takenAt: number
+}
+```
+
+`ServiceStatus`:
+```
+{
+  name: string,            // "gateway" | "ollama" | "tailscale" | "sqlite"
+                           // | "venice" | "openrouter" | "huggingface"
+  status: string,          // see status-per-service table below
+  url?: string,
+  detail?: string,         // short human-readable summary for the badge
+  lastCheck: number,       // ms epoch
+  meta?: object            // provider-specific extras; see below
+}
+```
+
+**Always present**: `gateway`, `ollama`, `tailscale`, `sqlite`.
+**Conditional**: `venice` / `openrouter` / `huggingface` appear only when
+their API key is set in `.env`. Omitted entirely otherwise (cleaner UI
+than a "no key configured" card).
+
+Status values per service:
+| service | possible status values |
+|---|---|
+| gateway | `connected` (always — request hit it) |
+| ollama | `connected`, `disconnected` |
+| tailscale | `connected`, `disconnected` |
+| sqlite | `connected`, `locked`, `corrupted`, `disconnected` |
+| venice | `connected`, `rate_limited`, `disconnected` |
+| openrouter | `connected`, `rate_limited`, `disconnected` |
+| huggingface | `connected`, `auth_failed`, `rate_limited`, `disconnected` |
+
+**Important caveat — `connected` does NOT always mean "auth is valid":**
+- Venice and OpenRouter `/v1/models` are PUBLIC endpoints; they return
+  200 even with a bogus API key. A `connected` status here means "the
+  host is reachable from this machine," not "your key works." Auth
+  failures for these providers surface at chat-completion time.
+- HuggingFace `/api/whoami-v2` does validate the key, so its
+  `auth_failed` status is meaningful.
+- The frontend can read `meta.auth_checked` (boolean) on Venice /
+  OpenRouter / HuggingFace entries to know which interpretation applies.
+
+Per-service `meta` shapes:
+
+`gateway`:
+```
+{
+  uptime_seconds: number,
+  version: string,
+  connected_ws_clients: number,    // sum across chat/approvals/agents WS
+  active_agents: number,           // count of running cron loops
+  agent_loops: [{ name, running }],
+  last_error_at: number | null,    // most recent task failure timestamp
+  last_error_detail: string | null
+}
+```
+
+`ollama`:
+```
+{ model_count: number, response_time_ms: number }
+```
+
+`tailscale`:
+```
+{
+  backend_state: string,           // "Running" | "Stopped" | "NeedsLogin" | ...
+  tailscale_ip: string | null,
+  hostname: string | null,
+  magic_dns_suffix: string | null
+}
+```
+
+`sqlite`:
+```
+{ size_bytes: number, size_mb: number }
+```
+
+`venice` / `openrouter` / `huggingface`:
+```
+{
+  response_time_ms: number,
+  http_status?: number,            // present when probe got a response
+  auth_checked: boolean            // see caveat above
+}
+```
+
+### Sync (mobile)
+- GET /api/v2/sync/snapshot
+
+### WebSocket
+- WS /api/ws/chat?token=MISSION_TOKEN
+- WS /api/ws/approvals
+- WS /api/ws/agents
+
+## Frontend expectations
+The frontend expects these endpoints with these shapes.
+Whenever a thread changes one, BOTH threads update this file.
+
+## Environment flags (backend)
+
+- `WATCHER_AUTO_SPAWN` — set to `1` to allow the watcher agent to auto-spawn a
+  planner pipeline when health severity transitions ok → warn|critical.
+  Default: disabled. When enabled, a 30-minute cooldown gates re-spawns to
+  prevent burning provider credits when severity oscillates.
+
+- `GATEWAY_HOST` — bind address. Default `127.0.0.1` (loopback only).
+  Set to `0.0.0.0` to expose over Tailscale (and any other interface).
+  Currently set to `0.0.0.0` for iPhone/iPad access.
+
+- `TAILNET_TOKEN_BYPASS` — defaults to enabled. Requests from peer IPs in
+  the Tailscale CGNAT range (`100.x.x.x`) skip the X-Mission-Token check,
+  on the assumption the tailnet is single-user and private. Set to `0`
+  in `.env` to disable the bypass (require a token even from tailnet
+  peers) — do this if you ever share-out a tailnet node or invite another
+  user to your tailnet.

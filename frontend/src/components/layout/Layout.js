@@ -5,7 +5,8 @@ import {
   CheckCircle2, AlertTriangle, AlertOctagon, Clock, Loader2,
 } from "lucide-react";
 import { C, NAV, getSpaceIcon, getRuntimeTheme, getRuntimeMeta } from "@/lib/constants";
-import { useGateway, selectAgentsHealth } from "@/lib/useGateway";
+import { useGateway, selectAgentsHealth, formatHealthDetail } from "@/lib/useGateway";
+import { useShallow } from "zustand/react/shallow";
 
 const HEALTH_STYLES = {
   healthy: { color: "#22c55e", icon: CheckCircle2 },
@@ -39,12 +40,12 @@ export default function Layout({ children }) {
     setActiveThread,
     deleteThread,
     spaces,
-    activeRuntime,
-    setActiveRuntime,
   } = useGateway();
+  // Single-bot mode — runtime is always 'openclaw'.
+  const activeRuntime = "openclaw";
   const clawState = clawStatus?.state ?? "Scheduled";
   const activeJobs = useGateway(s => s.jobs.filter(j => j.status === "running").length);
-  const agentsHealth = useGateway(selectAgentsHealth);
+  const agentsHealth = useGateway(useShallow(selectAgentsHealth));
   const findingsCount = agentsHealth.findingsCount || 0;
   const currentTab = location.pathname === "/qudos" || location.pathname === "/cowork"
     ? "qudos"
@@ -123,33 +124,12 @@ export default function Layout({ children }) {
         <div className="sidebar-overlay-bg fixed inset-0 bg-black/60 z-40" onClick={() => setSidebarOpen(false)} />
       )}
 
-      <aside className={`sidebar-desktop flex flex-col shrink-0 overflow-hidden backdrop-blur-2xl ${sidebarOpen ? "sidebar-open" : ""}`} style={{ width: 200, background: activeRuntime === "hermes" ? "rgba(18, 15, 31, 0.72)" : "#0f0f0f", borderRight: `1px solid ${activeTheme.border}`, boxShadow: activeRuntime === "hermes" ? "0 24px 60px rgba(5, 4, 16, 0.28)" : "none" }}>
+      <aside className={`sidebar-desktop flex flex-col shrink-0 overflow-hidden backdrop-blur-2xl ${sidebarOpen ? "sidebar-open" : ""}`} style={{ width: 200, background: "#0f0f0f", borderRight: `1px solid ${activeTheme.border}` }}>
         <div className="px-4 py-3.5" style={{ borderBottom: `1px solid ${activeTheme.border}` }}>
-          <div className="flex items-center gap-2 mb-3 cursor-pointer hover:bg-white/5 transition-colors">
+          <div className="flex items-center gap-2 cursor-pointer hover:bg-white/5 transition-colors">
             <div className="w-5 h-5 rounded" style={{ background: activeTheme.accent, boxShadow: `0 0 18px ${tintColor(activeTheme.accent, 0.45)}` }} />
             <span className="text-sm font-medium flex-1" style={{ color: activeTheme.text }}>Personal</span>
             <ChevronDown className="w-3.5 h-3.5" style={{ color: activeTheme.muted }} />
-          </div>
-          <div className="flex items-center rounded-xl p-1" style={{ background: activeTheme.surface2, border: `1px solid ${activeTheme.border}` }}>
-            {[
-              { id: "openclaw", label: "OpenClaw" },
-              { id: "hermes", label: "Hermes" },
-              { id: "meta", label: "Meta" },
-            ].map((opt) => (
-              <button
-                key={opt.id}
-                onClick={() => setActiveRuntime(opt.id)}
-                className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-                style={{
-                  background: activeRuntime === opt.id ? activeTheme.accent : "transparent",
-                  color: activeRuntime === opt.id ? "#fff" : activeTheme.muted,
-                  boxShadow: activeRuntime === opt.id ? `0 0 24px ${tintColor(activeTheme.accent, 0.35)}` : "none",
-                }}
-                data-testid={`runtime-switch-${opt.id}`}
-              >
-                {opt.label}
-              </button>
-            ))}
           </div>
         </div>
         <div className="flex flex-col gap-0.5 px-2 pt-3 pb-1">
@@ -203,7 +183,7 @@ export default function Layout({ children }) {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-12 flex items-center justify-between px-4 shrink-0 backdrop-blur-xl" style={{ borderBottom: `1px solid ${activeTheme.border}`, background: activeRuntime === "hermes" ? "rgba(18, 15, 31, 0.44)" : activeTheme.bg }}>
+        <header className="h-12 flex items-center justify-between px-4 shrink-0 backdrop-blur-xl" style={{ borderBottom: `1px solid ${activeTheme.border}`, background: activeTheme.bg }}>
           <div className="flex items-center gap-2" style={{ minWidth: 80 }}>
             <button className="hamburger-btn w-8 h-8 items-center justify-center rounded-lg" style={{ color: activeTheme.muted, display: "none" }} onClick={() => setSidebarOpen(v => !v)} data-testid="sidebar-toggle">
               <Menu className="w-5 h-5" />
@@ -238,9 +218,13 @@ export default function Layout({ children }) {
 
             {/* Agents health pill — links to /agents */}
             {(() => {
-              const styleDef = HEALTH_STYLES[agentsHealth.state] || HEALTH_STYLES.loading;
+              // Derive wall-clock dependent fields here, NOT in the selector,
+              // so Zustand's shallow equality stays stable between renders.
+              const live = formatHealthDetail(agentsHealth);
+              const liveState = live.state || agentsHealth.state;
+              const styleDef = HEALTH_STYLES[liveState] || HEALTH_STYLES.loading;
               const Icon = styleDef.icon;
-              const tip = agentsHealth.detail ? `${agentsHealth.label} — ${agentsHealth.detail}` : agentsHealth.label;
+              const tip = live.detail ? `${agentsHealth.label} — ${live.detail}` : agentsHealth.label;
               return (
                 <Link
                   to="/agents"

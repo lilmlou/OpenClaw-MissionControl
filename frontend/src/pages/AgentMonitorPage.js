@@ -1,1 +1,60 @@
-[{'react': 'import { Activity', 'lucide-react': 'import { C'}, {'@/lib/useGateway': 'import { AgentActivityFeed'}, {'@/components/AgentTaskCard";\n\nexport default function AgentMonitorPage() {\n  const [events, setEvents] = useState([]);\n  const [tasks, setTasks] = useState([]);\n  const [error, setError] = useState(null);\n  const [connected, setConnected] = useState(false);\n  \n  useEffect(() => {\n    // Fetch initial data\n    const fetchData = async () => {\n      try {\n        const eventsRes = await fetch("/api/v2/agent-monitoring/feed");\n        const eventsData = await eventsRes.json();\n        setEvents(eventsData.events || []);\n        \n        const tasksRes = await fetch("/api/v2/agent-monitoring/tasks': 'const tasksData = await tasksRes.json();\n        setTasks(tasksData.tasks || []);\n        \n        setError(null);'}, {'https:" ?': 'ss:', 'ws:': 'const wsUrl = `${wsProtocol'}, {'error': ''}, {'agentEvent': {'mb-2': 'tyle={{ color: C.text'}}, {'color': 'C.muted'}, {'background': 'connected ?', '#4ade80': '#ef4444', 'boxShadow': 'connected ?', '0 0 8px #4ade80': 'none'}, {'color': 'C.text'}, {'Connected': 'Disconnected'}, {'className="text-sm': {'className=': 'rid grid-cols-1 lg:grid-cols-2 gap-6', 'mb-3': 'tyle={{ color: C.text'}}, {'mb-3': 'tyle={{ color: C.text'}, {'rounded-xl': 'tyle={{ background: C.surface', 'border': 1, 'mb-3': 'tyle={{ color: C.muted'}, {'color': 'C.muted'}, {}]
+/**
+ * AgentMonitorPage — lightweight monitor page.
+ *
+ * NOTE: This page is NOT routed in App.js. It exists as a buildable component
+ * for future use. Real agent monitoring lives at /agents (AgentsPage).
+ *
+ * Wires to:
+ *   GET /api/v2/agents/tasks   (polled every 10s)
+ *   WS  /api/ws/agents         (real-time push — not yet connected)
+ */
+import React, { useEffect } from "react";
+import { Activity, RefreshCw } from "lucide-react";
+import { C } from "@/lib/constants";
+import { useGateway } from "@/lib/useGateway";
+import { AgentActivityFeed } from "@/components/AgentActivityFeed";
+
+export default function AgentMonitorPage() {
+  const { agentTasks, agentTasksLoading, agentTasksError, fetchAgentTasks } = useGateway();
+
+  useEffect(() => {
+    fetchAgentTasks();
+    const interval = setInterval(() => fetchAgentTasks({ silent: true }), 10_000);
+    return () => clearInterval(interval);
+  }, [fetchAgentTasks]);
+
+  return (
+    <div className="h-full flex flex-col" style={{ color: C.text }}>
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6 max-w-4xl mx-auto space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity className="w-5 h-5" style={{ color: C.accent }} />
+              <h1 className="text-2xl font-bold">Agent Monitor</h1>
+            </div>
+            <button
+              onClick={() => fetchAgentTasks()}
+              disabled={agentTasksLoading}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 disabled:opacity-50"
+              style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text }}
+            >
+              <RefreshCw className={`w-3 h-3 ${agentTasksLoading ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
+          </div>
+
+          {agentTasksError && (
+            <div
+              className="p-3 rounded-lg text-xs"
+              style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#f87171" }}
+            >
+              {agentTasksError}
+            </div>
+          )}
+
+          <AgentActivityFeed tasks={agentTasks} filter="all" maxItems={50} />
+        </div>
+      </div>
+    </div>
+  );
+}

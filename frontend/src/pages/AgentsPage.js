@@ -25,7 +25,7 @@ const AGENT_DEFS = [
   { id: "auditor",    label: "Auditor",    color: "#a855f7", Icon: FileCheck, defaultPrompt: "Run a safety/regression audit." },
   { id: "watcher",    label: "Watcher",    color: "#6b7280", Icon: Activity,  defaultPrompt: "Manual health check." },
   { id: "builder",    label: "Builder",    color: "#f97316", Icon: Wrench,    defaultPrompt: "Plan a build step for the current focus." },
-  { id: "meta",       label: "Meta",       color: "#ec4899", Icon: Layers,    defaultPrompt: "Run the merged OpenClaw + Hermes reasoning pass." },
+  { id: "meta",       label: "Meta",       color: "#ec4899", Icon: Layers,    defaultPrompt: "Run the merged reasoning pass." },
 ];
 
 const AGENT_MAP = Object.fromEntries(AGENT_DEFS.map((a) => [a.id, a]));
@@ -141,9 +141,21 @@ function TaskCard({ task }) {
       ) : (
         <div
           className="text-[11px] italic px-2.5 py-2 rounded-lg"
-          style={{ color: C.muted, background: C.surface2, border: `1px dashed ${C.border}` }}
+          style={{
+            color: statusKey === "failed" ? "#f87171" : C.muted,
+            background: C.surface2,
+            border: `1px dashed ${statusKey === "failed" ? "rgba(239,68,68,0.3)" : C.border}`,
+          }}
         >
-          {statusKey === "running" ? "Running…" : statusKey === "pending" ? "Queued…" : "Awaiting result"}
+          {statusKey === "running"
+            ? "Running…"
+            : statusKey === "pending"
+            ? "Queued…"
+            : statusKey === "failed"
+            ? "Failed without writing a result (likely a runtime crash or timeout)."
+            : statusKey === "done"
+            ? "Completed without producing output."
+            : "Awaiting result"}
         </div>
       )}
     </div>

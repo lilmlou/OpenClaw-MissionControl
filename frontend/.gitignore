@@ -21,4 +21,9 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.env
+
+# macOS Finder accidental "X copy.Y" duplicates
+*copy.config.js
+*copy.json
+*\ copy.config.js
+*\ copy.json
