@@ -59,6 +59,9 @@ export function ModelSelector({ models, providers, activeModel, onSelect, runtim
 
   const activeModelObj = activeModel ? models.find(m => m.id === activeModel) : null;
   const rawTail = activeModel ? activeModel.split("/").pop() : null;
+  // Prefer prettified label over raw id. displayName is set by normalizeCatalogModel
+  // in useGateway.js and falls back to a prettified version when backend doesn't
+  // provide one — so we should always have a clean label by the time we hit this.
   const activeName = activeModelObj?.displayName ?? activeModelObj?.name ?? rawTail;
   const label = activeName ? (activeName.length > 28 ? activeName.slice(0, 26) + "…" : activeName) : "Select model";
   const provModels = hovProv ? (providers.find(p => p.name === hovProv)?.models ?? []) : [];
@@ -127,20 +130,30 @@ export function ModelSelector({ models, providers, activeModel, onSelect, runtim
                 <div style={{ overflowY: "auto", maxHeight: 370 }} data-testid="models-scroll-container">
                   {displayModels.map(m => {
                     const isActive = m.id === activeModel;
+                    // Prefer the prettified backend label; fall back to raw-id tail if the
+                    // normaliser couldn't produce one. The provider line below is the human
+                    // counterpart of the maker prefix in the raw id ("openrouter/anthropic/...").
+                    const label = m.displayName || m.name || (m.id ? m.id.split("/").pop() : "");
+                    const providerLabel = labelForProvider(m.provider);
                     return (
                       <button key={m.id} type="button" onClick={() => handleSelect(m)} disabled={m.disabled}
                         className="w-full text-left transition-colors disabled:cursor-not-allowed"
-                        title={m.disabled ? (m.disabledReason || "Provider bridge pending") : m.id}
+                        title={m.disabled ? (m.disabledReason || "Provider bridge pending") : `${label}\n${m.id}`}
                         style={{ padding: "3px 6px", opacity: m.disabled ? 0.48 : 1, background: isActive ? `${runtimeTheme.accent}16` : "transparent", borderBottom: `1px solid ${runtimeTheme.border}` }}
                         onMouseOver={e => { if (!isActive && !m.disabled) e.currentTarget.style.background = hoverBg; }}
                         onMouseOut={e => { e.currentTarget.style.background = isActive ? `${runtimeTheme.accent}16` : "transparent"; }}
-                        data-testid={`model-item-${String(m.name || m.id).replace(/\s+/g, "-").toLowerCase()}`}>
+                        data-testid={`model-item-${String(label || m.id).replace(/\s+/g, "-").toLowerCase()}`}>
                         <div className="flex items-center gap-1">
-                          <span className="text-[11px] font-medium truncate" style={{ color: isActive ? runtimeTheme.accent : runtimeTheme.text }}>{m.name}</span>
+                          <span className="text-[11px] font-medium truncate" style={{ color: isActive ? runtimeTheme.accent : runtimeTheme.text }}>{label}</span>
                           {m.disabled && <Lock className="w-2.5 h-2.5 shrink-0" style={{ color: runtimeTheme.muted }} />}
                           {isActive && <Check className="w-2.5 h-2.5 shrink-0" style={{ color: runtimeTheme.accent }} />}
                         </div>
-                        <div className="flex items-center" style={{ marginTop: 1, gap: 2, whiteSpace: "nowrap" }}>
+                        {providerLabel && (
+                          <div className="text-[9px] truncate" style={{ color: runtimeTheme.muted, opacity: 0.75, lineHeight: "11px" }}>
+                            via {providerLabel}
+                          </div>
+                        )}
+                        <div className="flex items-center" style={{ marginTop: 2, gap: 2, whiteSpace: "nowrap" }}>
                           <CapabilityIcons caps={m.caps} size={9} gap={2} />
                           {m.context && <span className="text-[8px] px-1 rounded font-medium shrink-0" style={{ background: `${runtimeTheme.accent}18`, color: runtimeTheme.accent, border: `1px solid ${runtimeTheme.border}`, lineHeight: "13px" }}>{m.context}</span>}
                           {m.costTier && <span className="shrink-0"><CostBadge tier={m.costTier} /></span>}
