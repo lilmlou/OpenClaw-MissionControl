@@ -18,14 +18,121 @@ Backend version: 0.7.1
 - PUT /api/v2/memory/global
 
 ### Agents
-- GET  /api/v2/agents/tasks?since=&limit=
-- POST /api/v2/agents/tasks
-- POST /api/v2/agents/pipeline
-- GET  /api/v2/agents/pipelines
-- GET  /api/v2/agents/pipelines/:id
-- GET  /api/v2/agents/pick-model
-- GET  /api/v2/agents/model-stats
-- POST /api/v2/agents/tasks/:id/outcome
+- GET    /api/v2/agents/tasks?since=&limit=
+- POST   /api/v2/agents/tasks
+- POST   /api/v2/agents/pipeline
+- GET    /api/v2/agents/pipelines
+- GET    /api/v2/agents/pipelines/:id
+- GET    /api/v2/agents/pick-model
+- GET    /api/v2/agents/model-stats
+- POST   /api/v2/agents/tasks/:id/outcome
+- GET    /api/v2/agents/control
+- POST   /api/v2/agents/control
+
+#### POST /api/v2/agents/control
+Runtime control for any of the 7 controllable agents (or all of them
+at once). Persists to SQLite — survives gateway restart. Broadcasts
+`agent.control` on `WS /api/ws/agents` after every state change.
+
+Body:
+```
+{
+  "agent":  "watcher" | "auditor" | "supervisor" |
+            "planner" | "executor" | "builder" | "meta" | "all",
+  "action": "start" | "stop" | "pause" | "resume"
+}
+```
+
+Responses:
+- `200 OK` — state changed:
+  ```
+  {
+    "ok": true,
+    "agent": string,
+    "action": string,
+    "previousState": "running" | "paused" | "stopped",
+    "currentState":  "running" | "paused" | "stopped",
+    "ts": number
+  }
+  ```
+  When `agent: "all"`, response shape is:
+  ```
+  {
+    "ok": true,
+    "agent": "all",
+    "action": string,
+    "results": [
+      { "agent": "watcher", "previousState": "...", "currentState": "...", "changed": bool },
+      ...
+    ],
+    "ts": number
+  }
+  ```
+- `400 Bad Request` — `unknown_agent` or `unknown_action`:
+  ```
+  { "ok": false, "error": "unknown_agent"|"unknown_action", "message": string }
+  ```
+- `409 Conflict` — `already_in_state`:
+  ```
+  { "ok": false, "error": "already_in_state", "currentState": string }
+  ```
+  Only fired for single-agent calls. `agent: "all"` always returns 200
+  with per-agent `changed: bool`.
+
+Semantics:
+- `start` and `resume` are aliases — both set state to `running`.
+- `stop` and `pause` both clear in-memory timers for loop agents
+  (watcher, auditor, supervisor) and cause `submit()` to throw
+  `AgentPausedError` for submit-only agents (planner, executor,
+  builder, meta).
+- `pause` is reserved as a distinct state from `stop` for the future
+  cron jobs sprint, where pause will preserve the schedule and stop
+  will disable it. Today they have identical effect.
+
+#### GET /api/v2/agents/control
+Read-only state snapshot of all 7 controllable agents.
+```
+{
+  "agents": {
+    "watcher": "running"|"paused"|"stopped",
+    "auditor": ...,
+    "supervisor": ...,
+    "planner": ...,
+    "executor": ...,
+    "builder": ...,
+    "meta": ...
+  },
+  "ts": number
+}
+```
+
+#### Submit refusal — 503 on paused/stopped agents
+`POST /api/v2/agents/tasks` returns `503 Service Unavailable` with
+`Retry-After: 30` header when the requested agent is paused or stopped:
+```
+{
+  "ok": false,
+  "error": "agent_paused",
+  "agent": string,
+  "currentState": "paused" | "stopped",
+  "message": string
+}
+```
+
+#### WebSocket broadcast — agent.control
+Every successful state change emits this frame on `/api/ws/agents`:
+```
+{
+  "type": "agent.control",
+  "payload": {
+    "agent": string,
+    "previousState": string,
+    "currentState": string
+  },
+  "ts": number
+}
+```
+Frontend should subscribe to keep multi-tab views in sync.
 
 ### Models
 - GET  /api/v2/models
