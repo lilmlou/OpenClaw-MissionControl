@@ -1605,13 +1605,20 @@ export const useGateway = create(
       // Connect to backend chat WebSocket (which forwards to OpenClaw gateway)
       connectGateway: async (threadId = "default-thread", runtime = DEFAULT_RUNTIME) => {
         const { addEvent } = get();
-        
+
+        // StrictMode double-mount guard: if there's already an OPEN or CONNECTING
+        // socket, reuse it instead of tearing it down and racing a new one.
+        // (WebSocket.readyState: 0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED)
+        if (gatewayWs && (gatewayWs.readyState === 0 || gatewayWs.readyState === 1)) {
+          return;
+        }
+
         if (gatewayWs) {
-          // Intentional reconnect/switch. Prevent onclose from marking the app
-          // disconnected and locking the input while we immediately open a new WS.
+          // Existing socket is CLOSING/CLOSED — clear its handlers so they
+          // don't flip the UI to disconnected as we re-open.
           gatewayWs.onclose = null;
           gatewayWs.onerror = null;
-          gatewayWs.close();
+          try { gatewayWs.close(); } catch {}
         }
         
         try {
@@ -1786,9 +1793,18 @@ export const useGateway = create(
         set({ status: "disconnected" });
       },
 
-      // Legacy init function - now connects to gateway
+      // Init function - connects to gateway. Idempotent: safe to call from
+      // React 19 StrictMode (which mounts components twice in dev) without
+      // racing two parallel WebSocket opens. If a socket is already open or
+      // a connect is in flight, skip re-entry; the existing socket is reused.
       initGateway: async () => {
-        const { connectGateway, fetchModelGroups } = get();
+        const { connectGateway, fetchModelGroups, status } = get();
+        // Bail out if already connected or actively connecting.
+        if (status === "connected" || status === "connecting") {
+          // Still refresh models in case they're stale, but don't re-open WS.
+          fetchModelGroups({ refresh: false }).catch(() => null);
+          return;
+        }
         set({ status: "connecting" });
         await connectGateway();
         await fetchModelGroups({ refresh: true });
