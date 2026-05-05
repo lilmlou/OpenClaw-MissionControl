@@ -716,12 +716,25 @@ export const useGateway = create(
       agentSubmitting: false,
       agentFilter: "all", // all | planner | executor | supervisor | auditor | watcher | builder | meta | pipeline
 
-      // System (host telemetry — /api/v2/system/services)
-      // Per BACKEND_REQUESTS.md: server caches 5s, FE polls 8s, paused on hidden.
+      // System (host telemetry)
+      // Per BACKEND_REQUESTS.md: server caches stats 2s / services 5s / apps 5min.
+      // Frontend polls stats 3s, services 5s, apps on demand. All paused on hidden.
       systemServices: [],
       systemServicesLoading: false,
       systemServicesError: null,
       systemServicesLastUpdated: null,
+
+      systemStats: null,
+      systemStatsLoading: false,
+      systemStatsError: null,
+      systemStatsLastUpdated: null,
+
+      systemApps: [],
+      systemAppsByCategory: null,
+      systemAppsCount: 0,
+      systemAppsLoading: false,
+      systemAppsError: null,
+      systemAppsLastUpdated: null,
 
       // Spaces
       spaces: DEFAULT_SPACES,
@@ -832,6 +845,61 @@ export const useGateway = create(
           set({
             systemServicesLoading: false,
             systemServicesError: err?.message || String(err),
+          });
+          return null;
+        }
+      },
+
+      // GET /api/v2/system/stats — host hardware snapshot.
+      // API_CONTRACT.md is authoritative: { uptime, cpu, memory, disk, network, takenAt }.
+      // BACKEND_REQUESTS.md proposed a flatter shape ({ cpu.pct, ram.usedGB, ... });
+      // we accept either. Disk and network rates may be null — preserve null so the
+      // UI can render "—" instead of misleading zeros.
+      fetchSystemStats: async ({ silent = false } = {}) => {
+        if (!silent) set({ systemStatsLoading: true, systemStatsError: null });
+        try {
+          const res = await fetch(apiUrl("/api/v2/system/stats"));
+          if (!res.ok) throw new Error(`system/stats HTTP ${res.status}`);
+          const payload = await res.json();
+          set({
+            systemStats: payload || null,
+            systemStatsLoading: false,
+            systemStatsError: null,
+            systemStatsLastUpdated: Date.now(),
+          });
+          return payload;
+        } catch (err) {
+          set({
+            systemStatsLoading: false,
+            systemStatsError: err?.message || String(err),
+          });
+          return null;
+        }
+      },
+
+      // GET /api/v2/system/apps?device=mac — installed-app catalog.
+      // Cached 5 minutes server-side; FE fetches on demand (Apps tab mount + manual refresh).
+      // Response: { device, apps[], count, byCategory, takenAt }.
+      fetchSystemApps: async ({ silent = false, device = "mac" } = {}) => {
+        if (!silent) set({ systemAppsLoading: true, systemAppsError: null });
+        try {
+          const res = await fetch(apiUrl(`/api/v2/system/apps?device=${encodeURIComponent(device)}`));
+          if (!res.ok) throw new Error(`system/apps HTTP ${res.status}`);
+          const payload = await res.json();
+          const apps = Array.isArray(payload?.apps) ? payload.apps : [];
+          set({
+            systemApps: apps,
+            systemAppsByCategory: payload?.byCategory || null,
+            systemAppsCount: typeof payload?.count === "number" ? payload.count : apps.length,
+            systemAppsLoading: false,
+            systemAppsError: null,
+            systemAppsLastUpdated: Date.now(),
+          });
+          return payload;
+        } catch (err) {
+          set({
+            systemAppsLoading: false,
+            systemAppsError: err?.message || String(err),
           });
           return null;
         }

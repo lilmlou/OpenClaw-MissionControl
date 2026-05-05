@@ -14,6 +14,7 @@ import SessionsPage from "@/pages/SessionsPage";
 import SettingsPage from "@/pages/SettingsPage";
 import CustomizePage from "@/pages/CustomizePage";
 import AgentPage from "@/pages/AgentPage";
+import SystemPage from "@/pages/SystemPage";
 import { Toaster } from "@/components/ui/toaster";
 import { HealthToastBridge } from "@/components/HealthToastBridge";
 import "./App.css";
@@ -32,6 +33,7 @@ function App() {
         <Route path="/events" element={<EventsPage />} />
         <Route path="/agents" element={<AgentsPage />} />
         <Route path="/sessions" element={<SessionsPage />} />
+        <Route path="/system" element={<SystemPage />} />
         <Route path="/qudos" element={<QudosPage />} />
         <Route path="/cowork" element={<Navigate to="/qudos" replace />} />
         <Route path="/code" element={<CodePage />} />

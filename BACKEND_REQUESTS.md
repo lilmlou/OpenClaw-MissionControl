@@ -272,3 +272,45 @@ These are noted as future work, not asks for this phase:
 - `/standup`, `/standup/history`, `/standup/generate`
 - Persistent `/events?since=&types=`
 - WS chat-frame extensions for inline tool/thinking/artifact events
+
+---
+
+## Phase E backlog (post Phase D polish)
+
+Captured from frontend conversations during Phase C; not actionable until
+Phase D design rollout is complete.
+
+### Customize functional rebuild — REQUIRES SPEC REWRITE
+
+A handoff document `CUSTOMISE_HANDOFF_OPENCODE.md` was authored on
+2026-05-05 describing real-time wiring for Skills / Plugins / Connectors
+on the `/customize` page. The doc assumes **FastAPI + MongoDB**, which
+does not match our actual gateway (**Node + SQLite at :7801**). The
+backend endpoints it proposes (`/api/skills/custom`, `/api/plugins`,
+`/api/connectors`) do not exist on our gateway.
+
+Action: rewrite the handoff for the Node/SQLite stack before any
+implementation. Item 5 from `BACKEND_REQUESTS.md` (`/customize page`
+above) is the active spec for those endpoints.
+
+### Files-as-config browser — NEW BACKEND WORK
+
+Frontend wants a left-pane directory tree + right-pane editor for backend
+config (mirrors the Hermes "Files" page). Useful for live config tweaks
+without touching a terminal.
+
+Phased asks (smallest first):
+
+```
+GET  /api/v2/files/tree?path=&depth=     → directory listing, depth-bounded
+GET  /api/v2/files/read?path=            → text contents (UTF-8 only first pass)
+                                           reject binary, reject paths outside an
+                                           explicit allowlist (configs, prompts,
+                                           knowledge-base, NOT secrets/state.db)
+```
+
+Edit-config (`PUT /api/v2/files/write`) and tool-permission toggles come
+later — read-only first to derisk.
+
+Path allowlist must be enforced server-side; never trust the frontend to
+restrict scope.
