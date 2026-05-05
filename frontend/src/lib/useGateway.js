@@ -12,6 +12,8 @@ let approvalsWs = null;
 let approvalsWsReconnectTimer = null;
 let gatewayWs = null;
 let gatewayWsReconnectTimer = null;
+let agentsWs = null;
+let agentsWsReconnectTimer = null;
 const STREAM_STALE_MS = 90000;
 const streamTimers = {};
 
@@ -716,6 +718,18 @@ export const useGateway = create(
       agentSubmitting: false,
       agentFilter: "all", // all | planner | executor | supervisor | auditor | watcher | builder | meta | pipeline
 
+      // Agent lifecycle control — pause/resume/stop/start each agent loop.
+      // GET /api/v2/agents/control → { agents: { watcher: 'running', ... } }
+      // POST same with { agent, action } → state transition + WS broadcast.
+      // Persisted server-side in agent_control SQLite table.
+      agentControl: {},               // { agent: 'running'|'paused'|'stopped' }
+      agentControlLoading: false,
+      agentControlError: null,
+      agentControlLastUpdated: null,
+      // Set of agent ids with an in-flight POST; UI uses this to disable
+      // duplicate clicks until the response (or WS echo) lands.
+      pendingAgentControls: [],
+
       // System (host telemetry)
       // Per BACKEND_REQUESTS.md: server caches stats 2s / services 5s / apps 5min.
       // Frontend polls stats 3s, services 5s, apps on demand. All paused on hidden.
@@ -903,6 +917,116 @@ export const useGateway = create(
           });
           return null;
         }
+      },
+
+      // ── Agent control ──────────────────────────────────────────────
+      // Read full state map. WS broadcast keeps it fresh after first load,
+      // so callers don't need to poll — initial load + reactive updates only.
+      fetchAgentControl: async ({ silent = false } = {}) => {
+        if (!silent) set({ agentControlLoading: true, agentControlError: null });
+        try {
+          const res = await fetch(apiUrl("/api/v2/agents/control"));
+          if (!res.ok) throw new Error(`agents/control HTTP ${res.status}`);
+          const payload = await res.json();
+          const agents = (payload && typeof payload.agents === "object") ? payload.agents : {};
+          set({
+            agentControl: agents,
+            agentControlLoading: false,
+            agentControlError: null,
+            agentControlLastUpdated: Date.now(),
+          });
+          return agents;
+        } catch (err) {
+          set({
+            agentControlLoading: false,
+            agentControlError: err?.message || String(err),
+          });
+          return null;
+        }
+      },
+
+      // Apply an action to one agent (or 'all'). Optimistic — UI updates
+      // immediately, rollback on error. WS echo reconciles cross-tab state.
+      // 409 'already_in_state' is *not* an error — backend just confirms
+      // we're already where we asked to be; refresh and move on.
+      setAgentControl: async (agent, action) => {
+        const validActions = ["start", "stop", "pause", "resume"];
+        if (!validActions.includes(action)) {
+          return { ok: false, error: "unknown_action" };
+        }
+        // Optimistically project the new state for known agents.
+        const projected = (() => {
+          if (action === "stop")   return "stopped";
+          if (action === "pause")  return "paused";
+          if (action === "start")  return "running";
+          if (action === "resume") return "running";
+          return null;
+        })();
+        const prev = get().agentControl;
+        const optimistic = { ...prev };
+        if (agent === "all") {
+          for (const k of Object.keys(optimistic)) optimistic[k] = projected;
+        } else {
+          optimistic[agent] = projected;
+        }
+        set({
+          agentControl: optimistic,
+          pendingAgentControls: [...new Set([...get().pendingAgentControls, agent])],
+        });
+
+        try {
+          const res = await fetch(apiUrl("/api/v2/agents/control"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ agent, action }),
+          });
+          // Backend may return 409 with the canonical state; treat as success.
+          if (res.status === 409) {
+            const body = await res.json().catch(() => ({}));
+            if (body?.currentState && agent !== "all") {
+              const next = { ...get().agentControl, [agent]: body.currentState };
+              set({ agentControl: next });
+            }
+            // Refresh the whole map for 'all' to be safe.
+            if (agent === "all") {
+              await get().fetchAgentControl({ silent: true });
+            }
+            return { ok: true, alreadyInState: true, currentState: body?.currentState };
+          }
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body?.message || body?.error || `agents/control HTTP ${res.status}`);
+          }
+          const body = await res.json();
+          // For single-agent calls, body has { agent, currentState, ... }.
+          // For 'all', backend may return aggregate; fall back to fetch.
+          if (agent === "all") {
+            await get().fetchAgentControl({ silent: true });
+          } else if (body?.currentState) {
+            const next = { ...get().agentControl, [agent]: body.currentState };
+            set({ agentControl: next, agentControlLastUpdated: Date.now() });
+          }
+          return { ok: true, ...body };
+        } catch (err) {
+          // Rollback optimistic.
+          set({
+            agentControl: prev,
+            agentControlError: err?.message || String(err),
+          });
+          return { ok: false, error: err?.message || String(err) };
+        } finally {
+          set({
+            pendingAgentControls: get().pendingAgentControls.filter((a) => a !== agent),
+          });
+        }
+      },
+
+      // Internal — called from the agents WS handler when we see an
+      // 'agent.control' broadcast. Reconciles state from another tab/device.
+      _applyAgentControlEvent: (payload) => {
+        if (!payload || !payload.agent || !payload.currentState) return;
+        const next = { ...get().agentControl, [payload.agent]: payload.currentState };
+        set({ agentControl: next, agentControlLastUpdated: Date.now() });
       },
 
       setClawStatus: (clawStatus) => set({ clawStatus }),
@@ -1237,6 +1361,46 @@ export const useGateway = create(
         };
       },
 
+      // Agents WS — listens for agent.control broadcasts so the UI stays
+      // in sync when state changes from another tab/device or from a
+      // direct backend control. Reuses the same auto-reconnect pattern as
+      // the approvals socket. We deliberately scope this socket to control
+      // events only for now; task lifecycle still flows through polling.
+      connectAgentsWebSocket: () => {
+        if (agentsWs || typeof window === "undefined") return;
+        const target = wsUrl("/api/ws/agents");
+        try {
+          agentsWs = new WebSocket(target);
+        } catch {
+          agentsWs = null;
+          return;
+        }
+        agentsWs.onopen = () => {
+          if (agentsWs) {
+            try { agentsWs.send(JSON.stringify({ type: "subscribe" })); } catch {}
+          }
+        };
+        agentsWs.onmessage = (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            if (msg?.type === "agent.control") {
+              get()._applyAgentControlEvent(msg.payload || {});
+            }
+          } catch {
+            // ignore malformed payloads
+          }
+        };
+        agentsWs.onclose = () => {
+          agentsWs = null;
+          if (agentsWsReconnectTimer) window.clearTimeout(agentsWsReconnectTimer);
+          agentsWsReconnectTimer = window.setTimeout(() => {
+            agentsWsReconnectTimer = null;
+            get().connectAgentsWebSocket();
+          }, 3000);
+        };
+        agentsWs.onerror = () => { /* handled by onclose */ };
+      },
+
       // ─── Agent runtime actions ─────────────────────────────────────────
       setAgentFilter: (agentFilter) => set({ agentFilter }),
 
@@ -1276,6 +1440,20 @@ export const useGateway = create(
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ agent, prompt: prompt.trim() }),
           });
+          // 503 with Retry-After means the agent is paused/stopped; surface
+          // a friendly error and refresh the control state so the UI catches up.
+          if (res.status === 503) {
+            const retryAfter = res.headers.get("Retry-After");
+            const body = await res.json().catch(() => ({}));
+            const msg = body?.message
+              || `${agent} is ${body?.state || "unavailable"}. Resume it from /agents to submit work.`;
+            get().fetchAgentControl({ silent: true }).catch(() => null);
+            set({
+              agentSubmitting: false,
+              agentTasksError: retryAfter ? `${msg} (retry after ${retryAfter}s)` : msg,
+            });
+            return null;
+          }
           if (!res.ok) {
             const body = await res.json().catch(() => ({}));
             throw new Error(body?.error || `HTTP ${res.status}`);
@@ -1308,6 +1486,20 @@ export const useGateway = create(
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prompt: prompt.trim() }),
           });
+          // Pipeline 503 — at least one of planner/executor/supervisor/auditor
+          // is paused or stopped, so the chain can't run.
+          if (res.status === 503) {
+            const retryAfter = res.headers.get("Retry-After");
+            const body = await res.json().catch(() => ({}));
+            const msg = body?.message
+              || "Pipeline blocked: one of planner/executor/supervisor/auditor is paused or stopped. Resume from /agents.";
+            get().fetchAgentControl({ silent: true }).catch(() => null);
+            set({
+              agentSubmitting: false,
+              agentTasksError: retryAfter ? `${msg} (retry after ${retryAfter}s)` : msg,
+            });
+            return null;
+          }
           if (!res.ok) {
             const body = await res.json().catch(() => ({}));
             throw new Error(body?.error || `HTTP ${res.status}`);

@@ -3,6 +3,7 @@ import {
   Bot, Brain, Hammer, Eye, FileCheck, Activity, Wrench, Layers,
   RefreshCw, Play, Workflow, ChevronDown, ChevronUp, Filter,
   Laptop, ShieldCheck, AlertCircle, Clock, CheckCircle2, XCircle, Loader2,
+  Pause, Square, PlayCircle, PauseCircle,
 } from "lucide-react";
 import { C } from "@/lib/constants";
 import { useGateway } from "@/lib/useGateway";
@@ -39,6 +40,28 @@ const STATUS_STYLE = {
 };
 
 const defaultStatus = { bg: "rgba(148,163,184,0.12)", fg: "#94a3b8", Icon: Clock, label: "UNKNOWN" };
+
+// Lifecycle state pill styling — distinct from per-task STATUS_STYLE.
+// Maps the three states the /agents/control endpoint can return.
+const LIFECYCLE_STYLE = {
+  running: { bg: "rgba(34,197,94,0.14)",  fg: "#4ade80", label: "RUNNING" },
+  paused:  { bg: "rgba(251,191,36,0.16)", fg: "#fbbf24", label: "PAUSED"  },
+  stopped: { bg: "rgba(239,68,68,0.16)",  fg: "#f87171", label: "STOPPED" },
+};
+const lifecycleStyle = (s) => LIFECYCLE_STYLE[s] || { bg: "rgba(148,163,184,0.12)", fg: "#94a3b8", label: "UNKNOWN" };
+
+// Which actions are valid from a given state.
+// Aligns with backend semantics: stopped/paused agents accept their inverse;
+// running agents accept pause + stop; we never expose "start" alongside
+// "resume" — paused → resume, stopped → start.
+function validActionsFor(state) {
+  switch (state) {
+    case "running": return ["pause", "stop"];
+    case "paused":  return ["resume", "stop"];
+    case "stopped": return ["start"];
+    default:        return ["start"];
+  }
+}
 
 function fmtTime(ts) {
   if (!ts) return "—";
@@ -162,10 +185,29 @@ function TaskCard({ task }) {
   );
 }
 
-function AgentTile({ def, counts, onRun, busy }) {
+function AgentTile({ def, counts, onRun, busy, lifecycleState, onControl, controlPending }) {
   const { Icon, color, label, id, defaultPrompt } = def;
   const [promptOpen, setPromptOpen] = useState(false);
   const [prompt, setPrompt] = useState(defaultPrompt);
+
+  const lc = lifecycleStyle(lifecycleState || "running");
+  const actions = validActionsFor(lifecycleState || "running");
+  const canRun = !busy && (lifecycleState || "running") === "running";
+  // When the agent is paused/stopped the Run button is dimmed AND the
+  // submit-driven agents (planner/executor/builder/meta) will get a 503
+  // back from the picker anyway. We surface the friction up front.
+  const runHelp =
+    lifecycleState === "paused"  ? "Paused — resume to run." :
+    lifecycleState === "stopped" ? "Stopped — start to run." :
+    null;
+
+  const ActionIcon = ({ action }) => {
+    if (action === "pause")  return <Pause className="w-3 h-3" />;
+    if (action === "resume") return <PlayCircle className="w-3 h-3" />;
+    if (action === "stop")   return <Square className="w-3 h-3" />;
+    if (action === "start")  return <PlayCircle className="w-3 h-3" />;
+    return null;
+  };
 
   return (
     <div
@@ -180,13 +222,49 @@ function AgentTile({ def, counts, onRun, busy }) {
           <Icon className="w-4 h-4" style={{ color }} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold" style={{ color: C.text }}>{label}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-semibold" style={{ color: C.text }}>{label}</span>
+            <span
+              className="px-1.5 py-0.5 text-[9px] font-mono rounded uppercase tracking-wider"
+              style={{ background: lc.bg, color: lc.fg, border: `1px solid ${lc.fg}30` }}
+              data-testid={`agent-state-${id}`}
+            >
+              {lc.label}
+            </span>
+          </div>
           <div className="text-[10px] font-mono" style={{ color: C.muted }}>
             {counts.running > 0 && <span style={{ color: "#fbbf24" }}>{counts.running} running · </span>}
             {counts.total} total
           </div>
         </div>
       </div>
+
+      {/* Lifecycle controls — only the actions valid for the current state */}
+      <div className="flex items-center gap-1">
+        {actions.map((action) => (
+          <button
+            key={action}
+            type="button"
+            onClick={() => onControl(id, action)}
+            disabled={controlPending}
+            className="flex-1 px-2 py-1 rounded-md text-[10px] font-medium uppercase tracking-wide flex items-center justify-center gap-1 disabled:opacity-50"
+            style={{
+              background: action === "stop" ? "rgba(239,68,68,0.12)" : C.surface2,
+              color: action === "stop" ? "#f87171" : C.muted,
+              border: `1px solid ${action === "stop" ? "rgba(239,68,68,0.3)" : C.border}`,
+            }}
+            data-testid={`agent-control-${id}-${action}`}
+            title={`${action} ${label}`}
+          >
+            <ActionIcon action={action} />
+            {action}
+          </button>
+        ))}
+      </div>
+
+      {runHelp && (
+        <div className="text-[10px] italic" style={{ color: C.muted }}>{runHelp}</div>
+      )}
 
       {promptOpen ? (
         <>
@@ -206,7 +284,7 @@ function AgentTile({ def, counts, onRun, busy }) {
                 onRun(id, prompt);
                 setPromptOpen(false);
               }}
-              disabled={busy || !prompt.trim()}
+              disabled={!canRun || !prompt.trim()}
               className="flex-1 px-2 py-1 rounded-md text-[11px] font-medium flex items-center justify-center gap-1 disabled:opacity-50"
               style={{ background: color, color: "#fff" }}
               data-testid={`agent-run-${id}`}
@@ -227,7 +305,7 @@ function AgentTile({ def, counts, onRun, busy }) {
         <button
           type="button"
           onClick={() => setPromptOpen(true)}
-          disabled={busy}
+          disabled={!canRun}
           className="w-full px-2 py-1.5 rounded-md text-[11px] font-medium flex items-center justify-center gap-1 disabled:opacity-50"
           style={{ background: C.surface2, color: color, border: `1px solid ${color}30` }}
           data-testid={`agent-open-${id}`}
@@ -251,6 +329,12 @@ export default function AgentsPage() {
     submitAgentTask,
     runAgentPipeline,
     setAgentFilter,
+    agentControl,
+    agentControlError,
+    pendingAgentControls,
+    fetchAgentControl,
+    setAgentControl,
+    connectAgentsWebSocket,
   } = useGateway();
 
   const [pipelinePrompt, setPipelinePrompt] = useState("");
@@ -261,6 +345,14 @@ export default function AgentsPage() {
     const interval = setInterval(() => fetchAgentTasks({ silent: true }), 10_000);
     return () => clearInterval(interval);
   }, [fetchAgentTasks]);
+
+  // Lifecycle state — fetch once and let the agents WS keep us live.
+  // No polling; backend broadcasts on every transition.
+  useEffect(() => {
+    fetchAgentControl().catch(() => null);
+    connectAgentsWebSocket();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const counts = useMemo(() => {
     const out = {};
@@ -327,6 +419,27 @@ export default function AgentsPage() {
   const handleRun = (agent, prompt) => {
     submitAgentTask(agent, prompt);
   };
+
+  const handleControl = async (agent, action) => {
+    const result = await setAgentControl(agent, action);
+    // Errors land on agentControlError and the slice rolls back; nothing
+    // to do here. WS echo will reconcile cross-tab.
+    return result;
+  };
+
+  // Aggregate state for the master "All" pill — useful glance.
+  const lifecycleSummary = useMemo(() => {
+    const states = AGENT_DEFS.map((d) => agentControl[d.id]).filter(Boolean);
+    if (states.length === 0) return { running: 0, paused: 0, stopped: 0, total: 0 };
+    return {
+      running: states.filter((s) => s === "running").length,
+      paused:  states.filter((s) => s === "paused").length,
+      stopped: states.filter((s) => s === "stopped").length,
+      total:   states.length,
+    };
+  }, [agentControl]);
+  const allPaused = lifecycleSummary.total > 0 && lifecycleSummary.paused === lifecycleSummary.total;
+  const anyPending = pendingAgentControls.length > 0;
 
   const handlePipeline = () => {
     if (!pipelinePrompt.trim()) return;
@@ -444,8 +557,36 @@ export default function AgentsPage() {
           <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: C.muted }}>
             Individual agents
           </span>
+          {lifecycleSummary.total > 0 && (
+            <span className="text-[10px] font-mono" style={{ color: C.muted }}>
+              {lifecycleSummary.running} running · {lifecycleSummary.paused} paused · {lifecycleSummary.stopped} stopped
+            </span>
+          )}
           <div className="flex-1 h-px" style={{ background: C.border }} />
+          {/* Master "All" controls */}
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => handleControl("all", allPaused ? "resume" : "pause")}
+              disabled={anyPending}
+              className="px-2.5 py-1 rounded-md text-[10px] font-medium uppercase tracking-wide flex items-center gap-1 disabled:opacity-50"
+              style={{ background: C.surface2, color: C.muted, border: `1px solid ${C.border}` }}
+              data-testid={`agents-control-all-${allPaused ? "resume" : "pause"}`}
+              title={allPaused ? "Resume every agent" : "Pause every agent"}
+            >
+              {allPaused ? <PlayCircle className="w-3 h-3" /> : <PauseCircle className="w-3 h-3" />}
+              {allPaused ? "Resume all" : "Pause all"}
+            </button>
+          </div>
         </div>
+
+        {agentControlError && (
+          <div className="mb-2 p-2 rounded-md text-[11px] flex items-center gap-2"
+               style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#f87171" }}>
+            <AlertCircle className="w-3 h-3 shrink-0" />
+            <span className="font-mono">Control error: {agentControlError}</span>
+          </div>
+        )}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {AGENT_DEFS.map((def) => (
             <AgentTile
@@ -454,6 +595,9 @@ export default function AgentsPage() {
               counts={counts[def.id] || { total: 0, running: 0 }}
               busy={agentSubmitting}
               onRun={handleRun}
+              lifecycleState={agentControl[def.id] || "running"}
+              onControl={handleControl}
+              controlPending={pendingAgentControls.includes(def.id) || pendingAgentControls.includes("all")}
             />
           ))}
         </div>
