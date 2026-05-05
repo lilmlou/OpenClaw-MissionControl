@@ -6,7 +6,7 @@
  * ships, swap the body of each function with the matching fetch() call below
  * and the UI keeps working unchanged.
  *
- * Backend contract (TODO — to be implemented by Hermes/OpenClaw):
+ * Backend contract (TODO — to be implemented by the OpenClaw gateway):
  *
  *   GET    /api/v2/qudos/apps                          → supported app catalog
  *   GET    /api/v2/qudos/apps/:id/capabilities         → per-app capabilities

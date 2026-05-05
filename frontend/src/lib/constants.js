@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 
 /* ─── Runtime + Design tokens ───────────────────────────────────────────────── */
+// Single-bot mode. Hermes/Meta runtimes removed from UI 2026-05-05.
+// Backend chat.message frames still carry runtime: 'openclaw' for compatibility.
 export const DEFAULT_RUNTIME = "openclaw";
 
 export const RUNTIME_META = {
@@ -21,22 +23,6 @@ export const RUNTIME_META = {
     assistantName: "OpenClaw",
     placeholder: "Message OpenClaw...",
     statusLabel: "Mission",
-  },
-  hermes: {
-    id: "hermes",
-    label: "Hermes",
-    title: "Hermes Agent",
-    assistantName: "Hermes Agent",
-    placeholder: "Message Hermes Agent...",
-    statusLabel: "Assistant",
-  },
-  meta: {
-    id: "meta",
-    label: "Meta",
-    title: "Meta Runtime",
-    assistantName: "OpenClaw + Hermes",
-    placeholder: "Message the merged OpenClaw + Hermes runtime...",
-    statusLabel: "Merged",
   },
 };
 
@@ -54,32 +40,6 @@ export const RUNTIME_THEMES = {
     red: "#ff304e",
     orange: "#ff6a3d",
   },
-  hermes: {
-    bg: "#171108",
-    surface: "rgba(46, 33, 16, 0.70)",
-    surface2: "rgba(62, 45, 20, 0.62)",
-    accent: "#f2c14e",
-    text: "#fff5df",
-    muted: "#d8b980",
-    border: "rgba(242, 193, 78, 0.26)",
-    green: "#9db37a",
-    yellow: "#f2c14e",
-    red: "#d4865d",
-    orange: "#e3a24c",
-  },
-  meta: {
-    bg: "#100b09",
-    surface: "rgba(42, 25, 12, 0.78)",
-    surface2: "rgba(58, 35, 18, 0.70)",
-    accent: "#f6c453",
-    text: "#fff7e6",
-    muted: "#d9b574",
-    border: "rgba(246, 196, 83, 0.30)",
-    green: "#9db37a",
-    yellow: "#f6c453",
-    red: "#ff6a3d",
-    orange: "#e89b3d",
-  },
 };
 
 export const RUNTIME_BACKGROUNDS = {
@@ -90,40 +50,6 @@ export const RUNTIME_BACKGROUNDS = {
     size: "cover",
     overlay: "linear-gradient(180deg, rgba(2, 8, 20, 0.72) 0%, rgba(5, 9, 20, 0.78) 42%, rgba(5, 8, 18, 0.88) 100%)",
     accentGlow: "rgba(255, 48, 78, 0.18)",
-  },
-  meta: {
-    mode: "haze",
-    base: [
-      "radial-gradient(circle at 22% 18%, rgba(246, 196, 83, 0.30) 0%, rgba(246, 196, 83, 0) 34%)",
-      "radial-gradient(circle at 78% 24%, rgba(255, 48, 78, 0.18) 0%, rgba(255, 48, 78, 0) 30%)",
-      "radial-gradient(circle at 52% 82%, rgba(232, 155, 61, 0.18) 0%, rgba(232, 155, 61, 0) 36%)",
-      "linear-gradient(180deg, #100b09 0%, #24170c 50%, #0b0908 100%)",
-    ].join(', '),
-    overlay: "rgba(18, 12, 8, 0.42)",
-    orbs: [
-      { size: 340, top: "8%", left: "8%", color: "rgba(246, 196, 83, 0.22)", blur: 76 },
-      { size: 300, top: "16%", right: "8%", color: "rgba(255, 48, 78, 0.14)", blur: 92 },
-      { size: 380, bottom: "-4%", left: "28%", color: "rgba(232, 155, 61, 0.16)", blur: 100 },
-    ],
-    blur: 20,
-    noise: 0.03,
-  },
-  hermes: {
-    mode: "haze",
-    base: [
-      "radial-gradient(circle at 18% 18%, rgba(240, 192, 64, 0.28) 0%, rgba(240, 192, 64, 0) 36%)",
-      "radial-gradient(circle at 82% 20%, rgba(128, 96, 32, 0.32) 0%, rgba(128, 96, 32, 0) 34%)",
-      "radial-gradient(circle at 50% 82%, rgba(240, 128, 32, 0.18) 0%, rgba(240, 128, 32, 0) 36%)",
-      "linear-gradient(180deg, #171108 0%, #2b1e10 48%, #140f08 100%)",
-    ].join(', '),
-    overlay: "rgba(20, 14, 8, 0.44)",
-    orbs: [
-      { size: 340, top: "8%", left: "8%", color: "rgba(240, 192, 64, 0.22)", blur: 72 },
-      { size: 300, top: "14%", right: "8%", color: "rgba(144, 112, 48, 0.20)", blur: 84 },
-      { size: 360, bottom: "-2%", left: "26%", color: "rgba(240, 144, 32, 0.16)", blur: 98 },
-    ],
-    blur: 20,
-    noise: 0.03,
   },
 };
 
@@ -136,24 +62,6 @@ export const RUNTIME_CHROME = {
     sidebar: "rgba(14, 6, 10, 0.92)",
     textMuted: "#c49aa2",
     glow: "rgba(255, 48, 78, 0.30)",
-  },
-  hermes: {
-    panel: "rgba(46, 33, 16, 0.70)",
-    panelAlt: "rgba(62, 45, 20, 0.62)",
-    panelBorder: "rgba(242, 193, 78, 0.26)",
-    nav: "rgba(31, 22, 11, 0.54)",
-    sidebar: "rgba(31, 22, 11, 0.78)",
-    textMuted: "#d8b980",
-    glow: "rgba(240, 192, 64, 0.34)",
-  },
-  meta: {
-    panel: "rgba(42, 25, 12, 0.78)",
-    panelAlt: "rgba(58, 35, 18, 0.70)",
-    panelBorder: "rgba(246, 196, 83, 0.30)",
-    nav: "rgba(28, 17, 9, 0.60)",
-    sidebar: "rgba(28, 17, 9, 0.82)",
-    textMuted: "#d9b574",
-    glow: "rgba(246, 196, 83, 0.34)",
   },
 };
 

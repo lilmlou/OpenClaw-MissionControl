@@ -57,17 +57,12 @@ export default function HomePage() {
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-5 text-[11px] uppercase tracking-[0.28em]"
                 style={{ background: `${runtimeTheme.surface2}`, border: `1px solid ${runtimeTheme.border}`, color: runtimeTheme.muted }}>
                 <span className="w-2 h-2 rounded-full" style={{ background: runtimeTheme.accent, boxShadow: `0 0 18px ${runtimeTheme.accent}` }} />
-                {resolvedRuntime === "hermes" ? "Hermes personal mode" : "Mission control mode"}
+                Mission control mode
               </div>
-              <h1 className="text-4xl md:text-5xl font-semibold mb-3 tracking-tight" style={{ color: runtimeTheme.text, textShadow: resolvedRuntime === "hermes" ? "0 12px 50px rgba(118,84,191,0.35)" : "none" }}>
-                {runtimeMeta.assistantName} <span>{resolvedRuntime === "openclaw" ? "🦞" : "🐾"}</span>
+              <h1 className="text-4xl md:text-5xl font-semibold mb-3 tracking-tight" style={{ color: runtimeTheme.text }}>
+                {runtimeMeta.assistantName} <span>🦞</span>
               </h1>
               <p className="text-sm tracking-widest uppercase" style={{ color: runtimeTheme.muted }}>{runtimeMeta.title}</p>
-              {resolvedRuntime === "hermes" && (
-                <p className="mx-auto mt-5 max-w-xl text-sm leading-6" style={{ color: runtimeTheme.text, opacity: 0.84 }}>
-                  A softer, hazy Hermes shell for chat, cowork, and code — still grounded in Mission Control, but with a more ambient glow.
-                </p>
-              )}
             </div>
             <div className="w-full mb-5"><InputBar onSend={doSend} disabled={inputDisabled} fillPrompt={fillPrompt} onFillConsumed={() => setFillPrompt(null)} placeholder={inputPlaceholder} runtimeTheme={runtimeTheme} /></div>
           </div>
@@ -79,10 +74,9 @@ export default function HomePage() {
   return (
     <div className="relative h-full flex flex-col" style={{ background: runtimeTheme.bg }}>
       <RuntimeBackdrop runtime={resolvedRuntime} />
-      <div className="relative z-10 flex items-center justify-between px-4 py-3 shrink-0 backdrop-blur-xl" style={{ borderBottom: `1px solid ${runtimeTheme.border}`, background: resolvedRuntime === "hermes" ? "rgba(18, 15, 31, 0.48)" : "rgba(10,10,10,0.85)" }}>
+      <div className="relative z-10 flex items-center justify-between px-4 py-3 shrink-0 backdrop-blur-xl" style={{ borderBottom: `1px solid ${runtimeTheme.border}`, background: "rgba(10,10,10,0.85)" }}>
         <button onClick={clearMessages} className="flex items-center gap-1.5 text-[11px] transition-colors" style={{ color: runtimeTheme.muted }}><Trash2 className="w-3 h-3" /> Clear chat</button>
         <div className="flex items-center gap-2">
-          {resolvedRuntime === "hermes" && <span className="text-[10px] uppercase tracking-[0.24em]" style={{ color: runtimeTheme.muted }}>Ambient Hermes</span>}
           <button className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full transition-colors" style={{ border: `1px solid ${runtimeTheme.border}`, color: runtimeTheme.muted, background: runtimeTheme.surface2 }}><Terminal className="w-3 h-3" />Events</button>
         </div>
       </div>
@@ -97,9 +91,9 @@ export default function HomePage() {
         {messages.map(msg => <MessageRow key={msg.id} msg={msg} runtime={resolvedRuntime} />)}
         {activeStreaming && (
           <div className="flex gap-3 py-2 px-4">
-            <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm shrink-0 mt-0.5" style={{ background: `${runtimeTheme.accent}22`, border: `1px solid ${runtimeTheme.border}`, boxShadow: resolvedRuntime === "hermes" ? `0 0 30px ${runtimeTheme.accent}33` : "none" }}>&#129438;</div>
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm shrink-0 mt-0.5" style={{ background: `${runtimeTheme.accent}22`, border: `1px solid ${runtimeTheme.border}` }}>&#129438;</div>
             <div className="flex-1 min-w-0">
-              <div className="rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm relative backdrop-blur-xl" style={{ background: runtimeTheme.surface, border: `1px solid ${runtimeTheme.border}`, boxShadow: resolvedRuntime === "hermes" ? "0 20px 60px rgba(8, 6, 20, 0.28)" : "none" }}>
+              <div className="rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm relative backdrop-blur-xl" style={{ background: runtimeTheme.surface, border: `1px solid ${runtimeTheme.border}` }}>
                 {activeStreaming.content ? <Markdown content={activeStreaming.content} theme={runtimeTheme} /> : <div className="flex gap-1 items-center py-0.5">{[0, 150, 300].map(d => <span key={d} className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: runtimeTheme.accent, opacity: 0.7, animationDelay: `${d}ms` }} />)}</div>}
                 <span className="absolute bottom-2 right-3 w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: runtimeTheme.accent }} />
               </div>

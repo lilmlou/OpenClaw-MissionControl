@@ -33,41 +33,7 @@ export function RuntimeBackdrop({ runtime = "openclaw" }) {
     );
   }
 
-  if (background.mode === "haze") {
-    return (
-      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-        <div className="absolute inset-0" style={{ background: background.base }} />
-        {background.orbs.map((orb, index) => (
-          <div
-            key={`${runtime}-orb-${index}`}
-            className="absolute rounded-full"
-            style={{
-              width: orb.size,
-              height: orb.size,
-              top: orb.top,
-              right: orb.right,
-              bottom: orb.bottom,
-              left: orb.left,
-              background: orb.color,
-              filter: `blur(${orb.blur}px)`,
-              opacity: 1,
-            }}
-          />
-        ))}
-        <div className="absolute inset-0" style={{ background: background.overlay, backdropFilter: `blur(${background.blur}px)`, WebkitBackdropFilter: `blur(${background.blur}px)` }} />
-        <div
-          className="absolute inset-0"
-          style={{
-            opacity: background.noise,
-            backgroundImage: "radial-gradient(rgba(255,255,255,0.65) 0.65px, transparent 0.8px)",
-            backgroundSize: "18px 18px",
-            mixBlendMode: "soft-light",
-          }}
-        />
-      </div>
-    );
-  }
-
+  // haze mode dropped with Hermes runtime; fall through to binary rain default.
   return <BinaryRain />;
 }
 export function BinaryRain() {
@@ -158,23 +124,15 @@ export function CostBadge({ tier }) {
 
 export function MessageRow({ msg, runtime = "openclaw" }) {
   const baseTheme = getRuntimeTheme(runtime);
-  const runtimeTheme = getRuntimeBackground(runtime).mode === "haze"
-    ? {
-        bubble: "rgba(34, 28, 55, 0.72)",
-        bubbleBorder: "rgba(183, 136, 255, 0.22)",
-        userBubble: "rgba(183, 136, 255, 0.18)",
-        userBorder: "rgba(183, 136, 255, 0.3)",
-        avatarBg: "rgba(183, 136, 255, 0.18)",
-        avatarBorder: "rgba(183, 136, 255, 0.28)",
-      }
-    : {
-        bubble: baseTheme.surface,
-        bubbleBorder: baseTheme.border,
-        userBubble: "rgba(29,140,248,0.15)",
-        userBorder: "rgba(29,140,248,0.2)",
-        avatarBg: "rgba(29,140,248,0.1)",
-        avatarBorder: "rgba(29,140,248,0.2)",
-      };
+  // Single-bot mode — fixed openclaw bubble palette.
+  const runtimeTheme = {
+    bubble: baseTheme.surface,
+    bubbleBorder: baseTheme.border,
+    userBubble: "rgba(29,140,248,0.15)",
+    userBorder: "rgba(29,140,248,0.2)",
+    avatarBg: "rgba(29,140,248,0.1)",
+    avatarBorder: "rgba(29,140,248,0.2)",
+  };
 
   const [copied, setCopied] = useState(false);
   const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -183,7 +141,7 @@ export function MessageRow({ msg, runtime = "openclaw" }) {
     return (
       <div className="flex justify-end py-2 px-4 group">
         <div className="max-w-[75%]">
-          <div className="rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm whitespace-pre-wrap break-words backdrop-blur-xl" style={{ background: runtimeTheme.userBubble, border: `1px solid ${runtimeTheme.userBorder}`, color: baseTheme.text, boxShadow: runtime === "hermes" ? "0 16px 40px rgba(10, 8, 22, 0.22)" : "none" }}>{msg.content}</div>
+          <div className="rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm whitespace-pre-wrap break-words backdrop-blur-xl" style={{ background: runtimeTheme.userBubble, border: `1px solid ${runtimeTheme.userBorder}`, color: baseTheme.text }}>{msg.content}</div>
           <div className="flex items-center justify-end gap-2 mt-1">
             <button onClick={handleCopy} className="opacity-0 group-hover:opacity-60 transition-opacity" data-testid={`copy-msg-${msg.id}`}>
               {copied ? <Check className="w-3 h-3" style={{ color: baseTheme.green }} /> : <Copy className="w-3 h-3" style={{ color: "#555" }} />}
@@ -196,9 +154,9 @@ export function MessageRow({ msg, runtime = "openclaw" }) {
   }
   return (
     <div className="flex gap-3 py-2 px-4 group">
-      <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm shrink-0 mt-0.5 backdrop-blur-xl" style={{ background: runtimeTheme.avatarBg, border: `1px solid ${runtimeTheme.avatarBorder}`, boxShadow: runtime === "hermes" ? "0 0 24px rgba(183, 136, 255, 0.18)" : "none" }}>&#129438;</div>
+      <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm shrink-0 mt-0.5 backdrop-blur-xl" style={{ background: runtimeTheme.avatarBg, border: `1px solid ${runtimeTheme.avatarBorder}` }}>&#129438;</div>
       <div className="flex-1 min-w-0">
-        <div className="rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm backdrop-blur-xl" style={{ background: runtimeTheme.bubble, border: `1px solid ${runtimeTheme.bubbleBorder}`, boxShadow: runtime === "hermes" ? "0 18px 44px rgba(10, 8, 22, 0.24)" : "none" }}><Markdown content={msg.content} theme={baseTheme} /></div>
+        <div className="rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm backdrop-blur-xl" style={{ background: runtimeTheme.bubble, border: `1px solid ${runtimeTheme.bubbleBorder}` }}><Markdown content={msg.content} theme={baseTheme} /></div>
         <div className="flex items-center gap-2 mt-1">
           <button onClick={handleCopy} className="opacity-0 group-hover:opacity-60 transition-opacity" data-testid={`copy-msg-${msg.id}`}>
             {copied ? <Check className="w-3 h-3" style={{ color: baseTheme.green }} /> : <Copy className="w-3 h-3" style={{ color: "#555" }} />}
