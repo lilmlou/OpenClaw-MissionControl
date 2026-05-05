@@ -1,5 +1,5 @@
-import React from "react";
-import { Activity, AlertTriangle, Briefcase, Laptop, Lock, MessageSquareText, ShieldAlert, Terminal } from "lucide-react";
+import React, { useEffect } from "react";
+import { Activity, AlertTriangle, Briefcase, Laptop, Lock, MessageSquareText, ShieldAlert, Terminal, Server, AlertCircle } from "lucide-react";
 import { C } from "@/lib/constants";
 import { useGateway } from "@/lib/useGateway";
 import { ActivityFeedPane } from "@/components/ActivityFeedPane";
@@ -11,8 +11,57 @@ function eventText(evt) {
   return "Runtime event";
 }
 
+// Map backend service status enum → existing C palette colour.
+// Spec: BACKEND_REQUESTS.md /system/services — 7 status values.
+function statusColor(status) {
+  switch (status) {
+    case "connected":    return C.green;
+    case "disconnected": return C.red;
+    case "rate_limited": return C.yellow;
+    case "auth_failed":  return C.orange;
+    case "corrupted":    return C.red;
+    case "locked":       return C.yellow;
+    default:             return C.muted; // unknown / anything else
+  }
+}
+
+function relativeTime(ts) {
+  if (!ts) return "—";
+  const secs = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (secs < 5) return "just now";
+  if (secs < 60) return `${secs}s ago`;
+  const mins = Math.round(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  return `${Math.round(mins / 60)}h ago`;
+}
+
 export default function DashboardPage() {
-  const { status, jobs, events, threads, approvals, connectors } = useGateway();
+  const { status, jobs, events, threads, approvals, connectors,
+          systemServices, systemServicesLoading, systemServicesError,
+          systemServicesLastUpdated, fetchSystemServices } = useGateway();
+
+  // Poll /api/v2/system/services every 8s when tab is visible.
+  // Initial fetch is non-silent (spinner). Subsequent polls are silent
+  // so the UI doesn't flash. Paused via document.visibilityState per
+  // BACKEND_REQUESTS.md guidance.
+  useEffect(() => {
+    let cancelled = false;
+    const tick = (silent) => {
+      if (cancelled) return;
+      if (document.visibilityState !== "visible") return;
+      fetchSystemServices({ silent }).catch(() => null);
+    };
+    tick(false);
+    const id = setInterval(() => tick(true), 8000);
+    const onVis = () => { if (document.visibilityState === "visible") tick(true); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [fetchSystemServices]);
+
   const pendingApprovals = approvals.filter((a) => a.status === "pending").length;
   const runningJobs = jobs.filter((j) => j.status === "running").length;
   const activeNodes = connectors.mac || connectors.desktop ? 1 : 0;
@@ -72,6 +121,55 @@ export default function DashboardPage() {
               <div className="text-[24px] leading-none font-mono" style={{ color: p.color }}>{p.val}</div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Services — wired to GET /api/v2/system/services, 8s poll, visibility-paused */}
+      <div className="p-4 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Server className="w-4 h-4" style={{ color: C.accent }} />
+            <span className="text-[13px] font-semibold">Services</span>
+          </div>
+          <span className="text-[11px]" style={{ color: C.muted }}>
+            {systemServicesError
+              ? <span style={{ color: C.red }}>error · {systemServicesError}</span>
+              : systemServicesLoading && systemServices.length === 0
+                ? "loading…"
+                : `updated ${relativeTime(systemServicesLastUpdated)}`}
+          </span>
+        </div>
+        <div className="space-y-1.5">
+          {systemServices.length === 0 && !systemServicesLoading && !systemServicesError && (
+            <div className="text-[12px] p-2 rounded-lg" style={{ color: C.muted, background: C.surface2 }}>
+              No services reported.
+            </div>
+          )}
+          {systemServices.map((svc) => {
+            const color = statusColor(svc.status);
+            const corrupted = svc.status === "corrupted";
+            const detail = svc.detail || svc.url || "";
+            return (
+              <div key={svc.name} className="flex items-center gap-3 py-1.5 px-2 rounded-md"
+                   style={{ background: C.surface2 }}>
+                <span className="shrink-0 rounded-full" style={{ width: 7, height: 7, background: color }} />
+                <span className="text-[12px] font-medium capitalize shrink-0" style={{ color: C.text, minWidth: 96 }}>
+                  {svc.name}
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-md uppercase tracking-wide shrink-0 inline-flex items-center gap-1"
+                      style={{ background: `${color}20`, color, border: `1px solid ${color}33` }}>
+                  {corrupted && <AlertCircle className="w-3 h-3" />}
+                  {svc.status || "unknown"}
+                </span>
+                <span className="text-[11px] flex-1 truncate" style={{ color: C.muted }} title={detail}>
+                  {detail}
+                </span>
+                <span className="text-[10px] shrink-0 font-mono" style={{ color: C.muted }}>
+                  {relativeTime(svc.lastCheck)}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 

@@ -716,6 +716,13 @@ export const useGateway = create(
       agentSubmitting: false,
       agentFilter: "all", // all | planner | executor | supervisor | auditor | watcher | builder | meta | pipeline
 
+      // System (host telemetry — /api/v2/system/services)
+      // Per BACKEND_REQUESTS.md: server caches 5s, FE polls 8s, paused on hidden.
+      systemServices: [],
+      systemServicesLoading: false,
+      systemServicesError: null,
+      systemServicesLastUpdated: null,
+
       // Spaces
       spaces: DEFAULT_SPACES,
       
@@ -800,6 +807,36 @@ export const useGateway = create(
           return null;
         }
       },
+      // ── System telemetry ────────────────────────────────────────────
+      // GET /api/v2/system/services. Returns either a bare array OR an
+      // object { services, takenAt } depending on backend version — we
+      // accept both. On error keep the previous list so the UI doesn't
+      // flash empty during a transient blip.
+      fetchSystemServices: async ({ silent = false } = {}) => {
+        if (!silent) set({ systemServicesLoading: true, systemServicesError: null });
+        try {
+          const res = await fetch(apiUrl("/api/v2/system/services"));
+          if (!res.ok) throw new Error(`system/services HTTP ${res.status}`);
+          const payload = await res.json();
+          const services = Array.isArray(payload)
+            ? payload
+            : Array.isArray(payload?.services) ? payload.services : [];
+          set({
+            systemServices: services,
+            systemServicesLoading: false,
+            systemServicesError: null,
+            systemServicesLastUpdated: Date.now(),
+          });
+          return services;
+        } catch (err) {
+          set({
+            systemServicesLoading: false,
+            systemServicesError: err?.message || String(err),
+          });
+          return null;
+        }
+      },
+
       setClawStatus: (clawStatus) => set({ clawStatus }),
       setActivePage: (activePage) => set({ activePage }),
       setActiveTab: (activeTab) => set({ activeTab }),
