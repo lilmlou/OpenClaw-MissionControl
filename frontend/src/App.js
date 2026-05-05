@@ -13,7 +13,7 @@ import CodePage from "@/pages/CodePage";
 import SessionsPage from "@/pages/SessionsPage";
 import SettingsPage from "@/pages/SettingsPage";
 import CustomizePage from "@/pages/CustomizePage";
-import AgentPage from "@/pages/AgentPage";
+import DesignPage from "@/pages/DesignPage";
 import SystemPage from "@/pages/SystemPage";
 import { Toaster } from "@/components/ui/toaster";
 import { HealthToastBridge } from "@/components/HealthToastBridge";
@@ -39,7 +39,7 @@ function App() {
         <Route path="/code" element={<CodePage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/customize" element={<CustomizePage />} />
-        <Route path="/design" element={<AgentPage />} />
+        <Route path="/design" element={<DesignPage />} />
         <Route path="/spaces" element={<Navigate to="/projects" replace />} />
         <Route path="/agent" element={<Navigate to="/design" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />

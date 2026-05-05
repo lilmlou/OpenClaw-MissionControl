@@ -750,6 +750,34 @@ export const useGateway = create(
       systemAppsError: null,
       systemAppsLastUpdated: null,
 
+      // Design / Image Studio (/design page)
+      // Phase C Part 6 backend not yet shipped — see BACKEND_REQUESTS.md:215-238.
+      // All generation is mocked via setTimeout for now; every TODO in
+      // DesignPage.js maps 1:1 to a real endpoint when backend lands.
+      design: {
+        mode: "studio",                // 'studio' | 'gallery' | 'chat'
+        activeGeneration: null,        // current generation being viewed/edited
+        activeVariationIndex: 0,
+        settings: {
+          model: null,                 // auto-pick image-capable when backend ships
+          aspect_ratio: "1:1",         // '1:1' | '4:5' | '9:16' | '16:9' | '3:2' | '2:3'
+          quality: "balanced",         // 'speed' | 'balanced' | 'quality'
+          negative_prompt: "",
+          seed: null,
+          num_variations: 4,           // 1 | 2 | 4 | 6 | 8
+          style_strength: 50,          // 0-100, only used when references attached
+        },
+        references: [],                // [{ id, name, dataUrl }] — frontend-only base64 stash
+        history: [],                   // mock generations for now; will hydrate from /design/history
+        inspector: {
+          open: true,
+          tab: "settings",             // 'settings' | 'history' | 'references'
+        },
+        composer: { input: "", mentions: [] },
+        isGenerating: false,
+        generationProgress: 0,         // 0-100, used during mock generation
+      },
+
       // Spaces
       spaces: DEFAULT_SPACES,
       
@@ -917,6 +945,127 @@ export const useGateway = create(
           });
           return null;
         }
+      },
+
+      // ── Design / Image Studio actions ───────────────────────────────
+      // Pure-mock for now. When Phase C Part 6 backend ships, each action
+      // listed below has a corresponding TODO comment naming the real
+      // endpoint and request/response shape.
+      setDesignMode: (mode) => {
+        if (!["studio", "gallery", "chat"].includes(mode)) return;
+        set((s) => ({ design: { ...s.design, mode } }));
+      },
+      setDesignActiveGeneration: (gen) => {
+        set((s) => ({ design: { ...s.design, activeGeneration: gen, activeVariationIndex: 0 } }));
+      },
+      setDesignActiveVariation: (index) => {
+        set((s) => ({ design: { ...s.design, activeVariationIndex: index } }));
+      },
+      updateDesignSettings: (patch) => {
+        set((s) => ({ design: { ...s.design, settings: { ...s.design.settings, ...patch } } }));
+      },
+      toggleDesignInspector: () => {
+        set((s) => ({ design: { ...s.design, inspector: { ...s.design.inspector, open: !s.design.inspector.open } } }));
+      },
+      setDesignInspectorTab: (tab) => {
+        if (!["settings", "history", "references"].includes(tab)) return;
+        set((s) => ({ design: { ...s.design, inspector: { ...s.design.inspector, tab } } }));
+      },
+      setDesignComposerInput: (input) => {
+        set((s) => ({ design: { ...s.design, composer: { ...s.design.composer, input } } }));
+      },
+      addDesignReference: (file) => {
+        // Frontend-only: base64-encode for in-memory display.
+        // TODO: when /api/v2/files/upload (multipart) ships, swap to real upload
+        //       and store the returned file_id + url instead of dataUrl.
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const ref = {
+              id: `ref-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+              name: file.name || "reference",
+              dataUrl: reader.result,
+              uploadedAt: Date.now(),
+            };
+            set((s) => ({ design: { ...s.design, references: [...s.design.references, ref] } }));
+            resolve(ref);
+          };
+          reader.readAsDataURL(file);
+        });
+      },
+      removeDesignReference: (id) => {
+        set((s) => ({ design: { ...s.design, references: s.design.references.filter((r) => r.id !== id) } }));
+      },
+
+      // Mock generation. Returns a fake generation entry after 3s.
+      // TODO: replace with POST /api/v2/design/generate
+      //   Request:  { prompt, settings, references }
+      //   Response: { generation_id, status: 'queued', estimatedSeconds }
+      //   Then subscribe to WS /api/ws/design/generations and stream
+      //   progress events { generationId, progress: 0-1, completed?: imageUrl[] }
+      //   into design.activeGeneration.variations as they arrive.
+      generateDesign: async (prompt, settingsOverride = {}) => {
+        const trimmed = (prompt || "").trim();
+        if (!trimmed) return null;
+        const settings = { ...get().design.settings, ...settingsOverride };
+        set((s) => ({ design: { ...s.design, isGenerating: true, generationProgress: 0 } }));
+
+        // Simulate progress 0→100 over 3s in 6 ticks.
+        const progressTimer = setInterval(() => {
+          const p = get().design.generationProgress;
+          const next = Math.min(95, p + Math.round(15 + Math.random() * 10));
+          set((s) => ({ design: { ...s.design, generationProgress: next } }));
+        }, 500);
+
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            clearInterval(progressTimer);
+            const id = `gen-${Date.now().toString(36)}`;
+            const baseSeed = settings.seed ?? Math.floor(Math.random() * 1e6);
+            // Picsum gives stable images per seed; cheap visual variety
+            // without bundling assets. Aspect-ratio-aware placeholders.
+            const dims = (() => {
+              switch (settings.aspect_ratio) {
+                case "16:9": return [960, 540];
+                case "9:16": return [540, 960];
+                case "4:5":  return [640, 800];
+                case "3:2":  return [840, 560];
+                case "2:3":  return [560, 840];
+                default:     return [720, 720];
+              }
+            })();
+            const variations = Array.from({ length: settings.num_variations || 4 }, (_, i) => ({
+              id: `${id}-var-${i}`,
+              url: `https://picsum.photos/seed/${baseSeed + i}/${dims[0]}/${dims[1]}`,
+              favorited: false,
+              seed: baseSeed + i,
+            }));
+            const newGen = {
+              id,
+              prompt: trimmed,
+              status: "complete",
+              created_at: Date.now(),
+              model: settings.model || "mock-flux-1.1",
+              cost_usd: 0,                    // TODO: backend will return real cost
+              aspect_ratio: settings.aspect_ratio,
+              quality: settings.quality,
+              negative_prompt: settings.negative_prompt || null,
+              variations,
+            };
+            set((s) => ({
+              design: {
+                ...s.design,
+                history: [newGen, ...s.design.history],
+                activeGeneration: newGen,
+                activeVariationIndex: 0,
+                isGenerating: false,
+                generationProgress: 100,
+                composer: { ...s.design.composer, input: "" },
+              },
+            }));
+            resolve(newGen);
+          }, 3000);
+        });
       },
 
       // ── Agent control ──────────────────────────────────────────────
