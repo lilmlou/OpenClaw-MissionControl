@@ -39,6 +39,7 @@ Backend version: 0.7.1
 - GET  /api/v2/system/state
 - GET  /api/v2/system/stats
 - GET  /api/v2/system/services
+- GET  /api/v2/system/apps?device=mac
 - POST /api/v2/system/active-window
 - POST /api/v2/system/screenshot
 - POST /api/v2/desktop/action
@@ -182,6 +183,54 @@ Per-service `meta` shapes:
   auth_checked: boolean            // see caveat above
 }
 ```
+
+#### GET /api/v2/system/apps?device=mac
+Installed-application catalog. Mac only for now (`device=mac` required).
+Cached 5 minutes. Response is gzipped when the client sends
+`Accept-Encoding: gzip` (~90% compression on a 379-app payload).
+
+Response:
+```
+{
+  device: "mac",
+  apps: InstalledApp[],
+  count: number,
+  byCategory: { System, Creative, Productivity, Communication, Browser, Developer, Other: number },
+  takenAt: number
+}
+```
+
+`InstalledApp`:
+```
+{
+  name: string,
+  bundleId: string | null,         // ALWAYS null on mac — see note below
+  version: string | null,
+  path: string,                    // absolute path to .app bundle
+  lastModified: string | null,     // ISO-8601 from system_profiler
+  category: "System" | "Creative" | "Productivity" |
+            "Communication" | "Browser" | "Developer" | "Other",
+  obtainedFrom: string | null      // apple | mac_app_store |
+                                   // identified_developer | safari | unknown
+}
+```
+
+Notes:
+- **bundleId is null on Mac.** macOS `system_profiler SPApplicationsDataType
+  -json` does not emit bundleId. Categorisation is path + name based.
+  If a downstream consumer truly needs bundleId per app, the gateway
+  could read each app's `Info.plist` (~5-10 s extra for 200 apps) — defer
+  until requested.
+- Categorisation order (first match wins): Browser → Communication →
+  Creative → Developer → Productivity → System (path-fallback) → Other.
+  First-party Apple apps that live under `/System/Applications/` (Mail,
+  Messages, Calendar, Notes, etc.) are correctly bucketed by purpose, not
+  lost in the System pile.
+- Background daemons under `/System/Library/` that don't match any known
+  app name fall through to `System`.
+- Apps sorted by `(category, name)` ascending. Frontend can re-sort.
+- 400 returned when `device` is anything other than `mac`.
+- Cold cache latency ~2 s (system_profiler is slow). Warm cache ~0 ms.
 
 ### Sync (mobile)
 - GET /api/v2/sync/snapshot
