@@ -142,6 +142,140 @@ Frontend should subscribe to keep multi-tab views in sync.
 - POST /api/v2/models/resolve
 - GET  /api/v2/models/resolve/:model
 
+### Cron (Sprint 3)
+- GET    /api/v2/cron/jobs?enabled=&is_system=&agent=
+- GET    /api/v2/cron/jobs/:id
+- POST   /api/v2/cron/jobs
+- PATCH  /api/v2/cron/jobs/:id
+- DELETE /api/v2/cron/jobs/:id
+- POST   /api/v2/cron/jobs/:id/run-now
+- GET    /api/v2/cron/runs?since=&cron_job_id=&status=&limit=
+- GET    /api/v2/cron/runs/:id
+
+#### Cron job shape
+```
+{
+  "id": string,                       // 'sys-*' for system, 'usr-{8hex}' for user
+  "name": string,
+  "description": string | null,
+  "schedule": string,                 // standard cron expression
+  "agent": "watcher"|"auditor"|"supervisor"|"planner"|"executor"|"builder"|"meta",
+  "prompt": string,                   // 10-4000 chars
+  "enabled": boolean,
+  "is_system": boolean,               // user jobs are mutable, system jobs are 'enabled'-only
+  "last_run_at": number | null,
+  "next_run_at": number | null,
+  "run_count": number,
+  "failure_count": number,
+  "created_at": number,
+  "updated_at": number
+}
+```
+
+#### Cron run shape
+```
+{
+  "id": string,                       // uuid
+  "cron_job_id": string,
+  "agent_task_id": string | null,    // populated once submit() returns
+  "fired_at": number,
+  "completed_at": number | null,
+  "status": "running" | "done" | "failed" | "skipped",
+                                     // 'skipped' = agent paused/stopped via /agents/control
+  "error_message": string | null,
+  "manual": boolean                   // true if fired via /run-now
+}
+```
+
+#### POST /api/v2/cron/jobs
+Creates a user cron job. System jobs (is_system=1) cannot be created via API.
+
+Body:
+```
+{
+  "name": string,                     // unique among user jobs
+  "description": string | null,       // optional
+  "schedule": string,                 // valid cron expression
+  "agent": CronAgent,                 // see enum above
+  "prompt": string,                   // 10-4000 chars
+  "enabled": boolean                  // default true
+}
+```
+
+Responses:
+- `201 Created` — `{ ok: true, job }`
+- `400 Bad Request` — `{ ok: false, error: 'invalid_<field>', message }`
+- `403 Forbidden` — when body sets `is_system: true`
+- `409 Conflict` — `{ ok: false, error: 'name_conflict' }`
+
+#### PATCH /api/v2/cron/jobs/:id
+Modifies a job. System jobs accept ONLY `enabled` field; other fields
+return `403 system_field_locked`. User jobs accept any subset of
+`{ name, description, schedule, agent, prompt, enabled }`.
+
+Triggers `cronScheduler.reload()` so changes take effect immediately.
+
+#### DELETE /api/v2/cron/jobs/:id
+Returns `204 No Content` on success. Returns `403 system_jobs_immutable`
+for system jobs (use PATCH `enabled=false` to silence them instead).
+Cascades to delete linked `cron_runs` rows.
+
+#### POST /api/v2/cron/jobs/:id/run-now
+Manually fires the job, ignoring its schedule. Creates a `cron_runs`
+row with `manual: true`. Does NOT update `next_run_at`.
+
+Returns:
+```
+{
+  "ok": true,
+  "run_id": string,
+  "agent_task_id": string | null    // null if submit refused (paused agent)
+}
+```
+
+#### GET /api/v2/cron/runs
+History of cron fires. Default lookback is 24 hours.
+
+Query params:
+- `since`: ms epoch lower bound (default: now − 24h)
+- `cron_job_id`: filter to one job's history
+- `status`: filter to `running` | `done` | `failed` | `skipped`
+- `limit`: 1-500 (default 100)
+
+Returns: `{ runs: CronRun[], total: number }`
+
+#### WS broadcasts on /api/ws/agents (Sprint 3)
+Every cron lifecycle event emits a frame on the existing agents socket:
+
+```
+{ type: "cron.created",            payload: { job }, ts }
+{ type: "cron.updated",            payload: { job }, ts }
+{ type: "cron.deleted",            payload: { id }, ts }
+{ type: "cron.enabled",            payload: { id, enabled }, ts }
+{ type: "cron.fired",              payload: { job_id, run_id,
+                                              agent_task_id, manual }, ts }
+{ type: "cron.completed",          payload: { job_id, run_id, status,
+                                              error_message }, ts }
+{ type: "cron.scheduler.reloaded", payload: { active: number }, ts }
+```
+
+`cron.fired` is emitted twice per fire — first when the run row is
+created (`agent_task_id: null`), then again after submit() returns with
+the linked id. Frontend should de-dupe on `run_id`.
+
+#### System cron seeds (first-boot only)
+On first gateway boot with an empty `cron_jobs` table, these 5 system
+jobs are seeded automatically. They cannot be deleted but their
+`enabled` flag can be flipped via PATCH:
+
+| id | schedule | agent | purpose |
+|---|---|---|---|
+| `sys-watcher` | `*/5 * * * *` | watcher | Health check (preserves the b6d946d cadence; PATCH to change) |
+| `sys-auditor` | `*/30 * * * *` | auditor | 30-min activity digest |
+| `sys-supervisor` | `0 * * * *` | supervisor | Hourly pipeline review |
+| `sys-selfimprove-daily` | `0 3 * * *` | auditor | Daily 24h digest written to `data/memory/audits/` |
+| `sys-selfimprove-weekly` | `30 3 * * 0` | meta | Weekly meta-review of trends |
+
 ### System (token-gated)
 - GET  /api/v2/system/state
 - GET  /api/v2/system/stats
