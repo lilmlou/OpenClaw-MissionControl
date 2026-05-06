@@ -142,6 +142,193 @@ Frontend should subscribe to keep multi-tab views in sync.
 - POST /api/v2/models/resolve
 - GET  /api/v2/models/resolve/:model
 
+### Activities (Sprint 4 — unified event stream)
+- GET /api/v2/activities?since=&until=&categories=&severities=&actor=&entity_id=&type_prefix=&limit=&offset=
+- GET /api/v2/activities/:id
+- GET /api/v2/activities/stats?since=
+- WS  /api/ws/activities (with optional ?backlog=1)
+
+#### Activity record shape
+```
+{
+  "id": string,
+  "type": string,             // e.g. "agent.task.completed", "cron.run.fired", "model.usage"
+  "category": "agent" | "cron" | "approval" | "chat" |
+              "system" | "security" | "watcher" | "model",
+  "severity": "info" | "warn" | "error" | "critical",
+  "actor": string | null,     // agent name, "user", "system", "scheduler"
+  "entity_type": string | null,
+  "entity_id": string | null, // FK to relevant table row
+  "description": string,
+  "data": object | null,      // type-specific blob
+  "created_at": number
+}
+```
+
+#### GET /api/v2/activities
+Default lookback: last 24 hours. Default limit: 100. Max limit: 500.
+
+Response:
+```
+{
+  "activities": Activity[],
+  "total": number,
+  "has_more": boolean,
+  "oldest_timestamp": number | null,
+  "newest_timestamp": number | null
+}
+```
+
+Filter parameters:
+- `since` / `until` — ms epoch bounds
+- `categories` — CSV of categories
+- `severities` — CSV of severities
+- `actor` — exact match
+- `entity_id` — exact match (e.g., one cron job's history)
+- `type_prefix` — e.g. `agent.` matches all `agent.*` types
+
+#### GET /api/v2/activities/stats
+Default window: last hour. Pass `since` to widen.
+
+```
+{
+  "by_category": { agent: 234, cron: 56, ... },
+  "by_severity": { info: 250, warn: 12, error: 3 },
+  "by_actor":    { watcher: 100, planner: 40, ... },
+  "total": number,
+  "rate_per_minute": number,
+  "window_minutes": number
+}
+```
+
+#### WS /api/ws/activities
+On connect: server sends `{ type: "hello", serverTime }`.
+Pass `?backlog=1` in URL to also receive a `{ type: "backlog",
+activities: [...50 most recent] }` frame.
+
+After connect, server streams `{ type: "activity", activity: <Activity> }`
+frames as they fire. Client may filter server-side:
+
+```
+// Subscribe with filters
+ws.send(JSON.stringify({
+  type: "subscribe",
+  filters: {
+    categories: ["agent", "cron"],
+    severities: ["warn", "error", "critical"]
+  }
+}));
+// → server replies { type: "subscribed", filters: {...} }
+//   subsequent activity frames pre-filtered server-side
+
+// Unsubscribe (no filters = all activities)
+ws.send(JSON.stringify({ type: "unsubscribe" }));
+```
+
+#### Retention
+Configurable via env:
+- `ACTIVITIES_RETAIN_DAYS` (default 30) — non-error/critical rows
+- `ACTIVITIES_RETAIN_DAYS_ERROR` (default 90) — error/critical rows
+
+Prune runs at gateway boot and every 24 hours thereafter.
+
+#### Note on existing channels
+This stream is **additive** — `/api/ws/agents` and `/api/ws/approvals`
+continue to broadcast their domain-specific frames unchanged. Activities
+is a parallel rollup view for the Inspector / activity-feed pane that
+wants every-event-in-one-place.
+
+### Usage (Sprint 5 — token tracking)
+- GET /api/v2/usage/totals?since=&until=
+- GET /api/v2/usage/by-agent?since=&until=
+- GET /api/v2/usage/by-model?since=&until=
+- GET /api/v2/usage/projections
+
+#### Token tracking schema (Sprint 5 additions)
+The following columns were added at boot via idempotent ensureColumn():
+
+`model_choices`:
+  tokens_in, tokens_out, tokens_total INTEGER
+  cost_estimate_usd REAL
+  response_latency_ms INTEGER
+
+`agent_tasks`:
+  tokens_in, tokens_out INTEGER
+  cost_estimate_usd REAL
+
+`messages`:
+  tokens_in, tokens_out INTEGER
+  cost_estimate_usd REAL
+  response_latency_ms INTEGER
+
+Cost is estimated from `data/model_capabilities.json` `costPerMTokIn` /
+`costPerMTokOut` fields. Free models (Ollama Cloud :cloud variants,
+Venice subscription tier) report `cost_estimate_usd: 0`.
+
+#### GET /api/v2/usage/totals
+Hero-level rollup: cost, tokens, calls across all metered activity in
+the window. Defaults to last 24 hours.
+
+```
+{
+  "total_cost_usd": number,
+  "total_tokens_in": number,
+  "total_tokens_out": number,
+  "total_calls": number,
+  "breakdown": [
+    { "key": "chat" | "agent",
+      "cost": number, "tokens_in": number,
+      "tokens_out": number, "calls": number }
+  ],
+  "since": number,
+  "until": number
+}
+```
+
+#### GET /api/v2/usage/by-agent
+Per-agent rollup (agent_tasks only, chat is excluded since chat doesn't
+have an agent attribution). Sorted by cost descending.
+
+```
+{
+  "by_agent": [
+    { "agent": string, "cost_usd": number,
+      "tokens_in": number, "tokens_out": number, "calls": number }
+  ],
+  "since": number,
+  "until": number
+}
+```
+
+#### GET /api/v2/usage/by-model
+Per-model rollup (chat + agent unioned). Sorted by cost descending.
+
+```
+{
+  "by_model": [
+    { "model": string, "provider": string,
+      "cost_usd": number, "tokens_in": number,
+      "tokens_out": number, "calls": number }
+  ],
+  "since": number,
+  "until": number
+}
+```
+
+#### GET /api/v2/usage/projections
+Monthly cost projection from the last 7 days of activity.
+
+```
+{
+  "projected_monthly_usd": number,
+  "confidence": "low" | "medium" | "high",
+                                // <100 calls = low, <500 = medium, else high
+  "based_on_days": 7,
+  "daily_avg_usd": number,
+  "sample_size_calls": number
+}
+```
+
 ### Cron (Sprint 3)
 - GET    /api/v2/cron/jobs?enabled=&is_system=&agent=
 - GET    /api/v2/cron/jobs/:id

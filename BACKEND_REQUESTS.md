@@ -758,3 +758,120 @@ text) where possible.
 **Estimated effort:** ~3-5 days, mostly auth/research, not code.
 
 ---
+
+## Sprint 6 — Self-learning loop closure (FULL SPEC RECEIVED, queued)
+
+**Status:** queued for daylight. Real-money risk: changes how every model
+decision is made. Should not ship at 2am.
+
+**Schema additions** (`model_choices`):
+- `quality_rating INTEGER` (1-5 stars, NULL until rated)
+- `auto_quality_score REAL` (0.0-1.0, derived from heuristics)
+- `user_overrode_model INTEGER DEFAULT 0`
+- `follow_up_was_correction INTEGER DEFAULT 0`
+- `context_classification TEXT` (Sprint 7 fills this in)
+
+**New tables:**
+- `model_performance` — rolling 7/30/90-day aggregates per
+  `(model_id, context, agent)` with composite_score
+- `learning_events` — audit trail of every score adjustment
+
+**Auto quality heuristics** (`src/agents/qualityHeuristics.ts`):
+- Positive signals: no follow-up within 5 min (+0.2), continuation
+  phrasing (+0.15), tool call success (+0.1), stream success (+0.1
+  baseline), latency <5s (+0.05)
+- Negative signals: correction phrases via regex within 3 min (-0.4),
+  user switched to different model (-0.3), stream errored (-0.5),
+  empty/short response (-0.2), latency >30s (-0.1), tool failure (-0.15)
+- Computed at T+5min via one-shot job stored in cron_runs
+
+**User ratings:**
+- `POST /api/v2/messages/:id/rate { rating: 1-5, comment? }`
+- Rating overrides auto_quality_score in composite calculations
+
+**Nightly aggregation cron** — `sys-learning-aggregation` at 03:30 daily.
+Computes composite score per (model, context, agent, window):
+```
+composite = quality * 0.5 + cost_efficiency * 0.2
+          + speed * 0.15 + reliability * 0.15
+```
+
+**Picker integration** — `score += (perf.composite - 0.5) * 0.3` clamped
+to [0.01, ∞). Override-rate >50% or correction-rate >40% triggers
+`-0.3` strong-negative override. Logs every adjustment to
+`learning_events`.
+
+**New endpoints:**
+- `GET /api/v2/learning/insights` — narrative summary + top performers +
+  underperformers + cost savings
+- `GET /api/v2/learning/model/:modelId` — per-model deep dive
+- `GET /api/v2/learning/events?since=&type=&limit=` — audit trail
+
+**Estimated effort:** ~1 day focused work. **Gate behind env flag**
+`PICKER_OUTCOME_FEEDBACK=1` (default off) for the first week so picker
+A/B can be observed before letting outcomes affect production picks.
+
+**Prerequisites met:** Sprint 5 (token tracking) and Sprint 4 (activity
+stream) shipped. Self-learning has the data it needs.
+
+---
+
+## Sprint 8 — Quota tracking & subscription awareness (FULL SPEC RECEIVED, queued)
+
+**Status:** queued for daylight. Risk: a bad seed could filter every
+provider out and break chat entirely. Wants careful boot-time validation.
+
+**New tables:**
+- `provider_quotas` (id, provider, quota_type, monthly/weekly/daily caps,
+  total_credit_usd, current_period_spent, session_active/expires_at,
+  enabled, notes) — one row per provider
+- `quota_alerts` (provider, alert_type, threshold_pct, current_value,
+  message, acknowledged) — for approaching-cap / cap-exceeded /
+  session-expiring / rate-limited
+
+**Quota types** (drives picker behavior):
+- `fixed_subscription` — Ollama Max (no per-call billing, session-based)
+- `flat_rate_with_overage` — HF Pro ($2 covered + overage)
+- `capped_subscription` — OpenCode Go ($10/mo with $30/wk caps)
+- `pay_per_call` — OpenRouter, direct APIs
+- `free_tier` — Venice free tier within limits
+- `unavailable` — bridge not built / no subscription
+
+**Seed on boot** with default quota_type per provider; user adjusts via
+`PATCH /api/v2/quota/:provider`.
+
+**Usage tracking:** every successful call (Sprint 5 cost data)
+increments `current_period_spent_usd`, `current_week_spent_usd`,
+`current_day_spent_usd`. Threshold checks at 75% / 100% generate
+alerts; alert dedupe via `hasRecentAlert(provider, type, period)`.
+
+**Period rollover crons** (added to system cron seeds):
+- `sys-quota-daily-reset`   `0 0 * * *`   reset daily counter
+- `sys-quota-weekly-reset`  `0 0 * * 1`   reset weekly counter
+- `sys-quota-rollover`      `0 0 1 * *`   reset monthly counter, advance period_start
+
+`total_credit_usd` providers (HF, OpenRouter) DON'T reset — accumulate
+against the credit. User tops up via `POST /quota/:provider/topup`.
+
+**Picker integration:**
+- Hard filter: `quota.enabled=0`, session expired, cap exceeded,
+  prepaid credit exhausted → exclude from candidate pool
+- Soft boost: `fixed_subscription` +0.15, `free_tier` +0.20,
+  `capped_subscription` <50% utilization +0.10, >85% utilization -0.15
+
+**New endpoints:**
+- `GET /api/v2/quota` — full state per provider + summary (subscription
+  value vs effective savings)
+- `GET /api/v2/quota/alerts?acknowledged=&since=`
+- `POST /api/v2/quota/alerts/:id/acknowledge`
+- `PATCH /api/v2/quota/:provider` — user-facing settings updates
+- `POST /api/v2/quota/:provider/reset { period }`
+- `POST /api/v2/quota/:provider/topup { amount_usd }`
+
+**Estimated effort:** ~1 day. **Gate boot-time seed validation:** if any
+seed row is malformed, log loudly and skip rather than crash gateway.
+
+**Prerequisite:** Sprint 5 (token tracking — provides cost data to
+increment counters). Met.
+
+---
