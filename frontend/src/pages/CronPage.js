@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Calendar, Play, Pause, RefreshCw, ChevronDown, ChevronRight,
   CheckCircle2, XCircle, Loader2, Clock, AlertCircle, Lock, Trash2,
-  Brain, Hammer, Eye, FileCheck, Activity, Wrench, Layers,
+  Brain, Hammer, Eye, FileCheck, Activity, Wrench, Layers, X, Plus, Search,
 } from "lucide-react";
 import { C } from "@/lib/constants";
 import { useGateway } from "@/lib/useGateway";
@@ -332,6 +332,313 @@ function JobInspector({ job }) {
   );
 }
 
+// Quick presets used by the New Schedule modal — covers the cases the
+// backend already accepts cleanly. Free-form mode for advanced users.
+const SCHEDULE_PRESETS = [
+  { label: "Every 5 minutes",    value: "*/5 * * * *"  },
+  { label: "Every 15 minutes",   value: "*/15 * * * *" },
+  { label: "Every 30 minutes",   value: "*/30 * * * *" },
+  { label: "Every hour",         value: "0 * * * *"    },
+  { label: "Every 6 hours",      value: "0 */6 * * *"  },
+  { label: "Daily at 9 AM",      value: "0 9 * * *"    },
+  { label: "Daily at midnight",  value: "0 0 * * *"    },
+  { label: "Weekly (Sunday 9AM)",value: "0 9 * * 0"    },
+];
+const AGENT_OPTIONS = [
+  { id: "planner",    label: "Planner",    desc: "Breaks down goals into steps" },
+  { id: "executor",   label: "Executor",   desc: "Performs tasks and writes code" },
+  { id: "supervisor", label: "Supervisor", desc: "Reviews completed work for gaps" },
+  { id: "auditor",    label: "Auditor",    desc: "Safety + regression sweep" },
+  { id: "watcher",    label: "Watcher",    desc: "Periodic health probe" },
+  { id: "builder",    label: "Builder",    desc: "Plans build steps" },
+  { id: "meta",       label: "Meta",       desc: "Merged reasoning across agents" },
+];
+
+function NewScheduleModal({ open, onClose, onCreated }) {
+  const { createCronJob } = useGateway();
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    agent: "planner",
+    prompt: "",
+    schedule: "0 9 * * *",
+    enabled: true,
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [serverError, setServerError] = useState(null);
+  const [scheduleMode, setScheduleMode] = useState("preset"); // 'preset' | 'advanced'
+
+  // Reset on open
+  useEffect(() => {
+    if (open) {
+      setForm({ name: "", description: "", agent: "planner", prompt: "",
+                schedule: "0 9 * * *", enabled: true });
+      setErrors({}); setServerError(null); setScheduleMode("preset");
+    }
+  }, [open]);
+
+  if (!open) return null;
+
+  const validate = () => {
+    const e = {};
+    if (!form.name.trim()) e.name = "Name is required";
+    else if (form.name.length > 100) e.name = "Max 100 characters";
+    if (!form.prompt.trim()) e.prompt = "Prompt is required";
+    else if (form.prompt.length < 10) e.prompt = "Prompt must be at least 10 characters";
+    else if (form.prompt.length > 4000) e.prompt = "Max 4000 characters";
+    if (!form.schedule.trim()) e.schedule = "Schedule is required";
+    if (!AGENT_OPTIONS.some((a) => a.id === form.agent)) e.agent = "Pick an agent";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSubmit = async (ev) => {
+    ev.preventDefault();
+    if (!validate()) return;
+    setSubmitting(true);
+    setServerError(null);
+    const result = await createCronJob({
+      name: form.name.trim(),
+      description: form.description.trim() || null,
+      agent: form.agent,
+      prompt: form.prompt.trim(),
+      schedule: form.schedule.trim(),
+      enabled: form.enabled,
+    });
+    setSubmitting(false);
+    if (result?.ok) {
+      onCreated?.(result.job);
+      onClose?.();
+    } else {
+      // Backend returns { ok:false, error, message }; surface message.
+      setServerError(result?.error || "Failed to create schedule");
+    }
+  };
+
+  const update = (patch) => setForm((f) => ({ ...f, ...patch }));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
+         style={{ background: "rgba(0,0,0,0.6)" }}
+         onClick={onClose}>
+      <form
+        onSubmit={handleSubmit}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-xl max-h-[85vh] overflow-y-auto rounded-xl"
+        style={{ background: C.surface, border: `1px solid ${C.border}` }}
+      >
+        <div className="flex items-center justify-between gap-3 p-4"
+             style={{ borderBottom: `1px solid ${C.border}` }}>
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4" style={{ color: C.accent }} />
+            <span className="text-sm font-semibold">New Schedule</span>
+          </div>
+          <button type="button" onClick={onClose} style={{ color: C.muted }}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {serverError && (
+            <div className="p-2.5 rounded-md text-xs flex items-start gap-2"
+                 style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}>
+              <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <span className="font-mono">{serverError}</span>
+            </div>
+          )}
+
+          {/* Name */}
+          <div>
+            <label className="text-[11px] uppercase tracking-wider mb-1 block" style={{ color: C.muted }}>
+              Name *
+            </label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => update({ name: e.target.value })}
+              placeholder="e.g. Daily summary"
+              className="w-full px-3 py-2 rounded-md text-sm bg-transparent outline-none"
+              style={{ background: C.surface2, border: `1px solid ${errors.name ? C.red : C.border}`, color: C.text }}
+              data-testid="cron-modal-name"
+            />
+            {errors.name && <div className="text-[11px] mt-1" style={{ color: C.red }}>{errors.name}</div>}
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="text-[11px] uppercase tracking-wider mb-1 block" style={{ color: C.muted }}>
+              Description
+            </label>
+            <input
+              type="text"
+              value={form.description}
+              onChange={(e) => update({ description: e.target.value })}
+              placeholder="Optional one-liner shown in the inspector"
+              className="w-full px-3 py-2 rounded-md text-sm bg-transparent outline-none"
+              style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text }}
+            />
+          </div>
+
+          {/* Agent */}
+          <div>
+            <label className="text-[11px] uppercase tracking-wider mb-1 block" style={{ color: C.muted }}>
+              Agent *
+            </label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {AGENT_OPTIONS.map((a) => {
+                const active = form.agent === a.id;
+                const meta = AGENT_META[a.id];
+                const Icon = meta?.Icon || Activity;
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => update({ agent: a.id })}
+                    className="flex items-start gap-2 px-2.5 py-2 rounded-md text-left transition-colors"
+                    style={{
+                      background: active ? `${meta?.color || C.accent}18` : C.surface2,
+                      border: `1px solid ${active ? `${meta?.color || C.accent}44` : C.border}`,
+                      color: active ? C.text : C.muted,
+                    }}
+                    data-testid={`cron-modal-agent-${a.id}`}
+                  >
+                    <Icon className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: meta?.color || C.muted }} />
+                    <div className="min-w-0">
+                      <div className="text-[12px] font-medium" style={{ color: active ? C.text : C.muted }}>{a.label}</div>
+                      <div className="text-[10px] truncate" style={{ color: C.muted }}>{a.desc}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Prompt */}
+          <div>
+            <label className="text-[11px] uppercase tracking-wider mb-1 block flex items-center justify-between" style={{ color: C.muted }}>
+              <span>Prompt *</span>
+              <span className="font-mono text-[10px]">{form.prompt.length}/4000</span>
+            </label>
+            <textarea
+              value={form.prompt}
+              onChange={(e) => update({ prompt: e.target.value })}
+              placeholder="Describe what this schedule should do…"
+              rows={4}
+              className="w-full px-3 py-2 rounded-md text-sm bg-transparent outline-none resize-none font-mono"
+              style={{ background: C.surface2, border: `1px solid ${errors.prompt ? C.red : C.border}`, color: C.text }}
+              data-testid="cron-modal-prompt"
+            />
+            {errors.prompt && <div className="text-[11px] mt-1" style={{ color: C.red }}>{errors.prompt}</div>}
+          </div>
+
+          {/* Schedule */}
+          <div>
+            <label className="text-[11px] uppercase tracking-wider mb-1 block" style={{ color: C.muted }}>
+              Schedule *
+            </label>
+            <div className="flex items-center gap-1 mb-2">
+              {[
+                { id: "preset", label: "Quick" },
+                { id: "advanced", label: "Cron expression" },
+              ].map((t) => {
+                const active = scheduleMode === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setScheduleMode(t.id)}
+                    className="px-2.5 py-1 rounded-md text-[11px] font-medium"
+                    style={{
+                      background: active ? `${C.accent}22` : C.surface2,
+                      color: active ? C.text : C.muted,
+                      border: `1px solid ${active ? `${C.accent}44` : C.border}`,
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
+            {scheduleMode === "preset" ? (
+              <div className="grid grid-cols-2 gap-1.5">
+                {SCHEDULE_PRESETS.map((p) => {
+                  const active = form.schedule === p.value;
+                  return (
+                    <button
+                      key={p.value}
+                      type="button"
+                      onClick={() => update({ schedule: p.value })}
+                      className="px-2.5 py-1.5 rounded-md text-[11px] font-medium text-left"
+                      style={{
+                        background: active ? `${C.accent}22` : C.surface2,
+                        color: active ? C.text : C.muted,
+                        border: `1px solid ${active ? `${C.accent}44` : C.border}`,
+                      }}
+                    >
+                      {p.label}
+                      <div className="text-[9px] font-mono opacity-60 mt-0.5">{p.value}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={form.schedule}
+                onChange={(e) => update({ schedule: e.target.value })}
+                placeholder="0 9 * * *"
+                className="w-full px-3 py-2 rounded-md text-sm font-mono bg-transparent outline-none"
+                style={{ background: C.surface2, border: `1px solid ${errors.schedule ? C.red : C.border}`, color: C.text }}
+              />
+            )}
+            <div className="text-[10px] mt-1" style={{ color: C.muted }}>
+              Translates to: <span style={{ color: C.text }}>{humanCron(form.schedule)}</span>
+            </div>
+            {errors.schedule && <div className="text-[11px] mt-1" style={{ color: C.red }}>{errors.schedule}</div>}
+          </div>
+
+          {/* Enabled toggle */}
+          <label className="flex items-center gap-2 cursor-pointer text-sm" style={{ color: C.text }}>
+            <input
+              type="checkbox"
+              checked={form.enabled}
+              onChange={(e) => update({ enabled: e.target.checked })}
+            />
+            <span>Activate immediately</span>
+            <span className="text-[11px]" style={{ color: C.muted }}>
+              ({form.enabled ? "will run on next schedule tick" : "saved as paused"})
+            </span>
+          </label>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 p-4"
+             style={{ borderTop: `1px solid ${C.border}` }}>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="px-4 py-1.5 rounded-md text-sm disabled:opacity-50"
+            style={{ background: C.surface2, color: C.muted, border: `1px solid ${C.border}` }}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="px-4 py-1.5 rounded-md text-sm font-medium disabled:opacity-50 flex items-center gap-1.5"
+            style={{ background: C.accent, color: "#fff" }}
+            data-testid="cron-modal-save"
+          >
+            {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
+            Save & Activate
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function GroupHeader({ icon: Icon, label, count, expanded, onToggle }) {
   return (
     <button
@@ -359,6 +666,9 @@ export default function CronPage() {
 
   const [systemOpen, setSystemOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [agentFilter, setAgentFilter] = useState("all");
 
   // Initial fetch + WS connect for cron.* broadcasts.
   useEffect(() => {
@@ -375,10 +685,22 @@ export default function CronPage() {
   }, [selectedCronJobId, fetchCronRuns]);
 
   const { systemJobs, userJobs } = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const matchSearch = (j) => {
+      if (!q) return true;
+      return (j.name || "").toLowerCase().includes(q)
+          || (j.description || "").toLowerCase().includes(q)
+          || (j.agent || "").toLowerCase().includes(q)
+          || (j.schedule || "").toLowerCase().includes(q);
+    };
+    const matchAgent = (j) => agentFilter === "all" || j.agent === agentFilter;
     const sys = [], usr = [];
-    for (const j of cronJobs) (j.is_system ? sys : usr).push(j);
+    for (const j of cronJobs) {
+      if (!matchSearch(j) || !matchAgent(j)) continue;
+      (j.is_system ? sys : usr).push(j);
+    }
     return { systemJobs: sys, userJobs: usr };
-  }, [cronJobs]);
+  }, [cronJobs, search, agentFilter]);
 
   const selectedJob = cronJobs.find((j) => j.id === selectedCronJobId) || null;
 
@@ -417,17 +739,52 @@ export default function CronPage() {
             <RefreshCw className={`w-3 h-3 ${cronJobsLoading ? "animate-spin" : ""}`} />
             Refresh
           </button>
-          {/* TODO: New Schedule modal — Phase 2 cron commit */}
           <button
             type="button"
-            disabled
-            title="New Schedule modal — Phase 2 (cron-parser dep + form validation)"
-            className="px-3 py-1.5 rounded-lg text-xs font-medium opacity-50 cursor-not-allowed"
+            onClick={() => setModalOpen(true)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-opacity hover:opacity-90"
             style={{ background: C.accent, color: "#fff" }}
+            data-testid="cron-new-btn"
           >
-            + New Schedule
+            <Plus className="w-3 h-3" />
+            New Schedule
           </button>
         </div>
+      </div>
+
+      {/* Search + agent filter */}
+      <div className="shrink-0 flex items-center gap-2 px-6 py-2 flex-wrap"
+           style={{ borderBottom: `1px solid ${C.border}` }}>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg flex-1 max-w-md min-w-[200px]"
+             style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+          <Search className="w-3.5 h-3.5 shrink-0" style={{ color: C.muted }} />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, description, agent, or schedule…"
+            className="flex-1 bg-transparent outline-none text-[12px]"
+            style={{ color: C.text }}
+            data-testid="cron-search"
+          />
+          {search && (
+            <button type="button" onClick={() => setSearch("")} style={{ color: C.muted }}>
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+        <select
+          value={agentFilter}
+          onChange={(e) => setAgentFilter(e.target.value)}
+          className="px-3 py-1.5 rounded-md text-[11px] outline-none"
+          style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text }}
+          data-testid="cron-agent-filter"
+        >
+          <option value="all">All agents</option>
+          {AGENT_OPTIONS.map((a) => (
+            <option key={a.id} value={a.id}>{a.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* Error banner */}
@@ -531,6 +888,12 @@ export default function CronPage() {
           <JobInspector job={selectedJob} />
         </aside>
       </div>
+
+      <NewScheduleModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreated={(job) => { if (job?.id) setSelectedCronJobId(job.id); }}
+      />
     </div>
   );
 }
