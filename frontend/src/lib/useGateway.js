@@ -752,6 +752,22 @@ export const useGateway = create(
       systemAppsError: null,
       systemAppsLastUpdated: null,
 
+      // Usage / Costs (/costs page) — Sprint 5 backend shipped
+      // GET /api/v2/usage/totals?since=&until=&group_by=
+      // GET /api/v2/usage/by-agent?since=&until=
+      // GET /api/v2/usage/by-model?since=&until=
+      // GET /api/v2/usage/projections
+      usage: {
+        totals: null,
+        byAgent: [],
+        byModel: [],
+        projections: null,
+        timeRange: { since: null, until: null, label: "today" },
+        loading: false,
+        error: null,
+        lastUpdated: null,
+      },
+
       // Activities (/activity page + global pane) — Sprint 4 backend shipped
       // GET /api/v2/activities?since=&until=&limit=&category=&severity=&actor=&search=
       // WS  /api/ws/activities — live frame stream
@@ -983,6 +999,48 @@ export const useGateway = create(
             systemAppsLoading: false,
             systemAppsError: err?.message || String(err),
           });
+          return null;
+        }
+      },
+
+      // ── Usage / Costs (Sprint 5) ────────────────────────────────────
+      setUsageTimeRange: ({ since, until, label }) => {
+        set((s) => ({ usage: { ...s.usage, timeRange: { since, until, label: label || s.usage.timeRange.label } } }));
+      },
+      refreshAllUsage: async ({ silent = false } = {}) => {
+        if (!silent) set((s) => ({ usage: { ...s.usage, loading: true, error: null } }));
+        const { since, until } = get().usage.timeRange;
+        const q = new URLSearchParams();
+        if (since) q.set("since", String(since));
+        if (until) q.set("until", String(until));
+        try {
+          const [totalsRes, byAgentRes, byModelRes, projRes] = await Promise.all([
+            fetch(apiUrl(`/api/v2/usage/totals?${q.toString()}`)),
+            fetch(apiUrl(`/api/v2/usage/by-agent?${q.toString()}`)),
+            fetch(apiUrl(`/api/v2/usage/by-model?${q.toString()}`)),
+            fetch(apiUrl(`/api/v2/usage/projections`)),
+          ]);
+          const totals = totalsRes.ok ? await totalsRes.json() : null;
+          const byAgentJson = byAgentRes.ok ? await byAgentRes.json() : null;
+          const byModelJson = byModelRes.ok ? await byModelRes.json() : null;
+          const projections = projRes.ok ? await projRes.json() : null;
+          set((s) => ({
+            usage: {
+              ...s.usage,
+              totals,
+              byAgent: Array.isArray(byAgentJson?.by_agent) ? byAgentJson.by_agent
+                     : Array.isArray(byAgentJson) ? byAgentJson : [],
+              byModel: Array.isArray(byModelJson?.by_model) ? byModelJson.by_model
+                     : Array.isArray(byModelJson) ? byModelJson : [],
+              projections,
+              loading: false,
+              error: null,
+              lastUpdated: Date.now(),
+            },
+          }));
+          return { totals, byAgent: byAgentJson, byModel: byModelJson, projections };
+        } catch (err) {
+          set((s) => ({ usage: { ...s.usage, loading: false, error: err?.message || String(err) } }));
           return null;
         }
       },

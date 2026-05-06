@@ -17,6 +17,7 @@ import DesignPage from "@/pages/DesignPage";
 import SystemPage from "@/pages/SystemPage";
 import CronPage from "@/pages/CronPage";
 import ActivitiesPage from "@/pages/ActivitiesPage";
+import CostsPage from "@/pages/CostsPage";
 import { Toaster } from "@/components/ui/toaster";
 import { HealthToastBridge } from "@/components/HealthToastBridge";
 import "./App.css";
@@ -39,6 +40,7 @@ function App() {
         <Route path="/cron" element={<CronPage />} />
         <Route path="/activity" element={<ActivitiesPage />} />
         <Route path="/activities" element={<Navigate to="/activity" replace />} />
+        <Route path="/costs" element={<CostsPage />} />
         <Route path="/qudos" element={<QudosPage />} />
         <Route path="/cowork" element={<Navigate to="/qudos" replace />} />
         <Route path="/code" element={<CodePage />} />
