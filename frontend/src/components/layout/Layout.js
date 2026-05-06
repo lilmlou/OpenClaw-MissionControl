@@ -8,6 +8,7 @@ import { C, NAV, getSpaceIcon, getRuntimeTheme, getRuntimeMeta } from "@/lib/con
 import { useGateway, selectAgentsHealth, formatHealthDetail } from "@/lib/useGateway";
 import { useShallow } from "zustand/react/shallow";
 import StatusBar from "@/components/layout/StatusBar";
+import ActivityPane from "@/components/layout/ActivityPane";
 
 const HEALTH_STYLES = {
   healthy: { color: "#22c55e", icon: CheckCircle2 },
@@ -251,6 +252,7 @@ export default function Layout({ children }) {
         <div className="flex-1 overflow-hidden relative">{children}</div>
         <StatusBar />
       </main>
+      <ActivityPane />
     </div>
   );
 }
