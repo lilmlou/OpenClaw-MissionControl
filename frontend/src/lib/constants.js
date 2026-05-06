@@ -117,6 +117,7 @@ export const NAV = [
   { href: "/approvals", label: "Approvals", icon: ShieldAlert },
   { href: "/events", label: "Events", icon: Terminal },
   { href: "/agents", label: "Agents", icon: Users },
+  { href: "/cron", label: "Schedule", icon: Calendar },
   { href: "/customize", label: "Customize", icon: Palette },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

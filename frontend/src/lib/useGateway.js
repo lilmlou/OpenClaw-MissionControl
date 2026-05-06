@@ -750,6 +750,25 @@ export const useGateway = create(
       systemAppsError: null,
       systemAppsLastUpdated: null,
 
+      // Cron / Schedule (/cron page) — Sprint 3 backend shipped
+      // GET    /api/v2/cron/jobs?enabled=&is_system=&agent=
+      // GET    /api/v2/cron/jobs/:id
+      // POST   /api/v2/cron/jobs                  (create)
+      // PATCH  /api/v2/cron/jobs/:id              (edit + enable/disable)
+      // DELETE /api/v2/cron/jobs/:id              (user jobs only)
+      // POST   /api/v2/cron/jobs/:id/run-now
+      // GET    /api/v2/cron/runs?since=&cron_job_id=&status=&limit=
+      // WS broadcasts on /api/ws/agents: cron.created, cron.updated,
+      //   cron.deleted, cron.enabled, cron.fired, cron.completed
+      cronJobs: [],
+      cronJobsLoading: false,
+      cronJobsError: null,
+      cronJobsLastUpdated: null,
+      cronRuns: {},                  // keyed by cron_job_id → array of recent runs
+      cronRunsLoading: false,
+      selectedCronJobId: null,
+      pendingCronOps: [],            // job ids with an in-flight POST/PATCH/DELETE/run-now
+
       // Design / Image Studio (/design page)
       // Phase C Part 6 backend not yet shipped — see BACKEND_REQUESTS.md:215-238.
       // All generation is mocked via setTimeout for now; every TODO in
@@ -944,6 +963,213 @@ export const useGateway = create(
             systemAppsError: err?.message || String(err),
           });
           return null;
+        }
+      },
+
+      // ── Cron / Schedule actions ─────────────────────────────────────
+      fetchCronJobs: async ({ silent = false } = {}) => {
+        if (!silent) set({ cronJobsLoading: true, cronJobsError: null });
+        try {
+          const res = await fetch(apiUrl("/api/v2/cron/jobs"));
+          if (!res.ok) throw new Error(`cron/jobs HTTP ${res.status}`);
+          const payload = await res.json();
+          const jobs = Array.isArray(payload?.jobs) ? payload.jobs : Array.isArray(payload) ? payload : [];
+          set({
+            cronJobs: jobs,
+            cronJobsLoading: false,
+            cronJobsError: null,
+            cronJobsLastUpdated: Date.now(),
+          });
+          return jobs;
+        } catch (err) {
+          set({ cronJobsLoading: false, cronJobsError: err?.message || String(err) });
+          return null;
+        }
+      },
+
+      fetchCronRuns: async (jobId, { limit = 20, silent = true } = {}) => {
+        if (!silent) set({ cronRunsLoading: true });
+        try {
+          const url = jobId
+            ? `/api/v2/cron/runs?cron_job_id=${encodeURIComponent(jobId)}&limit=${limit}`
+            : `/api/v2/cron/runs?limit=${limit}`;
+          const res = await fetch(apiUrl(url));
+          if (!res.ok) throw new Error(`cron/runs HTTP ${res.status}`);
+          const payload = await res.json();
+          const runs = Array.isArray(payload?.runs) ? payload.runs : [];
+          if (jobId) {
+            set((s) => ({ cronRuns: { ...s.cronRuns, [jobId]: runs }, cronRunsLoading: false }));
+          } else {
+            set({ cronRunsLoading: false });
+          }
+          return runs;
+        } catch (err) {
+          set({ cronRunsLoading: false });
+          return null;
+        }
+      },
+
+      setSelectedCronJobId: (id) => {
+        set({ selectedCronJobId: id });
+        if (id) get().fetchCronRuns(id, { limit: 20 }).catch(() => null);
+      },
+
+      // Optimistic toggle. PATCH /api/v2/cron/jobs/:id { enabled }.
+      toggleCronJob: async (id, enabled) => {
+        const prev = get().cronJobs;
+        const next = prev.map((j) => (j.id === id ? { ...j, enabled } : j));
+        set({
+          cronJobs: next,
+          pendingCronOps: [...new Set([...get().pendingCronOps, id])],
+        });
+        try {
+          const res = await fetch(apiUrl(`/api/v2/cron/jobs/${encodeURIComponent(id)}`), {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled }),
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body?.message || body?.error || `cron toggle HTTP ${res.status}`);
+          }
+          // Backend will broadcast cron.enabled — WS handler reconciles.
+          return { ok: true };
+        } catch (err) {
+          set({ cronJobs: prev });
+          return { ok: false, error: err?.message || String(err) };
+        } finally {
+          set({ pendingCronOps: get().pendingCronOps.filter((x) => x !== id) });
+        }
+      },
+
+      // POST /api/v2/cron/jobs/:id/run-now
+      runCronJobNow: async (id) => {
+        set({ pendingCronOps: [...new Set([...get().pendingCronOps, id])] });
+        try {
+          const res = await fetch(apiUrl(`/api/v2/cron/jobs/${encodeURIComponent(id)}/run-now`), {
+            method: "POST",
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body?.message || body?.error || `cron run-now HTTP ${res.status}`);
+          }
+          return { ok: true, ...(await res.json().catch(() => ({}))) };
+        } catch (err) {
+          return { ok: false, error: err?.message || String(err) };
+        } finally {
+          set({ pendingCronOps: get().pendingCronOps.filter((x) => x !== id) });
+        }
+      },
+
+      createCronJob: async (data) => {
+        try {
+          const res = await fetch(apiUrl("/api/v2/cron/jobs"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body?.message || body?.error || `cron create HTTP ${res.status}`);
+          }
+          const job = await res.json();
+          // WS will broadcast cron.created; refresh defensively.
+          get().fetchCronJobs({ silent: true }).catch(() => null);
+          return { ok: true, job };
+        } catch (err) {
+          return { ok: false, error: err?.message || String(err) };
+        }
+      },
+
+      updateCronJob: async (id, patch) => {
+        const prev = get().cronJobs;
+        const next = prev.map((j) => (j.id === id ? { ...j, ...patch } : j));
+        set({ cronJobs: next });
+        try {
+          const res = await fetch(apiUrl(`/api/v2/cron/jobs/${encodeURIComponent(id)}`), {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(patch),
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body?.message || body?.error || `cron update HTTP ${res.status}`);
+          }
+          return { ok: true };
+        } catch (err) {
+          set({ cronJobs: prev });
+          return { ok: false, error: err?.message || String(err) };
+        }
+      },
+
+      deleteCronJob: async (id) => {
+        const prev = get().cronJobs;
+        set({ cronJobs: prev.filter((j) => j.id !== id) });
+        try {
+          const res = await fetch(apiUrl(`/api/v2/cron/jobs/${encodeURIComponent(id)}`), {
+            method: "DELETE",
+          });
+          if (!res.ok && res.status !== 204) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body?.message || body?.error || `cron delete HTTP ${res.status}`);
+          }
+          return { ok: true };
+        } catch (err) {
+          set({ cronJobs: prev });
+          return { ok: false, error: err?.message || String(err) };
+        }
+      },
+
+      // WS event handlers for cron broadcasts on /api/ws/agents.
+      _applyCronEvent: (msg) => {
+        if (!msg?.type || !msg.type.startsWith("cron.")) return;
+        const payload = msg.payload || {};
+        const id = payload.id || payload.cron_job_id;
+        if (msg.type === "cron.created" && payload) {
+          set((s) => ({
+            cronJobs: [payload, ...s.cronJobs.filter((j) => j.id !== payload.id)],
+          }));
+        } else if (msg.type === "cron.updated" && payload && id) {
+          set((s) => ({
+            cronJobs: s.cronJobs.map((j) => (j.id === id ? { ...j, ...payload } : j)),
+          }));
+        } else if (msg.type === "cron.deleted" && id) {
+          set((s) => ({ cronJobs: s.cronJobs.filter((j) => j.id !== id) }));
+        } else if (msg.type === "cron.enabled" && id) {
+          set((s) => ({
+            cronJobs: s.cronJobs.map((j) => (j.id === id ? { ...j, enabled: !!payload.enabled } : j)),
+          }));
+        } else if (msg.type === "cron.fired" && id) {
+          // Update last_run_at + run_count optimistically; full row refresh
+          // happens on cron.completed.
+          set((s) => ({
+            cronJobs: s.cronJobs.map((j) =>
+              j.id === id
+                ? { ...j, last_run_at: payload.fired_at || Date.now(), run_count: (j.run_count || 0) + 1 }
+                : j
+            ),
+            cronRuns: payload.run
+              ? { ...s.cronRuns, [id]: [payload.run, ...((s.cronRuns[id] || []).slice(0, 19))] }
+              : s.cronRuns,
+          }));
+        } else if (msg.type === "cron.completed" && id) {
+          set((s) => {
+            const existing = s.cronRuns[id] || [];
+            const updated = existing.map((r) =>
+              r.id === payload.run_id ? { ...r, status: payload.status, completed_at: payload.completed_at, error_message: payload.error_message ?? null } : r
+            );
+            const newFailureCount = payload.status === "failed"
+              ? s.cronJobs.find((j) => j.id === id)?.failure_count + 1
+              : undefined;
+            return {
+              cronRuns: { ...s.cronRuns, [id]: updated },
+              cronJobs: s.cronJobs.map((j) =>
+                j.id === id
+                  ? { ...j, ...(newFailureCount !== undefined ? { failure_count: newFailureCount } : {}) }
+                  : j
+              ),
+            };
+          });
         }
       },
 
@@ -1534,6 +1760,9 @@ export const useGateway = create(
             const msg = JSON.parse(evt.data);
             if (msg?.type === "agent.control") {
               get()._applyAgentControlEvent(msg.payload || {});
+            } else if (typeof msg?.type === "string" && msg.type.startsWith("cron.")) {
+              // Sprint 3 — backend broadcasts cron lifecycle on the same socket.
+              get()._applyCronEvent(msg);
             }
           } catch {
             // ignore malformed payloads
