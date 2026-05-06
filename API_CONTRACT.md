@@ -142,6 +142,82 @@ Frontend should subscribe to keep multi-tab views in sync.
 - POST /api/v2/models/resolve
 - GET  /api/v2/models/resolve/:model
 
+### Learning (Sprint 6 — outcome feedback loop)
+- GET /api/v2/learning/insights?lookback=
+- GET /api/v2/learning/scores?lookback=
+- GET /api/v2/learning/picker-bonus?agent=&model=
+
+#### Outcome rating
+`POST /api/v2/agents/tasks/:id/outcome` (existing endpoint, Sprint 6
+tightens validation):
+```
+{
+  "outcome": "approved" | "rejected" | "partial" | "unknown",
+  "rating":  1 | 2 | 3 | 4 | 5,            // optional, 1-5 only
+  "notes":   string,                         // optional
+  "shipped": boolean
+}
+```
+Rating out of range returns `400 { error: "rating must be a number 1-5 if provided" }`.
+
+#### GET /api/v2/learning/insights
+Top performers, underperformers, narrative summary. Default lookback
+7 days.
+```
+{
+  "feedback_enabled": boolean,    // mirrors PICKER_OUTCOME_FEEDBACK env
+  "lookback_ms": number,
+  "total_pairs": number,
+  "rated_pairs": number,
+  "top_performers": [
+    { "agent": string, "model": string, "calls": number,
+      "rated": number, "avg_rating": number,
+      "avg_quality": number, "fail_rate": number }
+  ],
+  "underperformers": [...],
+  "summary": string
+}
+```
+
+#### GET /api/v2/learning/scores
+Full per-(agent, model) rolling score table. Same row shape as
+top_performers; includes pairs without rated outcomes (avg_rating null).
+
+#### GET /api/v2/learning/picker-bonus
+Debug endpoint: what bonus would the picker apply for this pair right now?
+```
+{
+  "agent": string, "model": string,
+  "bonus": number,                // -0.30 to +0.15
+  "reason": "feedback_disabled" | "no_data" | "n=N_too_few" |
+            "fail_rate=NN%_n=M" | "quality=Q.QQ_n=N" |
+            "quality=Q.QQ_neutral",
+  "feedback_enabled": boolean
+}
+```
+
+#### Picker bonus modifier
+When `PICKER_OUTCOME_FEEDBACK=1` is set in `.env`, the picker adds an
+outcome-based modifier to each candidate's score:
+
+| Condition | Bonus |
+|---|---|
+| `feedback_enabled` is false | 0 (no-op) |
+| Fewer than 3 rated outcomes for the pair | 0 (insufficient signal) |
+| `fail_rate > 30%` over 10+ calls | **−0.30** (strong override) |
+| `avg_quality ≥ 0.75` (avg rating 4.0+) | +0.15 |
+| `avg_quality < 0.375` (avg rating <2.5) | −0.30 |
+| Otherwise | 0 (neutral) |
+
+Asymmetric by design — penalty for bad outcomes is stronger than
+reward for good ones, to prevent runaway lock-in on a model that
+scored well early then degraded.
+
+Default OFF for the first week of operation so picker stability can
+be A/B observed before letting outcomes feed back into production
+picks. Set `PICKER_OUTCOME_FEEDBACK=1` in `.env` and restart gateway
+to enable.
+
 ### Activities (Sprint 4 — unified event stream)
 - GET /api/v2/activities?since=&until=&categories=&severities=&actor=&entity_id=&type_prefix=&limit=&offset=
 - GET /api/v2/activities/:id

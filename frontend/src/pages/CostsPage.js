@@ -3,6 +3,9 @@ import {
   DollarSign, RefreshCw, AlertCircle, TrendingUp, Activity,
   Brain, Hammer, Eye, FileCheck, Wrench, Layers,
 } from "lucide-react";
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell,
+} from "recharts";
 import { C } from "@/lib/constants";
 import { useGateway } from "@/lib/useGateway";
 
@@ -78,7 +81,25 @@ function HeroCard({ label, value, sub, color, icon: Icon }) {
   );
 }
 
-// Horizontal bar — width is value/max %, segment colour is `color`.
+// Recharts tooltip body — uses our palette, formats by `valueKey`.
+function ChartTooltip({ active, payload, valueFormatter }) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0]?.payload;
+  if (!p) return null;
+  return (
+    <div className="rounded-md px-3 py-2 text-[11px]"
+         style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text }}>
+      <div className="font-semibold mb-1">{p.label}</div>
+      {p.subtitle && <div className="text-[10px] mb-1" style={{ color: C.muted }}>{p.subtitle}</div>}
+      <div className="font-mono tabular-nums">{valueFormatter(p.value)}</div>
+    </div>
+  );
+}
+
+// Horizontal bar fallback — kept for code clarity but unused now that
+// the recharts BarChart replaces it. May come back if recharts proves
+// too heavy in some build profile.
+// eslint-disable-next-line no-unused-vars
 function HorizontalBar({ label, value, max, formatted, color, sublabel }) {
   const pct = max > 0 ? Math.max(2, Math.round((value / max) * 100)) : 0;
   return (
@@ -359,30 +380,37 @@ export default function CostsPage() {
                   No agent activity in this range.
                 </div>
               ) : (
-                <div className="space-y-0.5">
-                  {sortedAgent.map((a) => {
-                    const meta = AGENT_META[a.agent] || { color: C.muted, Icon: Activity };
-                    const Icon = meta.Icon;
-                    const value = sortBy === "cost" ? a.cost_usd : sortBy === "calls" ? a.calls : a.tokens_in;
-                    const formatted = sortBy === "cost"
-                      ? fmtUsd(a.cost_usd)
-                      : sortBy === "calls"
-                      ? `${a.calls}`
-                      : fmtTokens(a.tokens_in);
-                    return (
-                      <HorizontalBar
-                        key={a.agent}
-                        label={(<span className="inline-flex items-center gap-1.5">
-                          <Icon className="w-3 h-3" style={{ color: meta.color }} /> {a.agent}
-                        </span>)}
-                        value={value || 0}
-                        max={maxAgent}
-                        formatted={formatted}
-                        color={meta.color}
-                        sublabel={`${a.calls} calls · ${fmtTokens(a.tokens_in)}/${fmtTokens(a.tokens_out)}`}
+                <div style={{ width: "100%", height: Math.max(180, sortedAgent.length * 38) }}>
+                  <ResponsiveContainer>
+                    <BarChart
+                      data={sortedAgent.map((a) => ({
+                        label: a.agent,
+                        subtitle: `${a.calls} calls · ${fmtTokens(a.tokens_in)} in / ${fmtTokens(a.tokens_out)} out`,
+                        value: sortBy === "cost" ? (a.cost_usd || 0) : sortBy === "calls" ? a.calls : a.tokens_in,
+                        color: AGENT_META[a.agent]?.color || C.accent,
+                      }))}
+                      layout="vertical"
+                      margin={{ top: 4, right: 16, bottom: 4, left: 8 }}
+                      barCategoryGap={4}
+                    >
+                      <XAxis type="number"
+                        stroke={C.muted}
+                        tick={{ fill: C.muted, fontSize: 10 }}
+                        tickFormatter={(v) => sortBy === "cost" ? fmtUsd(v) : sortBy === "calls" ? String(v) : fmtTokens(v)}
                       />
-                    );
-                  })}
+                      <YAxis type="category" dataKey="label"
+                        stroke={C.muted}
+                        tick={{ fill: C.text, fontSize: 11 }}
+                        width={90}
+                      />
+                      <Tooltip content={<ChartTooltip valueFormatter={(v) => sortBy === "cost" ? fmtUsd(v) : sortBy === "calls" ? `${v} calls` : `${fmtTokens(v)} tokens`} />} cursor={{ fill: `${C.accent}10` }} />
+                      <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                        {sortedAgent.map((a) => (
+                          <Cell key={a.agent} fill={AGENT_META[a.agent]?.color || C.accent} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               )
             ) : (
@@ -391,28 +419,34 @@ export default function CostsPage() {
                   No model activity in this range.
                 </div>
               ) : (
-                <div className="space-y-0.5">
-                  {sortedModel.slice(0, 10).map((m) => {
-                    const value = sortBy === "cost" ? m.cost_usd : sortBy === "calls" ? m.calls : m.tokens_in;
-                    const formatted = sortBy === "cost"
-                      ? fmtUsd(m.cost_usd)
-                      : sortBy === "calls"
-                      ? `${m.calls}`
-                      : fmtTokens(m.tokens_in);
-                    return (
-                      <HorizontalBar
-                        key={m.model}
-                        label={m.model}
-                        value={value || 0}
-                        max={maxModel}
-                        formatted={formatted}
-                        color={C.accent}
-                        sublabel={`${m.provider} · ${m.calls} calls · ${fmtTokens(m.tokens_in)}/${fmtTokens(m.tokens_out)}`}
+                <div style={{ width: "100%", height: Math.max(180, Math.min(sortedModel.length, 10) * 38) }}>
+                  <ResponsiveContainer>
+                    <BarChart
+                      data={sortedModel.slice(0, 10).map((m) => ({
+                        label: m.model.split("/").pop(),     // strip provider prefix in label
+                        subtitle: `${m.provider} · ${m.calls} calls · ${fmtTokens(m.tokens_in)} in / ${fmtTokens(m.tokens_out)} out`,
+                        value: sortBy === "cost" ? (m.cost_usd || 0) : sortBy === "calls" ? m.calls : m.tokens_in,
+                      }))}
+                      layout="vertical"
+                      margin={{ top: 4, right: 16, bottom: 4, left: 8 }}
+                      barCategoryGap={4}
+                    >
+                      <XAxis type="number"
+                        stroke={C.muted}
+                        tick={{ fill: C.muted, fontSize: 10 }}
+                        tickFormatter={(v) => sortBy === "cost" ? fmtUsd(v) : sortBy === "calls" ? String(v) : fmtTokens(v)}
                       />
-                    );
-                  })}
+                      <YAxis type="category" dataKey="label"
+                        stroke={C.muted}
+                        tick={{ fill: C.text, fontSize: 10 }}
+                        width={140}
+                      />
+                      <Tooltip content={<ChartTooltip valueFormatter={(v) => sortBy === "cost" ? fmtUsd(v) : sortBy === "calls" ? `${v} calls` : `${fmtTokens(v)} tokens`} />} cursor={{ fill: `${C.accent}10` }} />
+                      <Bar dataKey="value" fill={C.accent} radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
                   {sortedModel.length > 10 && (
-                    <div className="text-[10px] mt-2 px-1" style={{ color: C.muted }}>
+                    <div className="text-[10px] mt-1 px-1" style={{ color: C.muted }}>
                       Showing top 10 of {sortedModel.length} models.
                     </div>
                   )}
@@ -422,9 +456,9 @@ export default function CostsPage() {
           </div>
 
           <div className="text-[10px] px-1" style={{ color: C.muted }}>
-            Daily trend area chart deferred — recharts not yet a dep, will land with the
-            chart introduction in Phase D polish. Hover-tooltip cost breakdowns on task
-            rows wire when AgentsPage / JobsPage rows are upgraded with token columns.
+            Daily trend chart pending backend group_by=day support on /usage/totals
+            (currently returns single bucket). Cost + token columns on AgentsPage /
+            JobsPage task rows: separate follow-up commit.
           </div>
         </div>
       </div>
