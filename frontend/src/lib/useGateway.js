@@ -14,6 +14,8 @@ let gatewayWs = null;
 let gatewayWsReconnectTimer = null;
 let agentsWs = null;
 let agentsWsReconnectTimer = null;
+let activitiesWs = null;
+let activitiesWsReconnectTimer = null;
 const STREAM_STALE_MS = 90000;
 const streamTimers = {};
 
@@ -750,6 +752,25 @@ export const useGateway = create(
       systemAppsError: null,
       systemAppsLastUpdated: null,
 
+      // Activities (/activity page + global pane) — Sprint 4 backend shipped
+      // GET /api/v2/activities?since=&until=&limit=&category=&severity=&actor=&search=
+      // WS  /api/ws/activities — live frame stream
+      activities: [],
+      activitiesLoading: false,
+      activitiesHasMore: false,
+      activitiesError: null,
+      activitiesFilters: {
+        categories: [],     // [] = all
+        severities: [],     // [] = all
+        since: null,
+        until: null,
+        actor: null,
+        search: null,
+      },
+      activitiesPaneOpen: false,
+      activitiesUnreadCount: 0,
+      activitiesWsConnected: false,
+
       // Cron / Schedule (/cron page) — Sprint 3 backend shipped
       // GET    /api/v2/cron/jobs?enabled=&is_system=&agent=
       // GET    /api/v2/cron/jobs/:id
@@ -964,6 +985,89 @@ export const useGateway = create(
           });
           return null;
         }
+      },
+
+      // ── Activities (Sprint 4) ───────────────────────────────────────
+      fetchActivities: async ({ silent = false, append = false, ...overrides } = {}) => {
+        if (!silent) set({ activitiesLoading: true, activitiesError: null });
+        const f = { ...get().activitiesFilters, ...overrides };
+        const params = new URLSearchParams();
+        params.set("limit", String(overrides.limit || 100));
+        if (f.categories?.length) params.set("category", f.categories.join(","));
+        if (f.severities?.length) params.set("severity", f.severities.join(","));
+        if (f.since) params.set("since", String(f.since));
+        if (f.until) params.set("until", String(f.until));
+        if (f.actor)  params.set("actor", f.actor);
+        if (f.search) params.set("search", f.search);
+        try {
+          const res = await fetch(apiUrl(`/api/v2/activities?${params.toString()}`));
+          if (!res.ok) throw new Error(`activities HTTP ${res.status}`);
+          const payload = await res.json();
+          const items = Array.isArray(payload?.activities) ? payload.activities : Array.isArray(payload) ? payload : [];
+          set((s) => ({
+            activities: append ? [...s.activities, ...items] : items,
+            activitiesLoading: false,
+            activitiesError: null,
+            activitiesHasMore: typeof payload?.has_more === "boolean" ? payload.has_more : items.length >= 100,
+          }));
+          return items;
+        } catch (err) {
+          set({ activitiesLoading: false, activitiesError: err?.message || String(err) });
+          return null;
+        }
+      },
+
+      setActivitiesFilters: (patch) => {
+        set((s) => ({ activitiesFilters: { ...s.activitiesFilters, ...patch } }));
+        // Caller is expected to refetch.
+      },
+
+      toggleActivitiesPane: () => {
+        const open = !get().activitiesPaneOpen;
+        set({ activitiesPaneOpen: open, activitiesUnreadCount: open ? 0 : get().activitiesUnreadCount });
+      },
+
+      markActivitiesRead: () => set({ activitiesUnreadCount: 0 }),
+
+      connectActivitiesWebSocket: () => {
+        if (activitiesWs || typeof window === "undefined") return;
+        const target = wsUrl("/api/ws/activities");
+        try {
+          activitiesWs = new WebSocket(target);
+        } catch {
+          activitiesWs = null;
+          return;
+        }
+        activitiesWs.onopen = () => set({ activitiesWsConnected: true });
+        activitiesWs.onmessage = (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            // Backend emits raw activity frames; some servers wrap them
+            // in { type: 'activity', payload }. Accept both.
+            const a = msg?.payload && msg?.type === "activity" ? msg.payload
+                    : msg?.id && msg?.category ? msg
+                    : null;
+            if (!a) return;
+            set((s) => {
+              // Prepend, cap at 500 in memory.
+              const next = [a, ...s.activities.filter((x) => x.id !== a.id)].slice(0, 500);
+              const unread = s.activitiesPaneOpen ? 0 : s.activitiesUnreadCount + 1;
+              return { activities: next, activitiesUnreadCount: unread };
+            });
+          } catch {
+            // ignore malformed
+          }
+        };
+        activitiesWs.onclose = () => {
+          set({ activitiesWsConnected: false });
+          activitiesWs = null;
+          if (activitiesWsReconnectTimer) window.clearTimeout(activitiesWsReconnectTimer);
+          activitiesWsReconnectTimer = window.setTimeout(() => {
+            activitiesWsReconnectTimer = null;
+            get().connectActivitiesWebSocket();
+          }, 3000);
+        };
+        activitiesWs.onerror = () => { /* handled by onclose */ };
       },
 
       // ── Cron / Schedule actions ─────────────────────────────────────
@@ -2473,16 +2577,21 @@ export const useGateway = create(
       // racing two parallel WebSocket opens. If a socket is already open or
       // a connect is in flight, skip re-entry; the existing socket is reused.
       initGateway: async () => {
-        const { connectGateway, fetchModelGroups, status } = get();
+        const { connectGateway, fetchModelGroups, connectActivitiesWebSocket, status } = get();
         // Bail out if already connected or actively connecting.
         if (status === "connected" || status === "connecting") {
           // Still refresh models in case they're stale, but don't re-open WS.
           fetchModelGroups({ refresh: false }).catch(() => null);
+          // Make sure activities WS is up — cheap idempotent call.
+          connectActivitiesWebSocket();
           return;
         }
         set({ status: "connecting" });
         await connectGateway();
         await fetchModelGroups({ refresh: true });
+        // Sprint 4 — subscribe to /api/ws/activities for the global feed.
+        // Idempotent; safe to call from any page.
+        connectActivitiesWebSocket();
       },
       
       // Execute terminal command (simulated)
