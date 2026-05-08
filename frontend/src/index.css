@@ -91,6 +91,163 @@ code {
     }
 }
 
+/* ============================================================
+   MC-CLAW Design System v2 tokens (DESIGN_SYSTEM_V2.md §1)
+   Additive — does not replace existing shadcn vars above.
+   Kit components use these (--mc-*) tokens exclusively.
+   ============================================================ */
+@layer base {
+    :root {
+        /* surfaces */
+        --mc-bg:           #0a0b0d;
+        --mc-bg-1:         #101216;
+        --mc-bg-2:         #161a1f;
+        --mc-bg-3:         #1d2229;
+        --mc-bg-overlay:   rgba(10, 11, 13, 0.85);
+
+        /* text */
+        --mc-fg:           #e8ecf1;
+        --mc-fg-1:         #a8b0ba;
+        --mc-fg-2:         #6b7380;
+        --mc-fg-3:         #3d434c;
+
+        /* lines */
+        --mc-line:         rgba(232, 236, 241, 0.06);
+        --mc-line-strong:  rgba(232, 236, 241, 0.12);
+
+        /* accent (single hue, locked) */
+        --mc-accent:       #5ee2c9;
+        --mc-accent-hover: #7aeed9;
+        --mc-accent-soft:  rgba(94, 226, 201, 0.12);
+        --mc-accent-fg:    #06241e;
+
+        /* status */
+        --mc-ok:           #4ade80;
+        --mc-warn:         #f5c451;
+        --mc-err:          #ff6478;
+        --mc-info:         #6ea8fe;
+        --mc-ok-soft:      rgba(74, 222, 128, 0.12);
+        --mc-warn-soft:    rgba(245, 196, 81, 0.12);
+        --mc-err-soft:     rgba(255, 100, 120, 0.12);
+        --mc-info-soft:    rgba(110, 168, 254, 0.12);
+
+        /* charts (color-blind safe) */
+        --mc-chart-1: #5ee2c9;
+        --mc-chart-2: #6ea8fe;
+        --mc-chart-3: #c99cff;
+        --mc-chart-4: #f5c451;
+        --mc-chart-5: #ff8e72;
+
+        /* spacing scale (8pt + tight cases) */
+        --mc-space-0: 0;
+        --mc-space-1: 2px;
+        --mc-space-2: 4px;
+        --mc-space-3: 8px;
+        --mc-space-4: 12px;
+        --mc-space-5: 16px;
+        --mc-space-6: 24px;
+        --mc-space-7: 32px;
+        --mc-space-8: 48px;
+        --mc-space-9: 64px;
+        --mc-space-10: 96px;
+
+        /* radii */
+        --mc-radius-sm: 6px;
+        --mc-radius-md: 10px;
+        --mc-radius-lg: 14px;
+        --mc-radius-xl: 20px;
+        --mc-radius-full: 999px;
+
+        /* type scale */
+        --mc-text-xs:   11px;
+        --mc-text-sm:   13px;
+        --mc-text-base: 14px;
+        --mc-text-md:   16px;
+        --mc-text-lg:   20px;
+        --mc-text-xl:   28px;
+        --mc-text-2xl:  40px;
+        --mc-text-3xl:  56px;
+
+        --mc-leading-tight:  1.2;
+        --mc-leading-normal: 1.45;
+        --mc-leading-loose:  1.6;
+
+        --mc-tracking-tight:  -0.02em;
+        --mc-tracking-normal: 0;
+        --mc-tracking-wide:   0.02em;
+
+        /* fonts */
+        --mc-font-sans:    "Inter", "SF Pro Text", system-ui, sans-serif;
+        --mc-font-display: "Inter", system-ui, sans-serif;
+        --mc-font-mono:    "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+
+        /* shadows */
+        --mc-shadow-1:    0 1px 2px rgba(0, 0, 0, 0.4);
+        --mc-shadow-2:    0 4px 12px rgba(0, 0, 0, 0.35);
+        --mc-shadow-3:    0 12px 32px rgba(0, 0, 0, 0.45);
+        --mc-shadow-glow: 0 0 24px var(--mc-accent-soft);
+
+        /* motion */
+        --mc-ease-out:   cubic-bezier(0.2, 0.8, 0.2, 1);
+        --mc-ease-in:    cubic-bezier(0.4, 0, 1, 1);
+        --mc-ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
+
+        --mc-dur-fast: 120ms;
+        --mc-dur-base: 200ms;
+        --mc-dur-slow: 320ms;
+        --mc-dur-page: 480ms;
+
+        /* density (Phase O hot-reloads this) */
+        --mc-density: 1;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        :root {
+            --mc-dur-fast: 0ms;
+            --mc-dur-base: 0ms;
+            --mc-dur-slow: 0ms;
+            --mc-dur-page: 0ms;
+        }
+    }
+
+    /* shimmer keyframe for skeletons */
+    @keyframes mc-shimmer {
+        0% { background-position: -200px 0; }
+        100% { background-position: calc(200px + 100%) 0; }
+    }
+
+    @keyframes mc-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    @keyframes mc-spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .mc-spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid currentColor;
+        border-right-color: transparent;
+        border-radius: 50%;
+        display: inline-block;
+        animation: mc-spin 0.7s linear infinite;
+    }
+
+    .mc-skeleton {
+        background: linear-gradient(
+            90deg,
+            var(--mc-bg-2) 0%,
+            var(--mc-bg-3) 50%,
+            var(--mc-bg-2) 100%
+        );
+        background-size: 200px 100%;
+        animation: mc-shimmer 1.4s linear infinite;
+        border-radius: var(--mc-radius-md);
+    }
+}
+
 @layer base {
     [data-debug-wrapper="true"] {
         display: contents !important;
