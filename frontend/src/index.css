@@ -92,44 +92,58 @@ code {
 }
 
 /* ============================================================
-   MC-CLAW Design System v2 tokens (DESIGN_SYSTEM_V2.md §1)
+   MC-CLAW Design System v2 — Cinematic OpenClaw theme
    Additive — does not replace existing shadcn vars above.
    Kit components use these (--mc-*) tokens exclusively.
    ============================================================ */
 @layer base {
     :root {
-        /* surfaces */
-        --mc-bg:           #0a0b0d;
-        --mc-bg-1:         #101216;
-        --mc-bg-2:         #161a1f;
-        --mc-bg-3:         #1d2229;
-        --mc-bg-overlay:   rgba(10, 11, 13, 0.85);
+        /* surfaces — deep black with maroon undertone */
+        --mc-bg:           #06070a;
+        --mc-bg-1:         #0e0a0d;   /* card */
+        --mc-bg-2:         #161013;   /* nested / hover */
+        --mc-bg-3:         #1f1418;   /* selected / pressed */
+        --mc-bg-overlay:   rgba(6, 7, 10, 0.88);
+
+        /* gradient hero surface (use background-image for HeroCard) */
+        --mc-bg-gradient:  radial-gradient(120% 80% at 0% 0%, rgba(255, 48, 78, 0.10) 0%, transparent 55%),
+                           radial-gradient(120% 80% at 100% 100%, rgba(255, 106, 61, 0.08) 0%, transparent 55%),
+                           linear-gradient(180deg, #14080d 0%, #0a0608 100%);
 
         /* text */
-        --mc-fg:           #e8ecf1;
-        --mc-fg-1:         #a8b0ba;
-        --mc-fg-2:         #6b7380;
-        --mc-fg-3:         #3d434c;
+        --mc-fg:           #f7eef0;
+        --mc-fg-1:         #c4a8ae;
+        --mc-fg-2:         #87707a;
+        --mc-fg-3:         #4a3b42;
 
-        /* lines */
-        --mc-line:         rgba(232, 236, 241, 0.06);
-        --mc-line-strong:  rgba(232, 236, 241, 0.12);
+        /* lines (warm-tinted on dark) */
+        --mc-line:         rgba(255, 48, 78, 0.08);
+        --mc-line-strong:  rgba(255, 48, 78, 0.18);
 
-        /* accent (single hue, locked) */
-        --mc-accent:       #5ee2c9;
-        --mc-accent-hover: #7aeed9;
-        --mc-accent-soft:  rgba(94, 226, 201, 0.12);
-        --mc-accent-fg:    #06241e;
+        /* accent — OpenClaw red, primary brand */
+        --mc-accent:       #ff304e;
+        --mc-accent-hover: #ff5470;
+        --mc-accent-soft:  rgba(255, 48, 78, 0.14);
+        --mc-accent-fg:    #14080d;   /* on-accent text */
+        --mc-accent-glow:  rgba(255, 48, 78, 0.35);
 
-        /* status */
-        --mc-ok:           #4ade80;
-        --mc-warn:         #f5c451;
-        --mc-err:          #ff6478;
-        --mc-info:         #6ea8fe;
-        --mc-ok-soft:      rgba(74, 222, 128, 0.12);
-        --mc-warn-soft:    rgba(245, 196, 81, 0.12);
-        --mc-err-soft:     rgba(255, 100, 120, 0.12);
-        --mc-info-soft:    rgba(110, 168, 254, 0.12);
+        /* secondary accent — warm orange, for live/active streams */
+        --mc-accent-2:       #ff6a3d;
+        --mc-accent-2-soft:  rgba(255, 106, 61, 0.14);
+        --mc-accent-2-glow:  rgba(255, 106, 61, 0.30);
+
+        /* status — punchier, brand-coordinated */
+        --mc-ok:           #2cd96a;
+        --mc-warn:         #ffb547;
+        --mc-err:          #ff304e;       /* aligns with brand */
+        --mc-info:         #5fb8ff;
+        --mc-ok-soft:      rgba(44, 217, 106, 0.16);
+        --mc-warn-soft:    rgba(255, 181, 71, 0.16);
+        --mc-err-soft:     rgba(255, 48, 78, 0.16);
+        --mc-info-soft:    rgba(95, 184, 255, 0.16);
+        --mc-ok-glow:      rgba(44, 217, 106, 0.35);
+        --mc-warn-glow:    rgba(255, 181, 71, 0.35);
+        --mc-err-glow:     rgba(255, 48, 78, 0.35);
 
         /* charts (color-blind safe) */
         --mc-chart-1: #5ee2c9;
@@ -181,11 +195,16 @@ code {
         --mc-font-display: "Inter", system-ui, sans-serif;
         --mc-font-mono:    "JetBrains Mono", "SF Mono", ui-monospace, monospace;
 
-        /* shadows */
-        --mc-shadow-1:    0 1px 2px rgba(0, 0, 0, 0.4);
-        --mc-shadow-2:    0 4px 12px rgba(0, 0, 0, 0.35);
-        --mc-shadow-3:    0 12px 32px rgba(0, 0, 0, 0.45);
-        --mc-shadow-glow: 0 0 24px var(--mc-accent-soft);
+        /* shadows + signature glow */
+        --mc-shadow-1:        0 1px 2px rgba(0, 0, 0, 0.5);
+        --mc-shadow-2:        0 6px 18px rgba(0, 0, 0, 0.45);
+        --mc-shadow-3:        0 18px 48px rgba(0, 0, 0, 0.55);
+        --mc-shadow-inner:    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        --mc-shadow-glow:     0 0 28px var(--mc-accent-glow);
+        --mc-shadow-glow-2:   0 0 28px var(--mc-accent-2-glow);
+        --mc-shadow-glow-ok:  0 0 24px var(--mc-ok-glow);
+        --mc-shadow-glow-warn:0 0 24px var(--mc-warn-glow);
+        --mc-shadow-glow-err: 0 0 24px var(--mc-err-glow);
 
         /* motion */
         --mc-ease-out:   cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -245,6 +264,99 @@ code {
         background-size: 200px 100%;
         animation: mc-shimmer 1.4s linear infinite;
         border-radius: var(--mc-radius-md);
+    }
+
+    /* ── Cinematic depth utilities ────────────────────────── */
+
+    /* Hero gradient surface — for big dashboard cards */
+    .mc-hero {
+        background: var(--mc-bg-gradient);
+        border: 1px solid var(--mc-line);
+        box-shadow: var(--mc-shadow-2), var(--mc-shadow-inner);
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Top hairline glow for hero cards */
+    .mc-hero::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 10%;
+        right: 10%;
+        height: 1px;
+        background: linear-gradient(
+            90deg,
+            transparent 0%,
+            var(--mc-accent) 50%,
+            transparent 100%
+        );
+        opacity: 0.6;
+    }
+
+    /* Active / running glow */
+    .mc-glow {
+        box-shadow: var(--mc-shadow-glow);
+    }
+    .mc-glow-2 {
+        box-shadow: var(--mc-shadow-glow-2);
+    }
+
+    /* Animated scan-line — for "live data" streams */
+    @keyframes mc-scan {
+        0%   { transform: translateY(-100%); opacity: 0; }
+        20%  { opacity: 1; }
+        80%  { opacity: 1; }
+        100% { transform: translateY(100%); opacity: 0; }
+    }
+    .mc-scan {
+        position: relative;
+        overflow: hidden;
+    }
+    .mc-scan::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            180deg,
+            transparent 0%,
+            var(--mc-accent-soft) 50%,
+            transparent 100%
+        );
+        animation: mc-scan 3s linear infinite;
+        pointer-events: none;
+    }
+
+    /* Animated gradient border — for active selections */
+    @keyframes mc-border-spin {
+        to { background-position: 200% 50%; }
+    }
+    .mc-border-active {
+        position: relative;
+        background:
+            linear-gradient(var(--mc-bg-1), var(--mc-bg-1)) padding-box,
+            linear-gradient(
+                90deg,
+                var(--mc-accent),
+                var(--mc-accent-2),
+                var(--mc-accent)
+            ) border-box;
+        background-size: 200% 100%, 200% 100%;
+        border: 1px solid transparent;
+        animation: mc-border-spin 4s linear infinite;
+    }
+
+    /* Tabular numerics for metrics */
+    .mc-tabular {
+        font-variant-numeric: tabular-nums;
+        font-feature-settings: "tnum";
+    }
+
+    /* Display heading helper */
+    .mc-display {
+        font-family: var(--mc-font-display);
+        letter-spacing: var(--mc-tracking-tight);
+        font-weight: 600;
     }
 }
 

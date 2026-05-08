@@ -31,15 +31,16 @@ export const Card = React.forwardRef(function Card(
 });
 
 export const HeroCard = React.forwardRef(function HeroCard(
-    { className, children, ...rest },
+    { className, children, glow = false, ...rest },
     ref,
 ) {
     return (
         <div
             ref={ref}
             className={cn(
-                cardBase,
+                "mc-hero",
                 "rounded-[var(--mc-radius-lg)] p-[var(--mc-space-6)]",
+                glow && "mc-glow",
                 className,
             )}
             {...rest}
