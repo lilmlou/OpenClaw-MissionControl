@@ -27,42 +27,59 @@ export const RUNTIME_META = {
   },
 };
 
+// Mapped to Design System v2 (--mc-*) tokens defined in src/index.css.
+// Editing values here re-skins every page that consumes `C.*`.
+// Hot-swap-friendly — once Phase O ships, --mc-* updates propagate to these.
 export const RUNTIME_THEMES = {
   openclaw: {
-    bg: "#0a0a0a",
-    surface: "#141414",
-    surface2: "#1a1a1a",
-    accent: "#ff304e",
-    text: "#f5f5f5",
-    muted: "#b78b92",
-    border: "#3a1d24",
-    green: "#22c55e",
-    yellow: "#fbbf24",
-    red: "#ff304e",
-    orange: "#ff6a3d",
+    bg: "var(--mc-bg)",
+    surface: "var(--mc-bg-1)",
+    surface2: "var(--mc-bg-2)",
+    surface3: "var(--mc-bg-3)",
+    accent: "var(--mc-accent)",
+    accentHover: "var(--mc-accent-hover)",
+    accentSoft: "var(--mc-accent-soft)",
+    accentGlow: "var(--mc-accent-glow)",
+    accent2: "var(--mc-accent-2)",
+    text: "var(--mc-fg)",
+    muted: "var(--mc-fg-2)",
+    fg1: "var(--mc-fg-1)",
+    fg3: "var(--mc-fg-3)",
+    border: "var(--mc-line)",
+    borderStrong: "var(--mc-line-strong)",
+    green: "var(--mc-ok)",
+    yellow: "var(--mc-warn)",
+    red: "var(--mc-err)",
+    orange: "var(--mc-accent-2)",
+    info: "var(--mc-info)",
+    okSoft: "var(--mc-ok-soft)",
+    warnSoft: "var(--mc-warn-soft)",
+    errSoft: "var(--mc-err-soft)",
+    infoSoft: "var(--mc-info-soft)",
   },
 };
 
 export const RUNTIME_BACKGROUNDS = {
   openclaw: {
-    mode: "image",
-    image: "/813a2b5f-2185-438b-b547-9e13ee28e8ea.jpg",
+    mode: "gradient",
+    image: null,
     position: "center center",
     size: "cover",
-    overlay: "linear-gradient(180deg, rgba(2, 8, 20, 0.72) 0%, rgba(5, 9, 20, 0.78) 42%, rgba(5, 8, 18, 0.88) 100%)",
-    accentGlow: "rgba(255, 48, 78, 0.18)",
+    overlay:
+      "radial-gradient(120% 80% at 0% 0%, rgba(255, 48, 78, 0.10) 0%, transparent 55%), radial-gradient(120% 80% at 100% 100%, rgba(255, 106, 61, 0.08) 0%, transparent 55%), linear-gradient(180deg, #14080d 0%, #0a0608 100%)",
+    accentGlow: "var(--mc-accent-glow)",
   },
 };
 
 export const RUNTIME_CHROME = {
   openclaw: {
-    panel: "rgba(22, 12, 16, 0.80)",
-    panelAlt: "rgba(30, 15, 20, 0.84)",
-    panelBorder: "rgba(255, 48, 78, 0.22)",
-    nav: "rgba(16, 8, 12, 0.88)",
-    sidebar: "rgba(14, 6, 10, 0.92)",
-    textMuted: "#c49aa2",
-    glow: "rgba(255, 48, 78, 0.30)",
+    panel: "var(--mc-bg-1)",
+    panelAlt: "var(--mc-bg-2)",
+    panelBorder: "var(--mc-line-strong)",
+    nav: "var(--mc-bg-1)",
+    sidebar: "var(--mc-bg)",
+    textMuted: "var(--mc-fg-2)",
+    glow: "var(--mc-accent-glow)",
   },
 };
 
