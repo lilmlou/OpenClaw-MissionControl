@@ -1,12 +1,15 @@
 import React, { useState } from "react";
-import { ChevronDown, ChevronUp, Clock, Loader2, CheckCircle2, XCircle, ShieldCheck } from "lucide-react";
+import { ChevronDown, ChevronUp, Clock, Loader2, CheckCircle2, XCircle, ShieldCheck, AlertCircle } from "lucide-react";
 import { C } from "@/lib/constants";
 
 const STATUS_STYLES = {
-  pending:        { bg: "rgba(148,163,184,0.1)", fg: "#94a3b8", label: "Pending",  Icon: Clock,        spin: false },
-  running:        { bg: "rgba(251,191,36,0.1)",  fg: "#fbbf24", label: "Running",  Icon: Loader2,      spin: true },
-  done:           { bg: "rgba(34,197,94,0.1)",   fg: "#4ade80", label: "Done",     Icon: CheckCircle2, spin: false },
-  failed:         { bg: "rgba(239,68,68,0.1)",   fg: "#f87171", label: "Failed",   Icon: XCircle,      spin: false },
+  pending:        { bg: "var(--mc-bg-2)",       fg: "var(--mc-fg-2)", label: "Pending",      Icon: Clock,        spin: false },
+  running:        { bg: "var(--mc-warn-soft)",  fg: "var(--mc-warn)", label: "Running",      Icon: Loader2,      spin: true  },
+  // F7 §4.4 — legacy `done` maps to claims_done at the data layer.
+  claims_done:    { bg: "var(--mc-warn-soft)",  fg: "var(--mc-warn)", label: "Claims done",  Icon: AlertCircle,  spin: false },
+  verified:       { bg: "var(--mc-ok-soft)",    fg: "var(--mc-ok)",   label: "Verified",     Icon: CheckCircle2, spin: false },
+  killed:         { bg: "var(--mc-bg-2)",       fg: "var(--mc-fg-2)", label: "Killed",       Icon: XCircle,      spin: false },
+  failed:         { bg: "var(--mc-err-soft)",   fg: "var(--mc-err)",  label: "Failed",       Icon: XCircle,      spin: false },
   needs_approval: { bg: "rgba(168,85,247,0.1)",  fg: "#c084fc", label: "Needs Approval", Icon: ShieldCheck, spin: false },
 };
 const DEFAULT_STATUS = STATUS_STYLES.pending;
@@ -37,7 +40,7 @@ function fmtDuration(start, end) {
  *   Icon  — optional Lucide icon component for the agent
  */
 export function AgentTaskCard({ task, color = "#64748b", Icon = Clock }) {
-  const statusKey = (task.status || "").toLowerCase();
+  const statusKey = (task.status === "done" ? "claims_done" : (task.status || "").toLowerCase());
   const style = STATUS_STYLES[statusKey] || DEFAULT_STATUS;
   const StatusIcon = style.Icon;
   const duration = fmtDuration(task.createdAt, task.completedAt);
@@ -129,8 +132,10 @@ export function AgentTaskCard({ task, color = "#64748b", Icon = Clock }) {
             ? "Queued…"
             : statusKey === "failed"
             ? "Failed without writing a result (likely a runtime crash or timeout)."
-            : statusKey === "done"
-            ? "Completed without producing output."
+            : statusKey === "claims_done"
+            ? "Claims done — no output captured. Verify in /agents/live."
+            : statusKey === "verified"
+            ? "Verified — acceptance checks passed."
             : "Awaiting result"}
         </div>
       )}

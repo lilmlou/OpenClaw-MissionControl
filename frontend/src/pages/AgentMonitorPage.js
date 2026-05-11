@@ -1,12 +1,13 @@
 /**
- * AgentMonitorPage — lightweight monitor page.
+ * AgentMonitorPage — lightweight monitor page (legacy).
  *
- * NOTE: This page is NOT routed in App.js. It exists as a buildable component
- * for future use. Real agent monitoring lives at /agents (AgentsPage).
+ * NOTE: This page is NOT routed in App.js. The real Agent Live View ships at
+ * /agents/live (see AgentLiveViewPage.js + F7_AGENT_LIVE_VIEW.md). The legacy
+ * /agents page (AgentsPage.js) covers per-agent control and dispatch.
  *
  * Wires to:
  *   GET /api/v2/agents/tasks   (polled every 10s)
- *   WS  /api/ws/agents         (real-time push — not yet connected)
+ *   WS  /api/ws/agents         (real-time push — handled by /agents/live)
  */
 import React, { useEffect } from "react";
 import { Activity, RefreshCw } from "lucide-react";

@@ -184,7 +184,14 @@ export default function QudosPage() {
     qudosOverlay,
     qudosPrivacy,
     qudosSessions,
+    qudosSessionsLoading,
+    qudosSessionsError,
     qudosSuggestions,
+    qudosSuggestionsLoading,
+    qudosSuggestionsError,
+    qudosCapability,
+    qudosCapabilityUnconfigured,
+    qudosCapabilityError,
     toggleQudosApp,
     setQudosCapability,
     setQudosPermission,
@@ -193,18 +200,43 @@ export default function QudosPage() {
     updateQudosPrivacy,
     excludeQudosApp,
     pauseQudos,
-    startQudosSession,
-    pauseQudosSession,
-    stopQudosSession,
-    addQudosSuggestion,
-    resolveQudosSuggestion,
+    fetchQudosSessions,
+    fetchQudosSuggestions,
+    fetchQudosPermissions,
+    fetchQudosApps,
+    createQudosSession,
+    pauseQudosSessionRemote,
+    stopQudosSessionRemote,
+    resolveQudosSuggestionRemote,
     events,
-    jobs,
   } = useGateway();
 
   const apps = useMemo(flattenApps, []);
   const [groupFilter, setGroupFilter] = useState("all");
   const [showAllSessions, setShowAllSessions] = useState(false);
+
+  // Bootstrap from backend once. Then poll sessions/suggestions every 5s while
+  // the page is visible. Capture/permissions only refresh on focus changes.
+  useEffect(() => {
+    fetchQudosSessions({ silent: false }).catch(() => null);
+    fetchQudosSuggestions({ silent: false }).catch(() => null);
+    fetchQudosPermissions().catch(() => null);
+    fetchQudosApps().catch(() => null);
+    let cancelled = false;
+    const tick = () => {
+      if (cancelled || document.visibilityState !== "visible") return;
+      fetchQudosSessions({ silent: true }).catch(() => null);
+      fetchQudosSuggestions({ silent: true }).catch(() => null);
+    };
+    const id = setInterval(tick, 5000);
+    const onVis = () => { if (document.visibilityState === "visible") tick(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [fetchQudosSessions, fetchQudosSuggestions, fetchQudosPermissions, fetchQudosApps]);
 
   // Auto-pick a default active app once on mount if none set.
   useEffect(() => {
@@ -214,39 +246,45 @@ export default function QudosPage() {
   const activeApp = apps.find((a) => a.id === qudosActiveAppId) || apps[0];
   const ActiveAppIcon = activeApp?.icon || Monitor;
 
+  // Backend session shape uses `status: "active" | "paused" | "stopped"` and
+  // `created_at` (snake_case). Treat anything not stopped/completed as live.
+  const isLiveStatus = (s) => s.status === "active" || s.status === "running";
   const enabledCount = Object.keys(qudosEnabledApps || {}).length;
-  const sessionsActive = qudosSessions.filter((s) => s.status === "running").length;
+  const sessionsActive = qudosSessions.filter(isLiveStatus).length;
   const sessionsToShow = showAllSessions ? qudosSessions : qudosSessions.slice(0, 4);
   const visibleApps = groupFilter === "all" ? apps : apps.filter((a) => a.group === groupFilter);
+
+  // Capture/accessibility unavailable until native helper ships.
+  const captureUnavailable = !!qudosCapabilityUnconfigured
+    || (qudosCapability && (qudosCapability.screen_capture_granted === false || qudosCapability.accessibility_granted === false));
 
   const recentEvents = useMemo(() => {
     if (!Array.isArray(events)) return [];
     return events.filter((e) => String(e.type || "").startsWith("qudos.")).slice(-8).reverse();
   }, [events]);
 
-  const handleStart = (app) => {
+  const handleStart = async (app) => {
     if (qudosPrivacy.paused) return;
     if (qudosPrivacy.excludeApps.includes(app.id)) return;
-    const { sessionId, jobId } = startQudosSession(app.id, `Cowork in ${app.label}`, {});
     setQudosActiveApp(app.id);
     if (!qudosEnabledApps[app.id]) toggleQudosApp(app.id);
-    // Drop a placeholder suggestion so the feed isn't empty on first start.
-    addQudosSuggestion({
-      sessionId,
+    const capabilities = qudosCapabilitiesByApp?.[app.id] || { watch: true, suggest: true, act: false, launch: true };
+    const result = await createQudosSession({
       appId: app.id,
-      text: `Qudos is now watching ${app.label}. Tap the overlay button to ask for help.`,
-      severity: "info",
+      task: `Cowork in ${app.label}`,
+      agent: "openclaw",
+      capabilities,
     });
-    return jobId;
+    if (!result?.ok) {
+      // eslint-disable-next-line no-console
+      console.warn("[qudos] session create failed:", result?.error);
+    }
+    return result?.session?.id || null;
   };
 
   const handleAddSuggestion = () => {
-    if (!activeApp) return;
-    addQudosSuggestion({
-      appId: activeApp.id,
-      text: `Tip drafted while watching ${activeApp.label}.`,
-      severity: "info",
-    });
+    // Suggestions come from the backend now; no fake-suggestion injector.
+    fetchQudosSuggestions({ silent: false }).catch(() => null);
   };
 
   const renderActiveWorkspace = () => (
@@ -284,7 +322,7 @@ export default function QudosPage() {
           </div>
           <div className="text-[11px] font-medium truncate">{activeApp?.label || "Choose an app"}</div>
           <div className="text-[10px]" style={{ color: C.muted }}>
-            Screenshot preview: <span className="opacity-70">offline (bridge pending)</span>
+            Screenshot preview: <span className="opacity-70">{captureUnavailable ? "needs native macOS helper" : "ready"}</span>
           </div>
         </div>
 
@@ -319,8 +357,9 @@ export default function QudosPage() {
               onClick={handleAddSuggestion}
               className="px-3 py-1.5 rounded-md text-[12px] font-medium flex items-center gap-1.5"
               style={{ background: C.surface2, color: C.text, border: `1px solid ${C.border}` }}
+              title="Refresh suggestions from backend"
             >
-              <Sparkles className="w-3 h-3" /> Drop a test suggestion
+              <Sparkles className="w-3 h-3" /> Refresh suggestions
             </button>
           </div>
         </div>
@@ -388,16 +427,28 @@ export default function QudosPage() {
         )}
       />
 
-      {qudosSessions.length === 0 ? (
+      {qudosSessionsError ? (
+        <div className="text-[12px] py-3 px-3 rounded-lg" style={{ color: "#ef4444", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)" }}>
+          Backend error loading sessions: {qudosSessionsError}
+        </div>
+      ) : qudosSessionsLoading && qudosSessions.length === 0 ? (
         <div className="text-[12px] py-4 text-center rounded-lg" style={{ color: C.muted, background: C.surface2 }}>
-          Start a session from any app card above. Each session also creates a Job (visible on /jobs) and emits Events (visible on /events).
+          Loading sessions…
+        </div>
+      ) : qudosSessions.length === 0 ? (
+        <div className="text-[12px] py-4 text-center rounded-lg" style={{ color: C.muted, background: C.surface2 }}>
+          No sessions yet. Start one from any app card above — sessions persist on the backend.
         </div>
       ) : (
         <div className="space-y-2">
           {sessionsToShow.map((session) => {
             const app = apps.find((a) => a.id === session.appId);
             const Icon = app?.icon || Sparkles;
-            const statusColor = session.status === "running" ? "#fbbf24" : session.status === "paused" ? "#94a3b8" : "#22c55e";
+            const status = session.status || "active";
+            const isStopped = status === "stopped" || status === "completed";
+            const isPaused = status === "paused";
+            const statusColor = isPaused ? "#94a3b8" : isStopped ? "#22c55e" : "#fbbf24";
+            const startedAt = session.created_at ?? session.createdAt ?? null;
             return (
               <div key={session.id} className="p-3 rounded-lg" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
                 <div className="flex items-center gap-3">
@@ -414,35 +465,29 @@ export default function QudosPage() {
                         className="px-1.5 py-0.5 text-[9px] font-mono rounded uppercase tracking-wider"
                         style={{ background: `${statusColor}22`, color: statusColor, border: `1px solid ${statusColor}55` }}
                       >
-                        {session.status}
+                        {status}
                       </span>
                     </div>
                     <div className="text-[11px] truncate" style={{ color: C.muted }}>
-                      {app?.label || session.appId || "—"} · {session.agent} · started {fmtAge(session.createdAt)}
-                      {session.jobId && (
-                        <>
-                          {" · "}
-                          <Link to="/jobs" className="underline" style={{ color: C.muted }}>job {session.jobId.slice(0, 6)}</Link>
-                        </>
-                      )}
+                      {app?.label || session.appId || "—"} · {session.agent || "openclaw"} · started {fmtAge(startedAt)}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    {session.status !== "completed" && (
+                    {!isStopped && (
                       <button
                         type="button"
-                        onClick={() => pauseQudosSession(session.id)}
+                        onClick={() => pauseQudosSessionRemote(session.id)}
                         className="w-7 h-7 rounded-md flex items-center justify-center"
                         style={{ background: C.surface, color: C.muted, border: `1px solid ${C.border}` }}
-                        title={session.status === "paused" ? "Resume" : "Pause"}
+                        title={isPaused ? "Resume" : "Pause"}
                       >
-                        {session.status === "paused" ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+                        {isPaused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
                       </button>
                     )}
-                    {session.status !== "completed" && (
+                    {!isStopped && (
                       <button
                         type="button"
-                        onClick={() => stopQudosSession(session.id)}
+                        onClick={() => stopQudosSessionRemote(session.id)}
                         className="w-7 h-7 rounded-md flex items-center justify-center"
                         style={{ background: "rgba(239,68,68,0.12)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)" }}
                         title="Stop session"
@@ -570,9 +615,17 @@ export default function QudosPage() {
         )}
       />
 
-      {qudosSuggestions.length === 0 ? (
+      {qudosSuggestionsError ? (
+        <div className="text-[12px] py-3 px-3 rounded-lg" style={{ color: "#ef4444", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)" }}>
+          Backend error loading suggestions: {qudosSuggestionsError}
+        </div>
+      ) : qudosSuggestionsLoading && qudosSuggestions.length === 0 ? (
         <div className="text-[12px] py-4 text-center rounded-lg" style={{ color: C.muted, background: C.surface2 }}>
-          Start a session from any app to see suggestions here.
+          Loading suggestions…
+        </div>
+      ) : qudosSuggestions.length === 0 ? (
+        <div className="text-[12px] py-4 text-center rounded-lg" style={{ color: C.muted, background: C.surface2 }}>
+          No suggestions yet. They appear here once the backend pushes one (or once an agent writes via /api/v2/qudos/suggestions).
         </div>
       ) : (
         <div className="space-y-2 max-h-[260px] overflow-auto pr-1">
@@ -585,14 +638,14 @@ export default function QudosPage() {
                 <div className="min-w-0 flex-1">
                   <div className="text-[12px] truncate">{s.text}</div>
                   <div className="text-[10px] mt-0.5" style={{ color: C.muted }}>
-                    {app?.label || "Qudos"} · {fmtAge(s.createdAt)} · {s.status}
+                    {app?.label || "Qudos"} · {fmtAge(s.created_at ?? s.createdAt)} · {s.status}
                   </div>
                 </div>
                 {isPending ? (
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       type="button"
-                      onClick={() => resolveQudosSuggestion(s.id, "approved")}
+                      onClick={() => resolveQudosSuggestionRemote(s.id, "approve")}
                       className="px-2 py-0.5 rounded-md text-[10px] font-medium"
                       style={{ background: "rgba(34,197,94,0.14)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.3)" }}
                     >
@@ -600,7 +653,7 @@ export default function QudosPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => resolveQudosSuggestion(s.id, "dismissed")}
+                      onClick={() => resolveQudosSuggestionRemote(s.id, "dismiss")}
                       className="px-2 py-0.5 rounded-md text-[10px] font-medium"
                       style={{ background: C.surface, color: C.muted, border: `1px solid ${C.border}` }}
                     >
@@ -739,6 +792,38 @@ export default function QudosPage() {
             </div>
           )}
 
+          {captureUnavailable && (
+            <div
+              className="p-3 rounded-lg flex items-start gap-2 text-[12px]"
+              style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.35)", color: "#fbbf24" }}
+              data-testid="qudos-capture-unavailable"
+            >
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold">Qudos capture needs the native macOS helper</div>
+                <div className="opacity-90">
+                  Sessions and suggestions are live, but screen capture and accessibility actions need a native helper binary and macOS permissions.
+                  {qudosCapability?.notes ? <> <span className="opacity-80">— {qudosCapability.notes}</span></> : null}
+                </div>
+                {qudosCapability && (
+                  <div className="mt-1 text-[11px] font-mono opacity-80">
+                    platform: {qudosCapability.platform || "?"} · screen_capture_granted: {String(!!qudosCapability.screen_capture_granted)} · accessibility_granted: {String(!!qudosCapability.accessibility_granted)}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {qudosCapabilityError && !captureUnavailable && (
+            <div
+              className="p-3 rounded-lg flex items-center gap-2 text-[12px]"
+              style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444" }}
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Could not reach Qudos capability endpoint: {qudosCapabilityError}
+            </div>
+          )}
+
           {renderActiveWorkspace()}
           {renderConnectorsGrid()}
           {renderSessions()}
@@ -748,7 +833,10 @@ export default function QudosPage() {
           {renderRecentEvents()}
 
           <div className="text-[10px] pt-2" style={{ color: C.muted }}>
-            Backend bridges pending: <code className="px-1 rounded" style={{ background: C.surface2 }}>POST /api/v2/qudos/sessions</code>, <code className="px-1 rounded" style={{ background: C.surface2 }}>WS /api/ws/qudos/events</code>, macOS Screen Recording + Accessibility probes. UI/state ready to swap in.
+            Live: <code className="px-1 rounded" style={{ background: C.surface2 }}>/api/v2/qudos/sessions</code>, <code className="px-1 rounded" style={{ background: C.surface2 }}>/api/v2/qudos/suggestions</code>.
+            {captureUnavailable && (
+              <> Pending: native helper for <code className="px-1 rounded" style={{ background: C.surface2 }}>screen capture</code> + <code className="px-1 rounded" style={{ background: C.surface2 }}>accessibility</code>.</>
+            )}
           </div>
         </div>
       </div>

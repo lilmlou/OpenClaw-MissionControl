@@ -7,21 +7,24 @@ import React from "react";
 import { cn } from "./utils";
 import { ErrorState } from "./ErrorState";
 
-export function PageShell({ children, className }) {
+export function PageShell({ children, className, maxWidth = "1200px" }) {
     return (
         <div
-            className={cn(
-                "flex flex-col w-full min-h-full",
-                "p-[var(--mc-space-6)] gap-[var(--mc-space-6)]",
-                className,
-            )}
+            className={cn("flex flex-col h-full w-full overflow-hidden", className)}
             style={{
                 fontFamily: "var(--mc-font-sans)",
                 color: "var(--mc-fg)",
                 background: "var(--mc-bg)",
             }}
         >
-            {children}
+            <div className="flex-1 min-h-0 overflow-y-auto">
+                <div
+                    className="flex flex-col gap-[var(--mc-space-6)] p-[var(--mc-space-6)] mx-auto w-full"
+                    style={{ maxWidth }}
+                >
+                    {children}
+                </div>
+            </div>
         </div>
     );
 }

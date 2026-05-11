@@ -35,12 +35,33 @@ const EVENT_STYLES = {
 };
 
 const STATUS_ICON = {
-  done:           CheckCircle2,
+  // F7 §4.4 — `done` is banned; legacy status maps to claims_done at data layer.
+  claims_done:    AlertCircle,
+  verified:       CheckCircle2,
+  killed:         XCircle,
   running:        Loader2,
   pending:        Clock,
   failed:         XCircle,
   needs_approval: AlertCircle,
 };
+const STATUS_LABEL = {
+  claims_done:    "claims done",
+  verified:       "verified",
+  killed:         "killed",
+  running:        "running",
+  pending:        "pending",
+  failed:         "failed",
+  needs_approval: "needs approval",
+};
+const STATUS_COLOR = {
+  claims_done: "var(--mc-warn)",
+  verified:    "var(--mc-ok)",
+  killed:      "var(--mc-fg-2)",
+  running:     "var(--mc-warn)",
+  failed:      "var(--mc-err)",
+  pending:     "var(--mc-fg-2)",
+};
+const statusColorFor = (k) => STATUS_COLOR[k] || "var(--mc-fg-2)";
 
 function fmtTime(ts) {
   if (!ts) return "—";
@@ -93,7 +114,8 @@ export function AgentActivityFeed({ tasks = [], filter = "all", maxItems = 20, c
           {visible.map((task) => {
             const AgentIcon = AGENT_ICONS[task.agent] || Bot;
             const color = AGENT_COLORS[task.agent] || "#64748b";
-            const statusKey = (task.status || "").toLowerCase();
+            const rawStatus = (task.status || "").toLowerCase();
+            const statusKey = rawStatus === "done" ? "claims_done" : rawStatus;
             const StatusIcon = STATUS_ICON[statusKey] || Clock;
             return (
               <div
@@ -107,7 +129,7 @@ export function AgentActivityFeed({ tasks = [], filter = "all", maxItems = 20, c
                 </span>
                 <StatusIcon
                   className={`w-3 h-3 shrink-0 ${statusKey === "running" ? "animate-spin" : ""}`}
-                  style={{ color: statusKey === "failed" ? "#f87171" : statusKey === "done" ? "#4ade80" : "#fbbf24" }}
+                  style={{ color: statusColorFor(statusKey) }}
                 />
                 <span className="text-[10px] shrink-0" style={{ color: C.muted }}>
                   {fmtTime(task.createdAt)}
@@ -125,13 +147,10 @@ export function AgentActivityFeed({ tasks = [], filter = "all", maxItems = 20, c
       {visible.map((task) => {
         const AgentIcon = AGENT_ICONS[task.agent] || Bot;
         const color = AGENT_COLORS[task.agent] || "#64748b";
-        const statusKey = (task.status || "").toLowerCase();
+        const rawStatus = (task.status || "").toLowerCase();
+        const statusKey = rawStatus === "done" ? "claims_done" : rawStatus;
         const StatusIcon = STATUS_ICON[statusKey] || Clock;
-        const statusColor =
-          statusKey === "failed" ? "#f87171"
-          : statusKey === "done" ? "#4ade80"
-          : statusKey === "running" ? "#fbbf24"
-          : "#94a3b8";
+        const statusColor = statusColorFor(statusKey);
 
         return (
           <div
@@ -155,7 +174,7 @@ export function AgentActivityFeed({ tasks = [], filter = "all", maxItems = 20, c
                   style={{ background: `${statusColor}18`, color: statusColor, border: `1px solid ${statusColor}30` }}
                 >
                   <StatusIcon className={`w-2.5 h-2.5 ${statusKey === "running" ? "animate-spin" : ""}`} />
-                  {statusKey.toUpperCase()}
+                  {(STATUS_LABEL[statusKey] || statusKey).toUpperCase()}
                 </span>
                 {task.phase && (
                   <span

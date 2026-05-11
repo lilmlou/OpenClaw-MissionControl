@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { C } from "@/lib/constants";
 import { useGateway } from "@/lib/useGateway";
+import { Link } from "react-router-dom";
 
 /**
  * AgentsPage
@@ -32,12 +33,19 @@ const AGENT_DEFS = [
 const AGENT_MAP = Object.fromEntries(AGENT_DEFS.map((a) => [a.id, a]));
 
 const STATUS_STYLE = {
-  done:           { bg: "rgba(34,197,94,0.14)",  fg: "#4ade80", Icon: CheckCircle2,  label: "DONE" },
-  running:        { bg: "rgba(251,191,36,0.16)", fg: "#fbbf24", Icon: Loader2,       label: "RUNNING", spin: true },
-  pending:        { bg: "rgba(148,163,184,0.14)",fg: "#94a3b8", Icon: Clock,         label: "PENDING" },
-  failed:         { bg: "rgba(239,68,68,0.16)",  fg: "#f87171", Icon: XCircle,       label: "FAILED" },
-  needs_approval: { bg: "rgba(168,85,247,0.16)", fg: "#c084fc", Icon: ShieldCheck,   label: "APPROVAL" },
+  // F7 §4.4 — legacy `done` exit code maps to "claims_done" at the data layer.
+  // No standalone "done" key — remap before looking up.
+  claims_done:    { bg: "var(--mc-warn-soft)",  fg: "var(--mc-warn)", Icon: AlertCircle,    label: "CLAIMS DONE" },
+  verified:       { bg: "var(--mc-ok-soft)",    fg: "var(--mc-ok)",   Icon: CheckCircle2,   label: "VERIFIED" },
+  killed:         { bg: "var(--mc-bg-2)",       fg: "var(--mc-fg-2)", Icon: XCircle,        label: "KILLED" },
+  running:        { bg: "var(--mc-warn-soft)",  fg: "var(--mc-warn)", Icon: Loader2,        label: "RUNNING", spin: true },
+  pending:        { bg: "var(--mc-bg-2)",       fg: "var(--mc-fg-2)", Icon: Clock,          label: "PENDING" },
+  failed:         { bg: "var(--mc-err-soft)",   fg: "var(--mc-err)",  Icon: XCircle,        label: "FAILED" },
+  needs_approval: { bg: "rgba(168,85,247,0.16)", fg: "#c084fc", Icon: ShieldCheck,    label: "APPROVAL" },
 };
+
+// Remap legacy status strings before looking up style.
+const remapStatus = (s) => (s === "done" ? "claims_done" : s);
 
 const defaultStatus = { bg: "rgba(148,163,184,0.12)", fg: "#94a3b8", Icon: Clock, label: "UNKNOWN" };
 
@@ -85,7 +93,7 @@ function fmtDuration(start, end) {
 function TaskCard({ task }) {
   const agentDef = AGENT_MAP[task.agent] || { label: task.agent || "agent", color: "#64748b", Icon: Bot };
   const Icon = agentDef.Icon;
-  const statusKey = (task.status || "").toLowerCase();
+  const statusKey = remapStatus((task.status || "").toLowerCase());
   const status = STATUS_STYLE[statusKey] || defaultStatus;
   const StatusIcon = status.Icon;
   const duration = fmtDuration(task.createdAt, task.completedAt);
@@ -176,8 +184,10 @@ function TaskCard({ task }) {
             ? "Queued…"
             : statusKey === "failed"
             ? "Failed without writing a result (likely a runtime crash or timeout)."
-            : statusKey === "done"
-            ? "Completed without producing output."
+            : statusKey === "claims_done"
+            ? "Claims done — no output captured. Verify in /agents/live."
+            : statusKey === "verified"
+            ? "Verified — acceptance checks passed."
             : "Awaiting result"}
         </div>
       )}
@@ -470,6 +480,15 @@ export default function AgentsPage() {
               Updated {fmtTime(agentTasksLastUpdated)}
             </span>
           )}
+          <Link
+            to="/agents/live"
+            className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
+            style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.accent }}
+            data-testid="agents-live-view-link"
+          >
+            <Eye className="w-3 h-3" />
+            Live View
+          </Link>
           <button
             onClick={() => fetchAgentTasks()}
             disabled={agentTasksLoading}

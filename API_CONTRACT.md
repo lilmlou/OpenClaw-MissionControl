@@ -142,6 +142,109 @@ Frontend should subscribe to keep multi-tab views in sync.
 - POST /api/v2/models/resolve
 - GET  /api/v2/models/resolve/:model
 
+### Quota (Sprint 8 — provider quota tracking)
+- GET   /api/v2/quota
+- GET   /api/v2/quota/:provider
+- PATCH /api/v2/quota/:provider
+- POST  /api/v2/quota/:provider/reset
+- POST  /api/v2/quota/:provider/topup
+
+#### Provider quota row shape
+```
+{
+  "provider": string,
+  "quota_type": "fixed_subscription"     |  // Ollama
+                "flat_rate_with_overage" |  // HF Pro, OpenCode Zen
+                "capped_subscription"    |  // OpenCode Go
+                "pay_per_call"           |  // OpenRouter, direct APIs
+                "free_tier"              |  // Venice free
+                "unavailable",
+  "monthly_cap_usd":  number | null,
+  "weekly_cap_usd":   number | null,
+  "daily_cap_usd":    number | null,
+  "total_credit_usd": number | null,        // for prepaid; null if N/A
+  "current_period_start": number,
+  "current_period_spent_usd": number,
+  "current_week_spent_usd":   number,
+  "current_day_spent_usd":    number,
+  "enabled": boolean,
+  "notes": string | null,
+  "last_updated": number,
+  "created_at": number,
+
+  // Computed by GET — not stored:
+  "monthly_utilization_pct": number | null,
+  "weekly_utilization_pct":  number | null,
+  "daily_utilization_pct":   number | null,
+  "credit_utilization_pct":  number | null
+}
+```
+
+#### GET /api/v2/quota
+Lists all 8 seeded providers (anthropic, huggingface, ollama, openai,
+opencode-go, opencode-zen, openrouter, venice) plus any auto-created on
+first-sighting. Includes a summary block with subscription value vs
+spend rollups.
+
+#### PATCH /api/v2/quota/:provider
+Body fields (all optional):
+```
+{
+  "monthly_cap_usd":  number | null,
+  "weekly_cap_usd":   number | null,
+  "daily_cap_usd":    number | null,
+  "total_credit_usd": number | null,
+  "enabled": boolean,
+  "notes": string | null
+}
+```
+- Numeric caps must be `null` (clear cap) or non-negative number.
+- Unknown fields → `400 invalid_field`.
+
+#### POST /api/v2/quota/:provider/reset
+Body: `{ period: "day" | "week" | "month" }`. Resets the corresponding
+spend counter on this provider. Monthly reset also advances
+`current_period_start`.
+
+#### POST /api/v2/quota/:provider/topup
+Body: `{ amount_usd: number }`. For prepaid providers (HF, OpenRouter)
+adds to `total_credit_usd`. Amount must be positive.
+
+#### Picker integration
+The picker calls `checkPickerQuota(provider)` for every candidate model.
+Result has shape `{ available, reason, bonus }`:
+
+| Condition | available | bonus |
+|---|---|---|
+| `enabled=false` | false | 0 |
+| `quota_type='unavailable'` | false | 0 |
+| Any cap exceeded | false | 0 |
+| `total_credit_usd` exhausted | false | 0 |
+| `quota_type='free_tier'` | true | +0.20 |
+| `quota_type='fixed_subscription'` | true | +0.15 |
+| `capped_subscription` < 50% utilized | true | +0.10 |
+| `capped_subscription` 50-85% utilized | true | 0 |
+| `capped_subscription` > 85% utilized | true | -0.15 |
+| `pay_per_call` | true | 0 |
+| No quota row | true | 0 (auto-creates row on next track) |
+
+Hard filter (`available=false`) excludes the model from the candidate
+pool entirely. Soft bonus is added to the score after capability +
+preferred + outcome stages.
+
+#### System cron seeds (Sprint 8 additions)
+Three additional system crons seeded idempotently on every boot — added
+even to existing installations from Sprint 3:
+
+| id | schedule | what |
+|---|---|---|
+| `sys-quota-daily-reset` | `0 0 * * *` | Reset `current_day_spent_usd` to 0 |
+| `sys-quota-weekly-reset` | `0 0 * * 1` | Reset `current_week_spent_usd` (Mondays) |
+| `sys-quota-monthly-rollover` | `0 0 1 * *` | Reset `current_period_spent_usd` + advance `current_period_start` |
+
+These crons are synthetic (no LLM call) — they call the rollover SQL
+directly via `runQuotaRollover` handler.
+
 ### Learning (Sprint 6 — outcome feedback loop)
 - GET /api/v2/learning/insights?lookback=
 - GET /api/v2/learning/scores?lookback=

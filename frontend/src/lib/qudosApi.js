@@ -1,40 +1,29 @@
 /**
  * qudosApi.js
  * ---------------------------------------------------------------------------
- * Thin API layer for the Qudos co-pilot. Today every function delegates to
- * the local Zustand store (see useGateway.js qudos* slice). When the backend
- * ships, swap the body of each function with the matching fetch() call below
- * and the UI keeps working unchanged.
+ * Thin API layer for the Qudos co-pilot. Routes through the gateway store so
+ * UI doesn't need to know whether a call hit the network or fell back.
  *
- * Backend contract (TODO — to be implemented by the OpenClaw gateway):
+ * Backend status (verified 2026-05-07):
+ *   ✓ live + persisted to SQLite:
+ *       POST   /api/v2/qudos/sessions
+ *       GET    /api/v2/qudos/sessions
+ *       POST   /api/v2/qudos/sessions/:id/pause
+ *       POST   /api/v2/qudos/sessions/:id/stop
+ *       GET    /api/v2/qudos/suggestions
+ *       POST   /api/v2/qudos/suggestions/:id/approve
+ *       POST   /api/v2/qudos/suggestions/:id/dismiss
  *
- *   GET    /api/v2/qudos/apps                          → supported app catalog
- *   GET    /api/v2/qudos/apps/:id/capabilities         → per-app capabilities
- *   POST   /api/v2/qudos/apps/:id/enable
- *   POST   /api/v2/qudos/apps/:id/disable
- *
- *   GET    /api/v2/qudos/permissions                   → current macOS perms
- *   POST   /api/v2/qudos/permissions/request           → trigger system prompt
- *
- *   POST   /api/v2/qudos/sessions  { appId, task, agent, capabilities }
- *      →  { id, jobId, status }
- *   GET    /api/v2/qudos/sessions
- *   POST   /api/v2/qudos/sessions/:id/pause
- *   POST   /api/v2/qudos/sessions/:id/stop
- *   GET    /api/v2/qudos/sessions/:id/events           → SSE stream
- *
- *   POST   /api/v2/qudos/capture                       → push screenshot
- *   WS     /api/ws/qudos/overlay                       → overlay state
- *
- *   GET    /api/v2/qudos/suggestions                   → paginated feed
- *   POST   /api/v2/qudos/suggestions/:id/approve
- *   POST   /api/v2/qudos/suggestions/:id/dismiss
+ *   ⚠ honest-unavailable until native macOS helper ships:
+ *       GET    /api/v2/qudos/apps         (returns apps:[] + capability_unconfigured)
+ *       GET    /api/v2/qudos/permissions  (returns capability report)
+ *       POST   /api/v2/qudos/permissions/request   (501 / manual instructions)
+ *       POST   /api/v2/qudos/capture               (501 / capture_unconfigured)
  *
  * Frontend contract:
- *   - Each function returns the same shape regardless of whether it hits
- *     the network or just mutates the store, so callers don't need to care.
- *   - Errors are reported as `{ ok: false, error }`. Successful calls return
- *     the canonical record, e.g. `{ ok: true, session }` or `{ ok: true, suggestion }`.
+ *   - Each function returns { ok, ... } so callers don't need try/catch.
+ *   - Local-only helpers (overlay/privacy/exclusions) still mutate the store
+ *     directly — backend persistence for those settings is not yet shipped.
  */
 
 import { useGateway } from "@/lib/useGateway";
@@ -43,13 +32,11 @@ const store = () => useGateway.getState();
 
 // ─── Apps & capabilities ────────────────────────────────────────────────────
 export async function listApps() {
-  // TODO: const res = await fetch(apiUrl("/api/v2/qudos/apps"));
-  // For now, the static catalog lives in constants.DESKTOP_APP_GROUPS.
-  return { ok: true, apps: [] };
+  return store().fetchQudosApps();
 }
 
 export async function setAppEnabled(appId, on) {
-  // TODO: POST /api/v2/qudos/apps/:id/enable | /disable
+  // Local toggle — no backend per-app enable/disable yet.
   const s = store();
   if (!!s.qudosEnabledApps?.[appId] === !!on) return { ok: true, appId, enabled: !!on };
   s.toggleQudosApp(appId);
@@ -57,105 +44,128 @@ export async function setAppEnabled(appId, on) {
 }
 
 export async function setAppCapability(appId, capabilityKey, on) {
-  // TODO: PATCH /api/v2/qudos/apps/:id/capabilities { [key]: on }
+  // Local-only per-app capability matrix. Backend has no equivalent yet.
   store().setQudosCapability(appId, capabilityKey, on);
   return { ok: true, appId, capabilityKey, on };
 }
 
-// ─── Permissions ────────────────────────────────────────────────────────────
+// ─── Permissions / capability report ────────────────────────────────────────
 export async function getPermissions() {
-  // TODO: GET /api/v2/qudos/permissions
-  return { ok: true, permissions: store().qudosPermissions };
+  return store().fetchQudosPermissions();
 }
 
-export async function requestPermission(key) {
-  // TODO: POST /api/v2/qudos/permissions/request → opens System Settings deep link
-  store().setQudosPermission(key, true);
-  return { ok: true, key, granted: true };
+export async function requestPermission(_key) {
+  // Backend POST /api/v2/qudos/permissions/request returns 501 until the
+  // native macOS helper ships. We forward the call so callers see the honest
+  // unavailable state and can render System Settings deep-link guidance.
+  try {
+    const apiUrl = (path) => {
+      const base = (process.env.REACT_APP_BACKEND_URL || "").replace(/\/$/, "");
+      return `${base}${path}`;
+    };
+    const res = await fetch(apiUrl("/api/v2/qudos/permissions/request"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: _key || null }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (res.status === 501 || payload?.reason === "native_helper_required") {
+      return {
+        ok: false,
+        unavailable: true,
+        reason: payload?.reason || "native_helper_required",
+        message: payload?.message || "Native macOS helper required to request system permissions.",
+        capabilities: payload?.capabilities || null,
+      };
+    }
+    return { ok: res.ok, ...payload };
+  } catch (err) {
+    return { ok: false, error: err?.message || String(err) };
+  }
 }
 
 // ─── Sessions ───────────────────────────────────────────────────────────────
 export async function startSession({ appId, task, agent, capabilities }) {
-  // TODO: POST /api/v2/qudos/sessions
-  // The local handler also creates a Job + emits Events for cross-page wiring.
-  const { sessionId, jobId } = store().startQudosSession(appId, task, { agent, capabilities });
-  const session = store().qudosSessions.find((s) => s.id === sessionId);
-  return { ok: true, session, jobId };
+  return store().createQudosSession({ appId, task, agent, capabilities });
 }
 
 export async function listSessions() {
-  // TODO: GET /api/v2/qudos/sessions
-  return { ok: true, sessions: store().qudosSessions };
+  return store().fetchQudosSessions();
 }
 
 export async function pauseSession(id) {
-  // TODO: POST /api/v2/qudos/sessions/:id/pause
-  store().pauseQudosSession(id);
-  return { ok: true, id };
+  return store().pauseQudosSessionRemote(id);
 }
 
 export async function stopSession(id) {
-  // TODO: POST /api/v2/qudos/sessions/:id/stop
-  store().stopQudosSession(id);
-  return { ok: true, id };
+  return store().stopQudosSessionRemote(id);
 }
 
 export async function appendSessionStep(id, label) {
-  // TODO: POST /api/v2/qudos/sessions/:id/events { type: "step", label }
-  store().appendQudosStep(id, label);
+  // No backend session-step endpoint yet — keep local event for cross-page UI.
+  store().appendQudosStep?.(id, label);
   return { ok: true, id, label };
 }
 
 // ─── Suggestions ────────────────────────────────────────────────────────────
 export async function listSuggestions() {
-  // TODO: GET /api/v2/qudos/suggestions
-  return { ok: true, suggestions: store().qudosSuggestions };
-}
-
-export async function pushSuggestion(suggestion) {
-  // TODO: WS /api/ws/qudos/suggestions push from server
-  const id = store().addQudosSuggestion(suggestion);
-  return { ok: true, id };
+  return store().fetchQudosSuggestions();
 }
 
 export async function approveSuggestion(id) {
-  // TODO: POST /api/v2/qudos/suggestions/:id/approve
-  store().resolveQudosSuggestion(id, "approved");
-  return { ok: true, id, decision: "approved" };
+  return store().resolveQudosSuggestionRemote(id, "approve");
 }
 
 export async function dismissSuggestion(id) {
-  // TODO: POST /api/v2/qudos/suggestions/:id/dismiss
-  store().resolveQudosSuggestion(id, "dismissed");
-  return { ok: true, id, decision: "dismissed" };
+  return store().resolveQudosSuggestionRemote(id, "dismiss");
 }
 
 // ─── Capture / overlay ──────────────────────────────────────────────────────
 export async function pushCapture(_payload) {
-  // TODO: POST /api/v2/qudos/capture { png, app, ts }
-  return { ok: false, error: "Capture bridge pending — Mac helper app not yet shipped." };
+  // Backend returns 501 + capture_unconfigured until native helper ships.
+  try {
+    const apiUrl = (path) => {
+      const base = (process.env.REACT_APP_BACKEND_URL || "").replace(/\/$/, "");
+      return `${base}${path}`;
+    };
+    const res = await fetch(apiUrl("/api/v2/qudos/capture"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(_payload || {}),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (res.status === 501 || payload?.reason === "capture_unconfigured" || payload?.captured === false) {
+      return {
+        ok: false,
+        unavailable: true,
+        reason: payload?.reason || "capture_unconfigured",
+        message: payload?.message || "Screen capture requires the native macOS helper.",
+        capabilities: payload?.capabilities || null,
+      };
+    }
+    return { ok: res.ok, ...payload };
+  } catch (err) {
+    return { ok: false, error: err?.message || String(err) };
+  }
 }
 
 export function connectOverlayWebSocket() {
-  // TODO: new WebSocket(wsUrl("/api/ws/qudos/overlay"))
+  // No /api/ws/qudos/overlay yet — return inert handle so callers don't crash.
   return { close: () => {}, send: () => {} };
 }
 
-// ─── Privacy ────────────────────────────────────────────────────────────────
+// ─── Privacy (still local-only — no backend persistence yet) ────────────────
 export async function setRetention(retention) {
-  // TODO: PATCH /api/v2/qudos/privacy { retention }
   store().updateQudosPrivacy({ retention });
   return { ok: true, retention };
 }
 
 export async function toggleAppExclusion(appId) {
-  // TODO: POST /api/v2/qudos/privacy/excluded { appId, on }
   store().excludeQudosApp(appId);
   return { ok: true, appId };
 }
 
 export async function setPaused(paused) {
-  // TODO: POST /api/v2/qudos/privacy/pause { paused }
   store().pauseQudos(!!paused);
   return { ok: true, paused: !!paused };
 }

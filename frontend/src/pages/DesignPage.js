@@ -3,19 +3,21 @@ import {
   Sparkles, Image as ImageIcon, MessageSquare,
   PanelRightClose, PanelRightOpen,
   Heart, Share2, RefreshCw, Download, Upload, MoreHorizontal,
-  Send, Paperclip, Video, Camera, Dices,
+  Send, Paperclip, Video, Camera, Dices, AlertTriangle,
 } from "lucide-react";
 import { C } from "@/lib/constants";
 import { useGateway } from "@/lib/useGateway";
 
 // /design — Image Studio.
 //
-// Phase 1 (d9495a8): rename + mode toggle shell + state slice.
-// Phase 2 (this commit): Studio mode wires VariationStrip + Canvas +
-//   ActionRail + ComposerBar + Inspector Settings tab. Generation is
-//   still mocked in useGateway.generateDesign — see TODO comments
-//   for backend swap points (Phase C Part 6).
-// Phase 3+: Gallery, Edit & Chat, History/References tabs, polish.
+// Wired to backend:
+//   POST  /api/v2/design/generate
+//   GET   /api/v2/design/generations
+//   GET   /api/v2/design/generations/:id
+//   PATCH /api/v2/design/variations/:id
+//
+// When backend returns status: "provider_unconfigured" the UI surfaces an
+// honest "Image provider not configured" panel — never fake images.
 
 const MODES = [
   { id: "studio",  label: "Studio",       icon: Sparkles      },
@@ -139,29 +141,29 @@ function VariationStrip({ generation, activeIndex, onSelect }) {
 
 // ── Action rail (right side of canvas) ──────────────────────────────
 function ActionRail({ generation, activeVariation }) {
-  // Every action logs a TODO + the context the backend will need when wired.
+  const { toggleDesignVariationFavorite } = useGateway();
   const fav = !!activeVariation?.favorited;
+  const canFavorite = !!activeVariation?.id;
+
   const handle = (action) => () => {
+    if (action === "favorite" && canFavorite) {
+      toggleDesignVariationFavorite(activeVariation.id, !fav);
+      return;
+    }
+    // Other actions are still UI-only; backend endpoints not yet shipped.
     // eslint-disable-next-line no-console
     console.log(`[design/action] ${action}`, {
-      todo: "Wire to backend Phase C Part 6",
       generation_id: generation?.id || null,
       variation_id: activeVariation?.id || null,
     });
   };
   const buttons = [
-    { id: "favorite",  Icon: Heart,           label: fav ? "Unfavourite" : "Favourite",
-      todo: "TODO: PATCH /api/v2/design/variations/:id { favorited }" },
-    { id: "share",     Icon: Share2,          label: "Share",
-      todo: "TODO: backend export/share endpoint TBD" },
-    { id: "regen",     Icon: RefreshCw,       label: "Regenerate",
-      todo: "TODO: POST /api/v2/design/generate { seed_from: variation_id }" },
-    { id: "download",  Icon: Download,        label: "Download",
-      todo: "Frontend-only: fetch + save the image URL once CORS allows" },
-    { id: "upload",    Icon: Upload,          label: "Upload reference",
-      todo: "TODO: POST /api/v2/files/upload (multipart)" },
-    { id: "more",      Icon: MoreHorizontal,  label: "More",
-      todo: "Future: rename, delete, reuse seed, send to chat, etc." },
+    { id: "favorite",  Icon: Heart,           label: fav ? "Unfavourite" : "Favourite",   disabled: !canFavorite },
+    { id: "share",     Icon: Share2,          label: "Share",                              disabled: true },
+    { id: "regen",     Icon: RefreshCw,       label: "Regenerate",                         disabled: !generation?.id },
+    { id: "download",  Icon: Download,        label: "Download",                           disabled: !activeVariation?.url },
+    { id: "upload",    Icon: Upload,          label: "Upload reference",                   disabled: true },
+    { id: "more",      Icon: MoreHorizontal,  label: "More",                               disabled: true },
   ];
   return (
     <div className="shrink-0 flex flex-col gap-2 p-2">
@@ -170,8 +172,9 @@ function ActionRail({ generation, activeVariation }) {
           key={b.id}
           type="button"
           onClick={handle(b.id)}
+          disabled={b.disabled}
           title={b.label}
-          className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+          className="w-9 h-9 rounded-full flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           style={{
             background: b.id === "favorite" && fav ? `${C.red}22` : "rgba(26,26,26,0.7)",
             color: b.id === "favorite" && fav ? C.red : C.text,
@@ -210,9 +213,51 @@ function SuggestionChips({ onPick }) {
   );
 }
 
-function Canvas({ generation, activeVariationIndex, isGenerating, progress, aspect, onPickSuggestion }) {
+function ProviderUnconfiguredPanel({ message, aspectStyle }) {
+  return (
+    <div
+      className="relative rounded-xl flex flex-col items-center justify-center text-center px-8 py-8"
+      style={{
+        ...aspectStyle,
+        background: C.surface2,
+        border: "1px solid rgba(251,191,36,0.35)",
+        maxHeight: "70vh",
+        minHeight: 320,
+      }}
+      data-testid="design-provider-unconfigured"
+    >
+      <div
+        className="w-14 h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center"
+        style={{ background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.4)" }}
+      >
+        <AlertTriangle className="w-7 h-7" style={{ color: "#fbbf24" }} />
+      </div>
+      <div className="text-sm font-semibold mb-1" style={{ color: "#fbbf24" }}>
+        Image provider not configured yet
+      </div>
+      <div className="text-[12px] max-w-md mx-auto" style={{ color: C.muted }}>
+        {message || "Backend is wired, but real image generation needs REPLICATE_API_KEY, STABILITY_API_KEY, or OPENAI_IMAGE_API_KEY in the gateway .env."}
+      </div>
+      <div className="text-[10px] mt-3 max-w-md mx-auto" style={{ color: C.muted, opacity: 0.7 }}>
+        Prompts you submit are still recorded by the backend so they appear in history once a provider is connected.
+      </div>
+    </div>
+  );
+}
+
+function Canvas({ generation, activeVariationIndex, isGenerating, progress, aspect, onPickSuggestion, providerUnconfigured, providerMessage }) {
   const ratio = ASPECT_RATIOS.find((r) => r.id === aspect) || ASPECT_RATIOS[0];
   const aspectStyle = { aspectRatio: `${ratio.w} / ${ratio.h}` };
+
+  // Active record marked provider_unconfigured by the backend.
+  if (generation && generation.status === "provider_unconfigured") {
+    return <ProviderUnconfiguredPanel message={generation.error || providerMessage} aspectStyle={aspectStyle} />;
+  }
+
+  // Provider not configured globally and no completed generation yet.
+  if (providerUnconfigured && (!generation || !generation.variations?.length)) {
+    return <ProviderUnconfiguredPanel message={providerMessage} aspectStyle={aspectStyle} />;
+  }
 
   if (isGenerating) {
     return (
@@ -233,7 +278,7 @@ function Canvas({ generation, activeVariationIndex, isGenerating, progress, aspe
           <div className="text-sm" style={{ color: C.text }}>Generating…</div>
           <div className="text-[11px] font-mono mt-1" style={{ color: C.muted }}>{progress}%</div>
           <div className="text-[10px] mt-2 max-w-[280px] mx-auto" style={{ color: "#555" }}>
-            Backend image generation not yet connected — showing stub placeholder.
+            Submitting prompt to backend…
           </div>
         </div>
         {/* Progress bar at the bottom */}
@@ -368,9 +413,29 @@ function StudioMode() {
     setDesignActiveVariation,
     setDesignComposerInput,
     generateDesign,
+    fetchDesignHistory,
   } = useGateway();
-  const { activeGeneration, activeVariationIndex, isGenerating, generationProgress, composer, settings } = design;
+  const {
+    activeGeneration,
+    activeVariationIndex,
+    isGenerating,
+    generationProgress,
+    composer,
+    settings,
+    providerConfigured,
+    providerUnconfiguredMessage,
+    lastError,
+    historyLoaded,
+  } = design;
   const activeVariation = activeGeneration?.variations?.[activeVariationIndex] || null;
+  const providerUnconfigured = providerConfigured === false;
+
+  // Fetch history (and provider state) once on mount.
+  useEffect(() => {
+    if (!historyLoaded) {
+      fetchDesignHistory({ silent: false }).catch(() => null);
+    }
+  }, [historyLoaded, fetchDesignHistory]);
 
   const handleSubmit = async () => {
     const prompt = (composer.input || "").trim();
@@ -380,6 +445,33 @@ function StudioMode() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Provider unconfigured banner — visible above the canvas. */}
+      {providerUnconfigured && (
+        <div
+          className="mx-4 mt-3 p-2.5 rounded-lg flex items-start gap-2 text-[12px]"
+          style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.35)", color: "#fbbf24" }}
+          data-testid="design-provider-banner"
+        >
+          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <div className="font-semibold">Image provider not configured yet</div>
+            <div className="opacity-90">
+              {providerUnconfiguredMessage || "Backend is wired, but real image generation needs REPLICATE_API_KEY, STABILITY_API_KEY, or OPENAI_IMAGE_API_KEY."}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {lastError && !providerUnconfigured && (
+        <div
+          className="mx-4 mt-3 p-2.5 rounded-lg flex items-start gap-2 text-[12px]"
+          style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444" }}
+        >
+          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <div className="min-w-0 flex-1">Backend error: {lastError}</div>
+        </div>
+      )}
+
       {/* Canvas row: variation strip + canvas + action rail */}
       <div className="flex-1 flex items-stretch overflow-hidden p-4 gap-2">
         <VariationStrip
@@ -396,6 +488,8 @@ function StudioMode() {
               progress={generationProgress}
               aspect={settings.aspect_ratio}
               onPickSuggestion={(s) => setDesignComposerInput(s)}
+              providerUnconfigured={providerUnconfigured}
+              providerMessage={providerUnconfiguredMessage}
             />
           </div>
         </div>
@@ -411,7 +505,8 @@ function StudioMode() {
             onSubmit={handleSubmit}
             disabled={isGenerating}
             placeholder={
-              isGenerating ? "Generating — please wait…"
+              isGenerating ? "Submitting to backend…"
+              : providerUnconfigured ? "Image provider missing — prompts will be recorded but no image is generated"
               : activeGeneration ? "Describe your edit, @ to reference…"
               : "Describe what you want to create…"
             }
@@ -419,6 +514,9 @@ function StudioMode() {
           {activeGeneration && !isGenerating && (
             <div className="text-[10px] mt-2 px-3 truncate" style={{ color: C.muted }}>
               Last prompt: <span style={{ color: C.text, opacity: 0.85 }}>{activeGeneration.prompt}</span>
+              {activeGeneration.status && activeGeneration.status !== "completed" && (
+                <span style={{ color: "#fbbf24", marginLeft: 8 }}>· {activeGeneration.status}</span>
+              )}
             </div>
           )}
         </div>
@@ -653,8 +751,42 @@ function SettingsTab() {
 }
 
 function HistoryTab() {
-  const { design, setDesignActiveGeneration } = useGateway();
-  const { history, activeGeneration } = design;
+  const { design, setDesignActiveGeneration, fetchDesignHistory } = useGateway();
+  const { history, activeGeneration, historyLoading, historyError, historyLoaded } = design;
+
+  if (historyError) {
+    return (
+      <div className="p-4 text-[12px]">
+        <div
+          className="p-2.5 rounded-md flex items-start gap-2"
+          style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444" }}
+        >
+          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <div className="font-semibold">Could not load history</div>
+            <div className="opacity-90 mb-2">{historyError}</div>
+            <button
+              type="button"
+              onClick={() => fetchDesignHistory({ silent: false })}
+              className="px-2 py-0.5 rounded-md text-[11px]"
+              style={{ background: C.surface, color: C.text, border: `1px solid ${C.border}` }}
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (historyLoading && !historyLoaded) {
+    return (
+      <div className="p-4 text-[12px] text-center" style={{ color: C.muted }}>
+        Loading history…
+      </div>
+    );
+  }
+
   if (history.length === 0) {
     return (
       <div className="p-4 text-[12px] text-center" style={{ color: C.muted }}>
@@ -662,11 +794,27 @@ function HistoryTab() {
       </div>
     );
   }
+
   return (
     <div className="p-2 overflow-y-auto">
+      <div className="flex items-center justify-between px-2 pb-2">
+        <span className="text-[10px] uppercase tracking-wider" style={{ color: C.muted }}>
+          {history.length} generation{history.length === 1 ? "" : "s"}
+        </span>
+        <button
+          type="button"
+          onClick={() => fetchDesignHistory({ silent: false })}
+          className="text-[10px] px-2 py-0.5 rounded-md flex items-center gap-1"
+          style={{ background: C.surface2, color: C.muted, border: `1px solid ${C.border}` }}
+          title="Refresh"
+        >
+          <RefreshCw className="w-3 h-3" />
+        </button>
+      </div>
       {history.map((g) => {
         const active = activeGeneration?.id === g.id;
         const thumb = g.variations?.[0]?.url;
+        const unconfigured = g.status === "provider_unconfigured";
         return (
           <button
             key={g.id}
@@ -679,14 +827,27 @@ function HistoryTab() {
             }}
             data-testid={`design-history-${g.id}`}
           >
-            <div className="w-10 h-10 shrink-0 rounded-md overflow-hidden"
-                 style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
-              {thumb && <img src={thumb} alt="" className="w-full h-full object-cover" loading="lazy" />}
+            <div
+              className="w-10 h-10 shrink-0 rounded-md overflow-hidden flex items-center justify-center"
+              style={{
+                background: C.surface2,
+                border: `1px solid ${unconfigured ? "rgba(251,191,36,0.4)" : C.border}`,
+              }}
+            >
+              {thumb ? (
+                <img src={thumb} alt="" className="w-full h-full object-cover" loading="lazy" />
+              ) : unconfigured ? (
+                <AlertTriangle className="w-4 h-4" style={{ color: "#fbbf24" }} />
+              ) : (
+                <ImageIcon className="w-4 h-4" style={{ color: C.muted }} />
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-[12px] truncate" style={{ color: C.text }}>{g.prompt}</div>
-              <div className="text-[10px] font-mono" style={{ color: C.muted }}>
-                {g.aspect_ratio} · {g.variations?.length || 0} variations
+              <div className="text-[10px] font-mono" style={{ color: unconfigured ? "#fbbf24" : C.muted }}>
+                {unconfigured
+                  ? "not generated — provider missing"
+                  : `${g.aspect_ratio || "—"} · ${g.variations?.length || 0} variations${g.status && g.status !== "completed" ? ` · ${g.status}` : ""}`}
               </div>
             </div>
           </button>

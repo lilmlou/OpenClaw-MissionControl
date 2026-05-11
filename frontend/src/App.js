@@ -7,6 +7,7 @@ import JobsPage from "@/pages/JobsPage";
 import EventsPage from "@/pages/EventsPage";
 import ApprovalsPage from "@/pages/ApprovalsPage";
 import AgentsPage from "@/pages/AgentsPage";
+import AgentLiveViewPage from "@/pages/AgentLiveViewPage";
 import SpacesPage from "@/pages/SpacesPage";
 import QudosPage from "@/pages/QudosPage";
 import CodePage from "@/pages/CodePage";
@@ -18,6 +19,7 @@ import SystemPage from "@/pages/SystemPage";
 import CronPage from "@/pages/CronPage";
 import ActivitiesPage from "@/pages/ActivitiesPage";
 import CostsPage from "@/pages/CostsPage";
+import SchemaFormDemoPage from "@/pages/SchemaFormDemoPage";
 import { Toaster } from "@/components/ui/toaster";
 import { HealthToastBridge } from "@/components/HealthToastBridge";
 import "./App.css";
@@ -35,6 +37,7 @@ function App() {
         <Route path="/approvals" element={<ApprovalsPage />} />
         <Route path="/events" element={<EventsPage />} />
         <Route path="/agents" element={<AgentsPage />} />
+        <Route path="/agents/live" element={<AgentLiveViewPage />} />
         <Route path="/sessions" element={<SessionsPage />} />
         <Route path="/system" element={<SystemPage />} />
         <Route path="/cron" element={<CronPage />} />
@@ -47,6 +50,7 @@ function App() {
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/customize" element={<CustomizePage />} />
         <Route path="/design" element={<DesignPage />} />
+        <Route path="/dev/schema-form-demo" element={<SchemaFormDemoPage />} />
         <Route path="/spaces" element={<Navigate to="/projects" replace />} />
         <Route path="/agent" element={<Navigate to="/design" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />

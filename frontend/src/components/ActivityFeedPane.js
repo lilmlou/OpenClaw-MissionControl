@@ -34,10 +34,13 @@ const AGENT_META = {
 
 // ─── Status colours + icons ────────────────────────────────────────────────────
 const STATUS_META = {
-  pending:        { color: "#94a3b8", Icon: Clock,        label: "pending" },
-  running:        { color: "#fbbf24", Icon: Loader2,      label: "running",  spin: true },
-  done:           { color: "#4ade80", Icon: CheckCircle2, label: "done" },
-  failed:         { color: "#f87171", Icon: XCircle,      label: "failed" },
+  pending:        { color: "var(--mc-fg-2)", Icon: Clock,        label: "pending" },
+  running:        { color: "var(--mc-warn)", Icon: Loader2,      label: "running",  spin: true },
+  // F7 §4.4 — `done` is banned; legacy exit-0 maps to "claims done" at data layer.
+  claims_done:    { color: "var(--mc-warn)", Icon: AlertCircle,  label: "claims done" },
+  verified:       { color: "var(--mc-ok)",   Icon: CheckCircle2, label: "verified" },
+  killed:         { color: "var(--mc-fg-2)", Icon: XCircle,      label: "killed" },
+  failed:         { color: "var(--mc-err)",  Icon: XCircle,      label: "failed" },
   needs_approval: { color: "#c084fc", Icon: AlertCircle,  label: "approval" },
 };
 const defaultStatus = STATUS_META.pending;
@@ -52,18 +55,21 @@ function fmtAge(ts) {
 
 function severityBadge(task) {
   const s = (task.status || "").toLowerCase();
-  if (s === "failed") return { bg: "rgba(239,68,68,0.15)", fg: "#f87171", border: "rgba(239,68,68,0.35)", label: "FAIL" };
-  if (s === "running") return { bg: "rgba(251,191,36,0.12)", fg: "#fbbf24", border: "rgba(251,191,36,0.35)", label: "RUN" };
+  if (s === "failed") return { bg: "var(--mc-err-soft)", fg: "var(--mc-err)", border: "rgba(239,68,68,0.35)", label: "FAIL" };
+  if (s === "running") return { bg: "var(--mc-warn-soft)", fg: "var(--mc-warn)", border: "rgba(251,191,36,0.35)", label: "RUN" };
   if (s === "needs_approval") return { bg: "rgba(168,85,247,0.12)", fg: "#c084fc", border: "rgba(168,85,247,0.35)", label: "GATE" };
-  if (s === "done") return { bg: "rgba(34,197,94,0.1)", fg: "#4ade80", border: "rgba(34,197,94,0.3)", label: "DONE" };
-  return { bg: "rgba(148,163,184,0.1)", fg: "#94a3b8", border: "rgba(148,163,184,0.3)", label: s.toUpperCase() || "—" };
+  if (s === "claims_done") return { bg: "var(--mc-warn-soft)", fg: "var(--mc-warn)", border: "rgba(251,191,36,0.35)", label: "CLAIMS" };
+  if (s === "verified") return { bg: "var(--mc-ok-soft)", fg: "var(--mc-ok)", border: "rgba(34,197,94,0.3)", label: "VERIFIED" };
+  if (s === "killed") return { bg: "var(--mc-bg-2)", fg: "var(--mc-fg-2)", border: "rgba(148,163,184,0.3)", label: "KILLED" };
+  return { bg: "var(--mc-bg-2)", fg: "var(--mc-fg-2)", border: "rgba(148,163,184,0.3)", label: s.toUpperCase() || "—" };
 }
 
 // ─── Row ─────────────────────────────────────────────────────────────────────
 function FeedRow({ task }) {
   const agentM = AGENT_META[task.agent] || { color: "#64748b", Icon: Activity };
   const AgentIcon = agentM.Icon;
-  const statusM = STATUS_META[(task.status || "").toLowerCase()] || defaultStatus;
+  const rawStatus = (task.status || "").toLowerCase();
+  const statusM = STATUS_META[rawStatus === "done" ? "claims_done" : rawStatus] || defaultStatus;
   const StatusIcon = statusM.Icon;
   const badge = severityBadge(task);
 

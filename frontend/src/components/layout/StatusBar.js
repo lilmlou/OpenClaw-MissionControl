@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo } from "react";
-import { useLocation } from "react-router-dom";
-import { Cpu, MemoryStick, HardDrive, Activity, Clock, Server } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { Cpu, MemoryStick, HardDrive, Activity, Clock, Server, Bot } from "lucide-react";
 import { C } from "@/lib/constants";
 import { useGateway } from "@/lib/useGateway";
+import { useAgentRuns } from "@/hooks/useAgentRuns";
 
 // Footer status bar — mounted by Layout, visible on every page.
 //
@@ -100,6 +101,10 @@ export default function StatusBar() {
     systemServices, fetchSystemServices,
   } = useGateway();
 
+  // F7 Agent Live View — global "N agents running / awaiting verify" indicator.
+  // Reuses the shared config WS singleton via useAgentRuns (no second socket).
+  const { runningCount, claimsCount } = useAgentRuns();
+
   // Slow poll — only ambient. /system page polls faster and writes to the
   // same slice, so when it's open the footer rides those updates for free.
   useEffect(() => {
@@ -184,6 +189,28 @@ export default function StatusBar() {
           {total > 0 ? `${connected}/${total}` : "—"}
         </span>
       </div>
+
+      {/* F7 Agent Live View indicator — links to /agents/live */}
+      {(runningCount > 0 || claimsCount > 0) && (
+        <Link
+          to="/agents/live"
+          className="flex items-center gap-1.5 shrink-0 hover:opacity-80 transition-opacity"
+          title={`${runningCount} agents running, ${claimsCount} awaiting verify — open Agent Live View`}
+          data-testid="status-bar-agents-live"
+        >
+          <Bot className="w-3 h-3" style={{ color: runningCount > 0 ? C.yellow : C.muted }} />
+          <span className="text-[10px] uppercase tracking-wide" style={{ color: C.muted }}>AGENTS</span>
+          <span
+            className="text-[11px] font-mono tabular-nums"
+            style={{ color: runningCount > 0 ? C.yellow : C.text }}
+          >
+            {runningCount} running
+            {claimsCount > 0 && (
+              <span style={{ color: C.yellow }}> · {claimsCount} awaiting verify</span>
+            )}
+          </span>
+        </Link>
+      )}
 
       <div className="flex-1" />
 

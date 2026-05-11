@@ -807,15 +807,16 @@ export const useGateway = create(
       pendingCronOps: [],            // job ids with an in-flight POST/PATCH/DELETE/run-now
 
       // Design / Image Studio (/design page)
-      // Phase C Part 6 backend not yet shipped — see BACKEND_REQUESTS.md:215-238.
-      // All generation is mocked via setTimeout for now; every TODO in
-      // DesignPage.js maps 1:1 to a real endpoint when backend lands.
+      // Backend wired: POST /api/v2/design/generate, GET /api/v2/design/generations,
+      // GET /api/v2/design/generations/:id, PATCH /api/v2/design/variations/:id.
+      // Backend may return status: "provider_unconfigured" if no image provider key
+      // is set in backend .env. The UI must surface that honestly — never fake images.
       design: {
         mode: "studio",                // 'studio' | 'gallery' | 'chat'
         activeGeneration: null,        // current generation being viewed/edited
         activeVariationIndex: 0,
         settings: {
-          model: null,                 // auto-pick image-capable when backend ships
+          model: null,                 // auto-pick image-capable when backend exposes it
           aspect_ratio: "1:1",         // '1:1' | '4:5' | '9:16' | '16:9' | '3:2' | '2:3'
           quality: "balanced",         // 'speed' | 'balanced' | 'quality'
           negative_prompt: "",
@@ -824,14 +825,21 @@ export const useGateway = create(
           style_strength: 50,          // 0-100, only used when references attached
         },
         references: [],                // [{ id, name, dataUrl }] — frontend-only base64 stash
-        history: [],                   // mock generations for now; will hydrate from /design/history
+        history: [],                   // hydrated from GET /api/v2/design/generations
         inspector: {
           open: true,
           tab: "settings",             // 'settings' | 'history' | 'references'
         },
         composer: { input: "", mentions: [] },
         isGenerating: false,
-        generationProgress: 0,         // 0-100, used during mock generation
+        generationProgress: 0,         // 0-100, used during request lifecycle
+        // Backend availability state:
+        providerConfigured: null,      // true | false | null (unknown until first call)
+        providerUnconfiguredMessage: null, // human-readable detail from backend
+        historyLoading: false,
+        historyLoaded: false,
+        historyError: null,
+        lastError: null,               // last generate/fetch error (string)
       },
 
       // Spaces
@@ -876,8 +884,18 @@ export const useGateway = create(
         sensitiveTags: ["banking", "passwords", "keychain"],
         paused: false,                            // master pause
       },
-      qudosSessions: [],                          // active/historical co-pilot sessions
-      qudosSuggestions: [],                       // assistant suggestions waiting on approve/dismiss
+      qudosSessions: [],                          // live sessions from GET /api/v2/qudos/sessions
+      qudosSessionsLoading: false,
+      qudosSessionsLoaded: false,
+      qudosSessionsError: null,
+      qudosSuggestions: [],                       // live suggestions from GET /api/v2/qudos/suggestions
+      qudosSuggestionsLoading: false,
+      qudosSuggestionsLoaded: false,
+      qudosSuggestionsError: null,
+      qudosBackendApps: [],                       // GET /api/v2/qudos/apps (backend catalogue, may be empty)
+      qudosCapability: null,                      // GET /api/v2/qudos/permissions payload (capability report)
+      qudosCapabilityUnconfigured: false,         // true when backend reports native helper missing
+      qudosCapabilityError: null,
       
       // Actions
       setStatus: (status) => set({ status }),
@@ -1385,75 +1403,348 @@ export const useGateway = create(
         set((s) => ({ design: { ...s.design, references: s.design.references.filter((r) => r.id !== id) } }));
       },
 
-      // Mock generation. Returns a fake generation entry after 3s.
-      // TODO: replace with POST /api/v2/design/generate
-      //   Request:  { prompt, settings, references }
-      //   Response: { generation_id, status: 'queued', estimatedSeconds }
-      //   Then subscribe to WS /api/ws/design/generations and stream
-      //   progress events { generationId, progress: 0-1, completed?: imageUrl[] }
-      //   into design.activeGeneration.variations as they arrive.
+      // POST /api/v2/design/generate
+      // Backend returns either:
+      //   { generation_id, status: 'completed' | 'queued' | 'provider_unconfigured', ... }
+      // No mock images. If provider is unconfigured we record the generation in
+      // history with status='provider_unconfigured' so the UI can show it honestly.
       generateDesign: async (prompt, settingsOverride = {}) => {
         const trimmed = (prompt || "").trim();
         if (!trimmed) return null;
         const settings = { ...get().design.settings, ...settingsOverride };
-        set((s) => ({ design: { ...s.design, isGenerating: true, generationProgress: 0 } }));
+        set((s) => ({ design: {
+          ...s.design,
+          isGenerating: true,
+          generationProgress: 5,
+          lastError: null,
+        } }));
 
-        // Simulate progress 0→100 over 3s in 6 ticks.
-        const progressTimer = setInterval(() => {
-          const p = get().design.generationProgress;
-          const next = Math.min(95, p + Math.round(15 + Math.random() * 10));
-          set((s) => ({ design: { ...s.design, generationProgress: next } }));
-        }, 500);
-
-        return new Promise((resolve) => {
-          setTimeout(() => {
-            clearInterval(progressTimer);
-            const id = `gen-${Date.now().toString(36)}`;
-            const baseSeed = settings.seed ?? Math.floor(Math.random() * 1e6);
-            // Picsum gives stable images per seed; cheap visual variety
-            // without bundling assets. Aspect-ratio-aware placeholders.
-            const dims = (() => {
-              switch (settings.aspect_ratio) {
-                case "16:9": return [960, 540];
-                case "9:16": return [540, 960];
-                case "4:5":  return [640, 800];
-                case "3:2":  return [840, 560];
-                case "2:3":  return [560, 840];
-                default:     return [720, 720];
-              }
-            })();
-            const variations = Array.from({ length: settings.num_variations || 4 }, (_, i) => ({
-              id: `${id}-var-${i}`,
-              url: `https://picsum.photos/seed/${baseSeed + i}/${dims[0]}/${dims[1]}`,
-              favorited: false,
-              seed: baseSeed + i,
-            }));
-            const newGen = {
-              id,
+        try {
+          const res = await fetch(apiUrl("/api/v2/design/generate"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
               prompt: trimmed,
-              status: "complete",
-              created_at: Date.now(),
-              model: settings.model || "mock-flux-1.1",
-              cost_usd: 0,                    // TODO: backend will return real cost
-              aspect_ratio: settings.aspect_ratio,
-              quality: settings.quality,
-              negative_prompt: settings.negative_prompt || null,
-              variations,
-            };
-            set((s) => ({
-              design: {
-                ...s.design,
-                history: [newGen, ...s.design.history],
-                activeGeneration: newGen,
-                activeVariationIndex: 0,
-                isGenerating: false,
-                generationProgress: 100,
-                composer: { ...s.design.composer, input: "" },
+              settings: {
+                aspect_ratio: settings.aspect_ratio,
+                quality: settings.quality,
+                num_variations: settings.num_variations,
+                negative_prompt: settings.negative_prompt || null,
+                seed: settings.seed ?? null,
+                model: settings.model || null,
               },
-            }));
-            resolve(newGen);
-          }, 3000);
-        });
+              references: (get().design.references || []).map((r) => ({ id: r.id, name: r.name })),
+            }),
+          });
+          const payload = await res.json().catch(() => ({}));
+          const status = payload?.status || (res.ok ? "completed" : "error");
+          const providerUnconfigured = status === "provider_unconfigured" || payload?.provider_configured === false;
+
+          // Refresh history from backend so the new record appears with whatever
+          // status the backend stored (including provider_unconfigured).
+          const refreshed = await get().fetchDesignHistory({ silent: true }).catch(() => null);
+
+          let activeGen = null;
+          if (refreshed && Array.isArray(refreshed.history) && payload?.generation_id) {
+            activeGen = refreshed.history.find((g) => g.id === payload.generation_id) || refreshed.history[0] || null;
+          }
+
+          set((s) => ({
+            design: {
+              ...s.design,
+              isGenerating: false,
+              generationProgress: providerUnconfigured ? 0 : 100,
+              activeGeneration: activeGen || s.design.activeGeneration,
+              activeVariationIndex: 0,
+              composer: providerUnconfigured ? s.design.composer : { ...s.design.composer, input: "" },
+              providerConfigured: !providerUnconfigured,
+              providerUnconfiguredMessage: providerUnconfigured
+                ? (payload?.error || payload?.message || "Image provider not configured.")
+                : null,
+              lastError: !res.ok && !providerUnconfigured ? (payload?.error || `HTTP ${res.status}`) : null,
+            },
+          }));
+
+          return {
+            ok: res.ok || providerUnconfigured,
+            status,
+            generation_id: payload?.generation_id || null,
+            providerUnconfigured,
+            error: payload?.error || null,
+            message: payload?.message || null,
+          };
+        } catch (err) {
+          set((s) => ({
+            design: {
+              ...s.design,
+              isGenerating: false,
+              generationProgress: 0,
+              lastError: err?.message || String(err),
+            },
+          }));
+          return { ok: false, status: "error", error: err?.message || String(err) };
+        }
+      },
+
+      // GET /api/v2/design/generations
+      fetchDesignHistory: async ({ silent = false } = {}) => {
+        if (!silent) set((s) => ({ design: { ...s.design, historyLoading: true, historyError: null } }));
+        try {
+          const res = await fetch(apiUrl("/api/v2/design/generations"));
+          if (!res.ok) throw new Error(`design/generations HTTP ${res.status}`);
+          const payload = await res.json();
+          const history = Array.isArray(payload?.generations) ? payload.generations : [];
+          const providerConfigured = payload?.provider_configured;
+          set((s) => ({
+            design: {
+              ...s.design,
+              history,
+              historyLoading: false,
+              historyLoaded: true,
+              historyError: null,
+              providerConfigured: typeof providerConfigured === "boolean" ? providerConfigured : s.design.providerConfigured,
+              providerUnconfiguredMessage: providerConfigured === false
+                ? (s.design.providerUnconfiguredMessage || "Image provider not configured.")
+                : (providerConfigured === true ? null : s.design.providerUnconfiguredMessage),
+            },
+          }));
+          return { ok: true, history, provider_configured: providerConfigured };
+        } catch (err) {
+          set((s) => ({
+            design: {
+              ...s.design,
+              historyLoading: false,
+              historyError: err?.message || String(err),
+            },
+          }));
+          return { ok: false, error: err?.message || String(err) };
+        }
+      },
+
+      // GET /api/v2/design/generations/:id — refresh a single record (e.g. queued → completed)
+      fetchDesignGeneration: async (id) => {
+        if (!id) return { ok: false, error: "missing_id" };
+        try {
+          const res = await fetch(apiUrl(`/api/v2/design/generations/${encodeURIComponent(id)}`));
+          if (!res.ok) throw new Error(`design/generations/${id} HTTP ${res.status}`);
+          const gen = await res.json();
+          set((s) => ({
+            design: {
+              ...s.design,
+              history: s.design.history.map((g) => g.id === id ? { ...g, ...gen } : g),
+              activeGeneration: s.design.activeGeneration?.id === id
+                ? { ...s.design.activeGeneration, ...gen }
+                : s.design.activeGeneration,
+            },
+          }));
+          return { ok: true, generation: gen };
+        } catch (err) {
+          return { ok: false, error: err?.message || String(err) };
+        }
+      },
+
+      // PATCH /api/v2/design/variations/:id — favorite toggle
+      toggleDesignVariationFavorite: async (variationId, nextFavorited) => {
+        if (!variationId) return { ok: false, error: "missing_id" };
+        // Optimistic update.
+        const prev = get().design;
+        const applyFav = (history) => history.map((g) => ({
+          ...g,
+          variations: Array.isArray(g.variations)
+            ? g.variations.map((v) => v.id === variationId ? { ...v, favorited: !!nextFavorited } : v)
+            : g.variations,
+        }));
+        set((s) => ({
+          design: {
+            ...s.design,
+            history: applyFav(s.design.history),
+            activeGeneration: s.design.activeGeneration
+              ? applyFav([s.design.activeGeneration])[0]
+              : s.design.activeGeneration,
+          },
+        }));
+        try {
+          const res = await fetch(apiUrl(`/api/v2/design/variations/${encodeURIComponent(variationId)}`), {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ favorited: !!nextFavorited }),
+          });
+          if (!res.ok) throw new Error(`design/variations PATCH HTTP ${res.status}`);
+          return { ok: true };
+        } catch (err) {
+          // Roll back.
+          set({ design: prev });
+          return { ok: false, error: err?.message || String(err) };
+        }
+      },
+
+      // ── Qudos backend wiring ──────────────────────────────────────────
+      // GET /api/v2/qudos/permissions → capability report (macOS native helper status)
+      fetchQudosPermissions: async () => {
+        try {
+          const res = await fetch(apiUrl("/api/v2/qudos/permissions"));
+          if (!res.ok) throw new Error(`qudos/permissions HTTP ${res.status}`);
+          const payload = await res.json();
+          set({ qudosCapability: payload || null, qudosCapabilityError: null });
+          return { ok: true, capability: payload };
+        } catch (err) {
+          set({ qudosCapabilityError: err?.message || String(err) });
+          return { ok: false, error: err?.message || String(err) };
+        }
+      },
+
+      // GET /api/v2/qudos/apps → backend app catalogue (may be empty + capability_unconfigured)
+      fetchQudosApps: async () => {
+        try {
+          const res = await fetch(apiUrl("/api/v2/qudos/apps"));
+          if (!res.ok) throw new Error(`qudos/apps HTTP ${res.status}`);
+          const payload = await res.json();
+          set({
+            qudosBackendApps: Array.isArray(payload?.apps) ? payload.apps : [],
+            qudosCapability: payload?.capabilities || get().qudosCapability,
+            qudosCapabilityUnconfigured: !!payload?.capability_unconfigured,
+          });
+          return { ok: true, apps: payload?.apps || [], capability_unconfigured: !!payload?.capability_unconfigured };
+        } catch (err) {
+          set({ qudosCapabilityError: err?.message || String(err) });
+          return { ok: false, error: err?.message || String(err) };
+        }
+      },
+
+      // GET /api/v2/qudos/sessions → live persisted sessions
+      fetchQudosSessions: async ({ silent = false } = {}) => {
+        if (!silent) set({ qudosSessionsLoading: true, qudosSessionsError: null });
+        try {
+          const res = await fetch(apiUrl("/api/v2/qudos/sessions"));
+          if (!res.ok) throw new Error(`qudos/sessions HTTP ${res.status}`);
+          const payload = await res.json();
+          const sessions = Array.isArray(payload?.sessions) ? payload.sessions : [];
+          set({
+            qudosSessions: sessions,
+            qudosSessionsLoading: false,
+            qudosSessionsError: null,
+            qudosSessionsLoaded: true,
+          });
+          return { ok: true, sessions };
+        } catch (err) {
+          set({
+            qudosSessionsLoading: false,
+            qudosSessionsError: err?.message || String(err),
+          });
+          return { ok: false, error: err?.message || String(err) };
+        }
+      },
+
+      // POST /api/v2/qudos/sessions
+      createQudosSession: async ({ appId, task, agent = "openclaw", capabilities }) => {
+        try {
+          const res = await fetch(apiUrl("/api/v2/qudos/sessions"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              appId,
+              task: task || "Untitled task",
+              agent,
+              capabilities: capabilities || { watch: true, suggest: true, act: false, launch: true },
+            }),
+          });
+          if (!res.ok) throw new Error(`qudos/sessions POST HTTP ${res.status}`);
+          const session = await res.json();
+          set((s) => ({
+            qudosSessions: [session, ...s.qudosSessions.filter((q) => q.id !== session.id)].slice(0, 100),
+          }));
+          get().addEvent?.({
+            id: crypto.randomUUID(),
+            ts: Date.now(),
+            type: "qudos.session.start",
+            payload: { sessionId: session.id, appId: session.appId, task: session.task, agent: session.agent },
+          });
+          return { ok: true, session };
+        } catch (err) {
+          return { ok: false, error: err?.message || String(err) };
+        }
+      },
+
+      // POST /api/v2/qudos/sessions/:id/pause
+      pauseQudosSessionRemote: async (id) => {
+        if (!id) return { ok: false, error: "missing_id" };
+        try {
+          const res = await fetch(apiUrl(`/api/v2/qudos/sessions/${encodeURIComponent(id)}/pause`), { method: "POST" });
+          if (!res.ok) throw new Error(`qudos pause HTTP ${res.status}`);
+          const session = await res.json().catch(() => null);
+          set((s) => ({
+            qudosSessions: s.qudosSessions.map((q) => q.id === id
+              ? (session ? { ...q, ...session } : { ...q, status: q.status === "paused" ? "active" : "paused", updated_at: Date.now() })
+              : q),
+          }));
+          return { ok: true, session };
+        } catch (err) {
+          return { ok: false, error: err?.message || String(err) };
+        }
+      },
+
+      // POST /api/v2/qudos/sessions/:id/stop
+      stopQudosSessionRemote: async (id) => {
+        if (!id) return { ok: false, error: "missing_id" };
+        try {
+          const res = await fetch(apiUrl(`/api/v2/qudos/sessions/${encodeURIComponent(id)}/stop`), { method: "POST" });
+          if (!res.ok) throw new Error(`qudos stop HTTP ${res.status}`);
+          const session = await res.json().catch(() => null);
+          set((s) => ({
+            qudosSessions: s.qudosSessions.map((q) => q.id === id
+              ? (session ? { ...q, ...session } : { ...q, status: "stopped", stopped_at: Date.now(), updated_at: Date.now() })
+              : q),
+          }));
+          return { ok: true, session };
+        } catch (err) {
+          return { ok: false, error: err?.message || String(err) };
+        }
+      },
+
+      // GET /api/v2/qudos/suggestions
+      fetchQudosSuggestions: async ({ silent = false } = {}) => {
+        if (!silent) set({ qudosSuggestionsLoading: true, qudosSuggestionsError: null });
+        try {
+          const res = await fetch(apiUrl("/api/v2/qudos/suggestions"));
+          if (!res.ok) throw new Error(`qudos/suggestions HTTP ${res.status}`);
+          const payload = await res.json();
+          const suggestions = Array.isArray(payload?.suggestions) ? payload.suggestions : [];
+          set({
+            qudosSuggestions: suggestions,
+            qudosSuggestionsLoading: false,
+            qudosSuggestionsError: null,
+            qudosSuggestionsLoaded: true,
+          });
+          return { ok: true, suggestions };
+        } catch (err) {
+          set({
+            qudosSuggestionsLoading: false,
+            qudosSuggestionsError: err?.message || String(err),
+          });
+          return { ok: false, error: err?.message || String(err) };
+        }
+      },
+
+      // POST /api/v2/qudos/suggestions/:id/approve | /dismiss
+      resolveQudosSuggestionRemote: async (id, decision) => {
+        if (!id || !["approve", "dismiss"].includes(decision)) {
+          return { ok: false, error: "bad_args" };
+        }
+        const target = decision === "approve" ? "approved" : "dismissed";
+        // Optimistic.
+        const prev = get().qudosSuggestions;
+        set((s) => ({
+          qudosSuggestions: s.qudosSuggestions.map((q) => q.id === id ? { ...q, status: target } : q),
+        }));
+        try {
+          const res = await fetch(apiUrl(`/api/v2/qudos/suggestions/${encodeURIComponent(id)}/${decision}`), { method: "POST" });
+          if (!res.ok) throw new Error(`qudos suggestion ${decision} HTTP ${res.status}`);
+          return { ok: true };
+        } catch (err) {
+          // Roll back.
+          set({ qudosSuggestions: prev });
+          return { ok: false, error: err?.message || String(err) };
+        }
       },
 
       // ── Agent control ──────────────────────────────────────────────
@@ -2820,7 +3111,7 @@ export const selectAgentsHealth = (state) => {
       historicalFailureCount: 0,
     };
   }
-  const watchers = (agentTasks || []).filter((t) => t.agent === "watcher" && t.status === "done");
+  const watchers = (agentTasks || []).filter((t) => t.agent === "watcher" && (t.status === "done" || t.status === "claims_done"));
   const latest = watchers[0];
   const lastAt = latest?.completedAt || latest?.createdAt || null;
   const env = parseWatcherFindings(latest?.result || "");
