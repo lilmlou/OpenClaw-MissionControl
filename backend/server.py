@@ -16,9 +16,12 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 # MongoDB connection
-mongo_url = os.environ["MONGO_URL"]
+# Lazy-resolve at import time so test collection / clean-checkout pytest
+# does not crash on KeyError when MONGO_URL/DB_NAME are absent. The real
+# values are required at runtime; tests can stub via env or conftest.
+mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ["DB_NAME"]]
+db = client[os.environ.get("DB_NAME", "test_mc")]
 
 # Create the main app
 app = FastAPI(title="OpenClaw Mission Control API")
@@ -468,11 +471,64 @@ app.include_router(api_router)
 from approval_engine.router import approval_v2_router, set_db
 from approval_engine.websocket import approval_ws_router
 from gateway_ws import chat_ws_router
+from app.system_v2.router import system_v2_router
+
+# Phase 0.1 — Hot-Reload Config Bus
+from app.config_bus import bus, config_router, config_ws_router, ws_broadcast
+from app.config_bus import store as config_store
+from app.config_bus import events as config_events
+from app.config_bus import ws as config_ws_module
+from app.config_bus.defaults import register_day_one
+from app.activity import emitter as activity_emitter
+from app.activity import activity_router
+
+# Phase 0.3 backend half — Actions registry
+from app.actions import actions_router
+from app.actions.builtins import register_builtins
+
+# Phase 0.3 backend — Logs (BindLog endpoint stub)
+from app.logs import logs_router
+
+# F7 — Agent Live View
+from app.agents import agents_router, agents_ws_router, ws_broadcast as agents_ws_broadcast
+from app.agents import store as agents_store
+from app.agents.defaults import register_agent_bus_keys
+
+# VM-D1 — Blockers Mirror
+from app.blockers import blockers_router, start_mirror_loop, get_last_replay
+from app.blockers import blockers_store
 
 set_db(db)
+config_store.set_db(db)
+activity_emitter.set_db(db)
+activity_emitter.set_broadcaster(ws_broadcast)
+agents_store.set_db(db)
+blockers_store.set_db(db)
+register_day_one()
+register_agent_bus_keys()
+register_builtins()
+config_ws_module.register_replay_provider(get_last_replay)
+config_events.install()
+
 app.include_router(approval_v2_router)
 app.include_router(approval_ws_router)
 app.include_router(chat_ws_router)
+app.include_router(system_v2_router)
+app.include_router(config_router)
+app.include_router(config_ws_router)
+app.include_router(activity_router)
+app.include_router(actions_router)
+app.include_router(logs_router)
+app.include_router(agents_router)
+app.include_router(agents_ws_router)
+app.include_router(blockers_router)
+
+
+@app.on_event("startup")
+async def _config_bus_startup() -> None:
+    n = await bus.load_from_store()
+    logging.getLogger(__name__).info("config bus loaded %d Mongo overrides", n)
+    await start_mirror_loop(db)
 
 app.add_middleware(
     CORSMiddleware,
