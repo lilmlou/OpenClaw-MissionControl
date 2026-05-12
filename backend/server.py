@@ -498,16 +498,23 @@ from app.agents.defaults import register_agent_bus_keys
 from app.blockers import blockers_router, start_mirror_loop, get_last_replay
 from app.blockers import blockers_store
 
+# VM-D2 — Progress Pulse
+from app.progress import progress_router, start_mirror_loop as start_progress_mirror_loop
+from app.progress import get_last_replay as get_progress_last_replay
+from app.progress import progress_store
+
 set_db(db)
 config_store.set_db(db)
 activity_emitter.set_db(db)
 activity_emitter.set_broadcaster(ws_broadcast)
 agents_store.set_db(db)
 blockers_store.set_db(db)
+progress_store.set_db(db)
 register_day_one()
 register_agent_bus_keys()
 register_builtins()
 config_ws_module.register_replay_provider(get_last_replay)
+config_ws_module.register_replay_provider(get_progress_last_replay)
 config_events.install()
 
 app.include_router(approval_v2_router)
@@ -522,6 +529,7 @@ app.include_router(logs_router)
 app.include_router(agents_router)
 app.include_router(agents_ws_router)
 app.include_router(blockers_router)
+app.include_router(progress_router)
 
 
 @app.on_event("startup")
@@ -529,6 +537,7 @@ async def _config_bus_startup() -> None:
     n = await bus.load_from_store()
     logging.getLogger(__name__).info("config bus loaded %d Mongo overrides", n)
     await start_mirror_loop(db)
+    await start_progress_mirror_loop(db)
 
 app.add_middleware(
     CORSMiddleware,
