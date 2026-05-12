@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useGateway } from "@/lib/useGateway";
 import { ActivityFeedPane } from "@/components/ActivityFeedPane";
+import { ProgressPulse } from "@/components/progress";
 import {
     PageShell,
     PageHeader,
@@ -197,6 +198,9 @@ function DashboardInner() {
                         <StatTile key={t.label} {...t} />
                     ))}
                 </div>
+
+                {/* VM-D2 Progress Pulse — PROGRESS.md mirror */}
+                <ProgressPulse />
 
                 {/* Exec Policy hero */}
                 <HeroCard>
