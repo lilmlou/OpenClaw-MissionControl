@@ -41,7 +41,7 @@ _last_error: Optional[str] = None
 
 def health() -> Dict[str, Any]:
     return {
-        "status": "ok" if _task is None or not _task.cancelled() else "stopped",
+        "status": "ok" if _task is None or not _task.done() else "stopped",
         "latency_ms": 0,
         "last_error": _last_error,
         "capabilities": ["parse", "list", "mark_seen", "ws_replay", "activity"],

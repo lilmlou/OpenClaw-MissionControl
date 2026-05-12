@@ -208,3 +208,21 @@ def test_replay_provider_nonempty_after_scan():
 def test_payloads_do_not_emit_done_status_literal():
     docs = parse_progress_text(sample(), "/tmp/PROGRESS.md")
     assert "\"done\"" not in json.dumps(docs)
+
+
+def test_progress_health_reports_stopped_when_loop_task_is_done():
+    from app.progress import mirror
+
+    class FinishedTask:
+        def done(self):
+            return True
+
+        def cancelled(self):
+            return False
+
+    old_task = mirror._task
+    mirror._task = FinishedTask()
+    try:
+        assert mirror.health()["status"] == "stopped"
+    finally:
+        mirror._task = old_task
