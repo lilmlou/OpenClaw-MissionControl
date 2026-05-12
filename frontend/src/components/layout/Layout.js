@@ -9,6 +9,7 @@ import { useGateway, selectAgentsHealth, formatHealthDetail } from "@/lib/useGat
 import { useShallow } from "zustand/react/shallow";
 import StatusBar from "@/components/layout/StatusBar";
 import ActivityPane from "@/components/layout/ActivityPane";
+import BlockersBanner from "@/components/layout/BlockersBanner";
 
 const HEALTH_STYLES = {
   healthy: { color: "#22c55e", icon: CheckCircle2 },
@@ -249,6 +250,7 @@ export default function Layout({ children }) {
             })()}
           </div>
         </header>
+        <BlockersBanner />
         <div className="flex-1 overflow-hidden relative">{children}</div>
         <StatusBar />
       </main>
