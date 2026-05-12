@@ -526,28 +526,13 @@ const getProviders = () => {
   }));
 };
 
-// ─── Jobs data ───────────────────────────────────────────────────────────────
-const MOCK_JOBS = [
-  { id: "job-1", name: "Code Analysis Task", status: "running", progress: 65, agent: "coder", started: Date.now() - 120000 },
-  { id: "job-2", name: "Web Research: AI Trends", status: "completed", progress: 100, agent: "researcher", started: Date.now() - 3600000 },
-  { id: "job-3", name: "File Sync Operation", status: "pending", progress: 0, agent: "file-manager", started: Date.now() },
-  { id: "job-4", name: "Desktop Automation", status: "running", progress: 30, agent: "desktop", started: Date.now() - 60000 },
-];
-
-// ─── Approvals data ──────────────────────────────────────────────────────────
-const MOCK_APPROVALS = [
-  { id: "apr-1", title: "File Access Request", description: "Agent requests read access to ~/Documents/config.json", status: "pending", agent: "file-manager", risk: "low", timestamp: Date.now() - 30000 },
-  { id: "apr-2", title: "Terminal Command Execution", description: "Agent wants to run: npm install express", status: "pending", agent: "coder", risk: "medium", timestamp: Date.now() - 60000 },
-  { id: "apr-3", title: "External API Call", description: "Agent requests permission to call api.github.com", status: "approved", agent: "researcher", risk: "low", timestamp: Date.now() - 120000 },
-  { id: "apr-4", title: "System Settings Change", description: "Agent wants to modify ~/.zshrc", status: "rejected", agent: "desktop", risk: "high", timestamp: Date.now() - 180000 },
-];
-
-// ─── Spaces data ─────────────────────────────────────────────────────────────
-const DEFAULT_SPACES = [
-  { id: "space-files", name: "Files", description: "Documents and reports", icon: "FileText", color: "#3b82f6" },
-  { id: "space-design", name: "Design", description: "Creative and visual work", icon: "PenTool", color: "#ec4899" },
-  { id: "space-dev", name: "Development", description: "Code, builds, and dev jobs", icon: "Code2", color: "#22c55e" },
-];
+// ─── Live data containers ───────────────────────────────────────────────────
+// NO-MOCK-DATA RULE (2026-05-12): empty initial state only.
+// Pages must fetch via the gateway endpoints below. Empty arrays render
+// proper empty/error states; they are NEVER fallback placeholders.
+const EMPTY_JOBS = [];
+const EMPTY_APPROVALS = [];
+const DEFAULT_SPACES = [];
 
 // ─── Auto-routing: keyword → space mapping ──────────────────────────────────
 const ROUTE_KEYWORDS = {
@@ -701,11 +686,11 @@ export const useGateway = create(
       activePage: "chat",
       activeTab: "chat",
       
-      // Jobs
-      jobs: MOCK_JOBS,
-      
-      // Approvals
-      approvals: MOCK_APPROVALS,
+      // Jobs (live data, fetched from Express AgentRuntime gateway)
+      jobs: EMPTY_JOBS,
+
+      // Approvals (live data, fetched from FastAPI approval_engine)
+      approvals: EMPTY_APPROVALS,
       approvalHistory: [],
       approvalsLoading: false,
       approvalsBackend: "mock",
