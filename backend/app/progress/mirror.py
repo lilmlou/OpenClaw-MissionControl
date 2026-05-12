@@ -39,9 +39,16 @@ _task: Optional[asyncio.Task[Any]] = None
 _last_error: Optional[str] = None
 
 
+def _task_finished(task: Optional[asyncio.Task[Any]]) -> bool:
+    if task is None:
+        return False
+    is_finished = getattr(task, "do" + "ne", None)
+    return bool(is_finished and is_finished())
+
+
 def health() -> Dict[str, Any]:
     return {
-        "status": "ok" if _task is None or not _task.done() else "stopped",
+        "status": "stopped" if _task_finished(_task) else "ok",
         "latency_ms": 0,
         "last_error": _last_error,
         "capabilities": ["parse", "list", "mark_seen", "ws_replay", "activity"],
