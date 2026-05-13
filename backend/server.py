@@ -482,6 +482,7 @@ from app.config_bus.defaults import register_day_one
 from app.activity import emitter as activity_emitter
 from app.activity import activity_router
 from app.brain_config import register_brain_config_keys
+from app.chat_config import register_chat_config_keys
 
 # Phase 0.3 backend half — Actions registry
 from app.actions import actions_router
@@ -489,6 +490,12 @@ from app.actions.builtins import register_builtins
 
 # Phase 0.3 backend — Logs (BindLog endpoint stub)
 from app.logs import logs_router
+
+# P0 backend visual-mirror stubs
+from app.design import design_router
+from app.qudos import qudos_router
+from app.models import models_router
+from app.usage import usage_router
 
 # F7 — Agent Live View
 from app.agents import agents_router, agents_ws_router, ws_broadcast as agents_ws_broadcast
@@ -514,6 +521,7 @@ progress_store.set_db(db)
 register_day_one()
 register_agent_bus_keys()
 register_brain_config_keys()
+register_chat_config_keys()
 register_builtins()
 config_ws_module.register_replay_provider(get_last_replay)
 config_ws_module.register_replay_provider(get_progress_last_replay)
@@ -528,6 +536,10 @@ app.include_router(config_ws_router)
 app.include_router(activity_router)
 app.include_router(actions_router)
 app.include_router(logs_router)
+app.include_router(design_router)
+app.include_router(qudos_router)
+app.include_router(models_router)
+app.include_router(usage_router)
 app.include_router(agents_router)
 app.include_router(agents_ws_router)
 app.include_router(blockers_router)

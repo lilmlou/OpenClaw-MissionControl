@@ -82,9 +82,17 @@ def _resolve_actor(supplied: Optional[str]) -> str:
 
 
 @config_router.get("")
-async def list_keys(category: Optional[str] = Query(None)) -> JSONResponse:
-    docs = bus.list_docs(category=category)
-    return _ok({"items": docs, "total": len(docs)})
+async def list_keys(
+    category: Optional[str] = Query(None),
+    prefix: Optional[str] = Query(None),
+) -> JSONResponse:
+    category_value = None if hasattr(category, "default") else category
+    prefix_value = None if hasattr(prefix, "default") else prefix
+    docs = bus.list_docs(category=category_value)
+    if prefix_value:
+        docs = [doc for doc in docs if str(doc.get("_id") or doc.get("key") or "").startswith(prefix_value)]
+    data = {"items": docs, "total": len(docs)}
+    return JSONResponse({"ok": True, "data": data, "items": docs, "total": len(docs), "ts": _now_ms()})
 
 
 @config_router.get("/categories")

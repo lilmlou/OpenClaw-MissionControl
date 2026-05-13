@@ -141,6 +141,7 @@ class ConfigBus:
                 value, schema, secret = self._defaults[key]
                 return {
                     "_id": key,
+                    "key": key,
                     "value": "***" if secret else value,
                     "type": infer_type(schema, value),
                     "schema": schema,
@@ -350,6 +351,8 @@ class ConfigBus:
     def _public_doc(self, doc: Dict[str, Any]) -> Dict[str, Any]:
         """Redact secrets before returning to UI / API consumers."""
         out = dict(doc)
+        if "key" not in out and "_id" in out:
+            out["key"] = out["_id"]
         if doc.get("secret"):
             out["value"] = "***"
         return out

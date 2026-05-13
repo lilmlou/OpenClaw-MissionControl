@@ -39,7 +39,7 @@ def _proc_to_row(proc: psutil.Process) -> Optional[Dict[str, Any]]:
                     "create_time",
                 ]
             )
-    except (psutil.NoSuchProcess, psutil.AccessDenied):
+    except (psutil.NoSuchProcess, psutil.AccessDenied, FileNotFoundError):
         return None
 
     mem = info.get("memory_info")
@@ -96,8 +96,17 @@ def _prune_io_state() -> None:
     if now - _LAST_PRUNE[0] < 30:
         return
     _LAST_PRUNE[0] = now
+    live = set()
+    try:
+        iterator = psutil.process_iter(attrs=None)
+    except (psutil.NoSuchProcess, psutil.AccessDenied, FileNotFoundError):
+        iterator = []
+    for proc in iterator:
+        try:
+            live.add(proc.pid)
+        except (psutil.NoSuchProcess, psutil.AccessDenied, FileNotFoundError):
+            continue
     with _io_lock:
-        live = {p.pid for p in psutil.process_iter(attrs=[])}
         for pid in list(_io_state.keys()):
             if pid not in live:
                 _io_state.pop(pid, None)
@@ -133,12 +142,22 @@ def read(sort: str = "cpu", limit: int = 10) -> Dict[str, Any]:
     _prune_io_state()
 
     rows: List[Dict[str, Any]] = []
-    procs = list(psutil.process_iter(attrs=[]))
+    procs = []
+    try:
+        iterator = psutil.process_iter(attrs=None)
+    except (psutil.NoSuchProcess, psutil.AccessDenied, FileNotFoundError):
+        iterator = []
+    for proc in iterator:
+        try:
+            _ = proc.pid
+        except (psutil.NoSuchProcess, psutil.AccessDenied, FileNotFoundError):
+            continue
+        procs.append(proc)
     # Prime CPU percent (psutil needs two samples for accurate %).
     for p in procs:
         try:
             p.cpu_percent(interval=None)
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
+        except (psutil.NoSuchProcess, psutil.AccessDenied, FileNotFoundError):
             continue
 
     # Small sleep so cpu_percent sampling is meaningful. 0.1s keeps poll
