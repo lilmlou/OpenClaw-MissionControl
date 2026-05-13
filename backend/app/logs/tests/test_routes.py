@@ -25,8 +25,12 @@ async def test_tail_returns_available_false():
         resp = await client.get("/api/v2/logs/tail", params={"file": "/tmp/test.log", "lines": 50})
     assert resp.status_code == 200
     data = resp.json()
+    assert data["ok"] is False
     assert data["available"] is False
-    assert "error" in data
+    assert data["code"] == "LOG_SHIPPER_UNAVAILABLE"
+    assert data["error"] == "log_shipper_unavailable"
+    assert isinstance(data["fix"], list) and data["fix"]
+    assert isinstance(data["ts"], int)
 
 
 @pytest.mark.anyio
@@ -49,6 +53,11 @@ async def test_tail_respects_lines_param():
     data = resp.json()
     assert data["lines"] == 200
     assert data["file"] == "/tmp/test.log"
+    assert data["detail"] == {
+        "file": "/tmp/test.log",
+        "lines": 200,
+        "reason": "log-shipper not yet shipped — endpoint is a stub",
+    }
 
 
 # TODO: builder scaffold
