@@ -271,7 +271,7 @@ export default function QudosPage() {
     const capabilities = qudosCapabilitiesByApp?.[app.id] || { watch: true, suggest: true, act: false, launch: true };
     const result = await createQudosSession({
       appId: app.id,
-      task: `Cowork in ${app.label}`,
+      task: `Qudos in ${app.label}`,
       agent: "openclaw",
       capabilities,
     });

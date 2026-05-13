@@ -69,13 +69,17 @@ function subscribeConfigWs(fn) {
 async function fetchConfigValue(key) {
   const res = await fetch(apiUrl(`/api/v2/config/${encodeURIComponent(key)}`));
   if (!res.ok) throw new Error(`Config fetch failed: ${res.status}`);
-  return res.json();
+  const payload = await res.json();
+  if (payload && payload.ok === false) throw new Error(payload.error || "Config fetch failed");
+  return payload.data;
 }
 
 async function fetchConfigSchema(key) {
   const res = await fetch(apiUrl(`/api/v2/config/schema/${encodeURIComponent(key)}`));
   if (!res.ok) throw new Error(`Schema fetch failed: ${res.status}`);
-  return res.json();
+  const payload = await res.json();
+  if (payload && payload.ok === false) throw new Error(payload.error || "Schema fetch failed");
+  return payload.data;
 }
 
 async function putConfigValue(key, value, expectedVersion) {
@@ -90,25 +94,33 @@ async function putConfigValue(key, value, expectedVersion) {
     const err = await res.json().catch(() => ({}));
     throw Object.assign(new Error(err.detail || `PUT failed: ${res.status}`), { status: res.status, detail: err });
   }
-  return res.json();
+  const payload = await res.json();
+  if (payload && payload.ok === false) throw new Error(payload.error || "PUT failed");
+  return payload.data;
 }
 
 async function deleteConfigValue(key) {
   const res = await fetch(apiUrl(`/api/v2/config/${encodeURIComponent(key)}`), { method: "DELETE" });
   if (!res.ok) throw new Error(`DELETE failed: ${res.status}`);
-  return res.json();
+  const payload = await res.json();
+  if (payload && payload.ok === false) throw new Error(payload.error || "DELETE failed");
+  return payload.data;
 }
 
 async function fetchConfigCategories() {
   const res = await fetch(apiUrl("/api/v2/config/categories"));
   if (!res.ok) throw new Error(`Categories fetch failed: ${res.status}`);
-  return res.json();
+  const payload = await res.json();
+  if (payload && payload.ok === false) throw new Error(payload.error || "Categories fetch failed");
+  return payload.data.categories;
 }
 
 async function fetchConfigByCategory(category) {
   const res = await fetch(apiUrl(`/api/v2/config?category=${encodeURIComponent(category)}`));
   if (!res.ok) throw new Error(`Category config fetch failed: ${res.status}`);
-  return res.json();
+  const payload = await res.json();
+  if (payload && payload.ok === false) throw new Error(payload.error || "Category config fetch failed");
+  return payload.data;
 }
 
 // ─── useConfigSchema ─────────────────────────────────────────────────────────
@@ -190,10 +202,11 @@ export function useConfigCategory(category) {
     setState(s => ({ ...s, loading: true, error: null }));
     try {
       const data = await fetchConfigByCategory(category);
-      const keys = data.map ? data.map(d => d.key || d._id) : Object.keys(data);
+      const items = data.items || [];
+      const keys = items.map(d => d.key || d._id);
       const schemas = {};
       const values = {};
-      (data.items || data).forEach(item => {
+      items.forEach(item => {
         const k = item.key || item._id;
         schemas[k] = item.schema;
         values[k] = item.value;

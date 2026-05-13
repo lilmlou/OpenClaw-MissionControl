@@ -17,6 +17,7 @@ import { useGateway } from "@/lib/useGateway";
 
 const CATEGORY_META = {
   agent:    { Icon: Bot          },
+  config:   { Icon: Server       },
   cron:     { Icon: Clock        },
   approval: { Icon: Shield       },
   chat:     { Icon: MessageSquare},
@@ -24,6 +25,7 @@ const CATEGORY_META = {
   security: { Icon: LockIcon     },
   watcher:  { Icon: Eye          },
   model:    { Icon: Sparkles     },
+  error:    { Icon: Shield       },
 };
 
 const SEVERITY_DOT = {
@@ -42,8 +44,10 @@ function fmtTime(ts) {
   return `${Math.floor(diff / 86_400_000)}d`;
 }
 
-function CategoryIcon({ category, className, style }) {
-  const meta = CATEGORY_META[category];
+function CategoryIcon({ kind, className, style }) {
+  // Support both direct kind values and dot-prefixed kinds like "config.set"
+  const baseKind = (kind || "").split(".")[0];
+  const meta = CATEGORY_META[kind] || CATEGORY_META[baseKind];
   if (!meta) return <Activity className={className} style={style} />;
   const Icon = meta.Icon;
   return <Icon className={className} style={style} />;
@@ -153,7 +157,7 @@ export default function ActivityPane() {
                     >
                       <div className="w-6 h-6 shrink-0 rounded-md flex items-center justify-center mt-0.5"
                            style={{ background: `${dotColor}18`, border: `1px solid ${dotColor}30` }}>
-                        <CategoryIcon category={a.category} className="w-3 h-3" style={{ color: dotColor }} />
+                        <CategoryIcon kind={a.kind} className="w-3 h-3" style={{ color: dotColor }} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">

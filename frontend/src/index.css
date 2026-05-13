@@ -4,13 +4,19 @@
 
 body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-        "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-        sans-serif;
+    font-family: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont,
+        "Segoe UI", "Roboto", "Helvetica Neue", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: #0a0a0a;
-    color: #f5f5f5;
+    background-color: #0A0807;
+    color: #F6ECD2;
+    /* Mietorè ambient — antique gold on warm-black, cyan reserved for live data */
+    background-image:
+        radial-gradient(900px 600px at 0% 0%, rgba(217, 162, 76, 0.07) 0%, transparent 60%),
+        radial-gradient(900px 600px at 100% 100%, rgba(34, 211, 219, 0.04) 0%, transparent 60%),
+        linear-gradient(180deg, #100D0A 0%, #0A0807 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
 }
 
 html {
@@ -21,9 +27,41 @@ html {
     box-sizing: border-box;
 }
 
-code {
-    font-family:
-        source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+code, pre, .mono {
+    font-family: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Monaco,
+        Consolas, "Courier New", monospace;
+}
+
+/* gold-tinted selection */
+::selection {
+    background: rgba(217, 162, 76, 0.32);
+    color: #F6ECD2;
+}
+
+/* refined scrollbars */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(217, 162, 76, 0.20);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(217, 162, 76, 0.36);
+    background-clip: padding-box;
+}
+
+/* focus ring — gold, accessible */
+*:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(217, 162, 76, 0.55);
+    border-radius: 6px;
 }
 
 @layer base {
@@ -92,65 +130,69 @@ code {
 }
 
 /* ============================================================
-   MC-CLAW Design System v2 — Cinematic OpenClaw theme
-   Additive — does not replace existing shadcn vars above.
-   Kit components use these (--mc-*) tokens exclusively.
+   MC Design System v3 — Mietorè
+   Antique gold (primary, 80%) + Cyan (live data, 20%) on warm-black.
+   Luxury dark, glassmorphism, hairline gold borders. All tokens flow
+   through --mc-*. Component consumers unchanged — only values shift.
    ============================================================ */
 @layer base {
     :root {
-        /* surfaces — deep black with maroon undertone */
-        --mc-bg:           #06070a;
-        --mc-bg-1:         #0e0a0d;   /* card */
-        --mc-bg-2:         #161013;   /* nested / hover */
-        --mc-bg-3:         #1f1418;   /* selected / pressed */
-        --mc-bg-overlay:   rgba(6, 7, 10, 0.88);
+        /* surfaces — warm-black with gold undertone (never pure #000) */
+        --mc-bg:           #0A0807;        /* page bg */
+        --mc-bg-1:         #100D0A;        /* card / panel */
+        --mc-bg-2:         #15110D;        /* nested / hover */
+        --mc-bg-3:         #1C1812;        /* selected / pressed */
+        --mc-bg-overlay:   rgba(10, 8, 7, 0.86);
+        --mc-bg-elevated:  #241F17;        /* modal / popover */
 
-        /* gradient hero surface (use background-image for HeroCard) */
-        --mc-bg-gradient:  radial-gradient(120% 80% at 0% 0%, rgba(255, 48, 78, 0.10) 0%, transparent 55%),
-                           radial-gradient(120% 80% at 100% 100%, rgba(255, 106, 61, 0.08) 0%, transparent 55%),
-                           linear-gradient(180deg, #14080d 0%, #0a0608 100%);
+        /* gradient hero surface — gold ambient, very subtle */
+        --mc-bg-gradient:  radial-gradient(120% 80% at 0% 0%, rgba(217, 162, 76, 0.08) 0%, transparent 55%),
+                           radial-gradient(120% 80% at 100% 100%, rgba(34, 211, 219, 0.04) 0%, transparent 55%),
+                           linear-gradient(180deg, #100D0A 0%, #0A0807 100%);
 
-        /* text */
-        --mc-fg:           #f7eef0;
-        --mc-fg-1:         #c4a8ae;
-        --mc-fg-2:         #87707a;
-        --mc-fg-3:         #4a3b42;
+        /* text — warm off-white through warm grey */
+        --mc-fg:           #F6ECD2;        /* primary (warm ivory) */
+        --mc-fg-1:         #E5DDD0;        /* secondary */
+        --mc-fg-2:         #A89A87;        /* tertiary / muted */
+        --mc-fg-3:         #6B6560;        /* quiet labels */
 
-        /* lines (warm-tinted on dark) */
-        --mc-line:         rgba(255, 48, 78, 0.08);
-        --mc-line-strong:  rgba(255, 48, 78, 0.18);
+        /* lines — hairline gold at low opacity */
+        --mc-line:         rgba(217, 162, 76, 0.10);
+        --mc-line-strong:  rgba(217, 162, 76, 0.22);
 
-        /* accent — OpenClaw red, primary brand */
-        --mc-accent:       #ff304e;
-        --mc-accent-hover: #ff5470;
-        --mc-accent-soft:  rgba(255, 48, 78, 0.14);
-        --mc-accent-fg:    #14080d;   /* on-accent text */
-        --mc-accent-glow:  rgba(255, 48, 78, 0.35);
+        /* accent — antique gold, primary brand (80% of accent usage) */
+        --mc-accent:       #D9A24C;        /* PRIMARY gold */
+        --mc-accent-hover: #F4C77A;        /* lifted */
+        --mc-accent-soft:  rgba(217, 162, 76, 0.12);
+        --mc-accent-fg:    #0A0807;        /* on-accent text */
+        --mc-accent-glow:  rgba(217, 162, 76, 0.45);
 
-        /* secondary accent — warm orange, for live/active streams */
-        --mc-accent-2:       #ff6a3d;
-        --mc-accent-2-soft:  rgba(255, 106, 61, 0.14);
-        --mc-accent-2-glow:  rgba(255, 106, 61, 0.30);
+        /* secondary accent — cyan, reserved for live/data (20%) */
+        --mc-accent-2:       #22D3DB;        /* PRIMARY cyan */
+        --mc-accent-2-hover: #5EEAEA;
+        --mc-accent-2-soft:  rgba(34, 211, 219, 0.12);
+        --mc-accent-2-glow:  rgba(34, 211, 219, 0.40);
+        --mc-accent-2-fg:    #0A0807;
 
-        /* status — punchier, brand-coordinated */
-        --mc-ok:           #2cd96a;
-        --mc-warn:         #ffb547;
-        --mc-err:          #ff304e;       /* aligns with brand */
-        --mc-info:         #5fb8ff;
-        --mc-ok-soft:      rgba(44, 217, 106, 0.16);
-        --mc-warn-soft:    rgba(255, 181, 71, 0.16);
-        --mc-err-soft:     rgba(255, 48, 78, 0.16);
-        --mc-info-soft:    rgba(95, 184, 255, 0.16);
-        --mc-ok-glow:      rgba(44, 217, 106, 0.35);
-        --mc-warn-glow:    rgba(255, 181, 71, 0.35);
-        --mc-err-glow:     rgba(255, 48, 78, 0.35);
+        /* status — gold-warm = ok no longer cyan; reserve cyan for live only */
+        --mc-ok:           #6BCF94;        /* verified green */
+        --mc-warn:         #D9A24C;        /* warning reuses gold */
+        --mc-err:          #E55C5C;
+        --mc-info:         #22D3DB;        /* info reuses cyan */
+        --mc-ok-soft:      rgba(107, 207, 148, 0.14);
+        --mc-warn-soft:    rgba(217, 162, 76, 0.14);
+        --mc-err-soft:     rgba(229, 92, 92, 0.14);
+        --mc-info-soft:    rgba(34, 211, 219, 0.12);
+        --mc-ok-glow:      rgba(107, 207, 148, 0.30);
+        --mc-warn-glow:    rgba(217, 162, 76, 0.40);
+        --mc-err-glow:     rgba(229, 92, 92, 0.30);
 
-        /* charts (color-blind safe) */
-        --mc-chart-1: #5ee2c9;
-        --mc-chart-2: #6ea8fe;
-        --mc-chart-3: #c99cff;
-        --mc-chart-4: #f5c451;
-        --mc-chart-5: #ff8e72;
+        /* charts — gold-led, cyan accent */
+        --mc-chart-1: #D9A24C;       /* gold (primary) */
+        --mc-chart-2: #22D3DB;       /* cyan (live) */
+        --mc-chart-3: #F4C77A;       /* champagne */
+        --mc-chart-4: #A87436;       /* deep antique gold */
+        --mc-chart-5: #6BCF94;       /* verified green */
 
         /* spacing scale (8pt + tight cases) */
         --mc-space-0: 0;
@@ -357,6 +399,57 @@ code {
         font-family: var(--mc-font-display);
         letter-spacing: var(--mc-tracking-tight);
         font-weight: 600;
+    }
+
+    /* ── Mietorè glassmorphism utilities ───────────────────────
+       Drop-in: add `mc-glass` to any panel/card that should
+       carry the signature frosted-gold surface. Add
+       `mc-glass-heavy` to modals, drawers, input bars.
+       These classes do NOT change layout — only fill, border,
+       blur, shadow. Components keep their existing structure. */
+    .mc-glass {
+        background: rgba(28, 24, 18, 0.55);
+        backdrop-filter: blur(20px) saturate(140%);
+        -webkit-backdrop-filter: blur(20px) saturate(140%);
+        border: 1px solid rgba(217, 162, 76, 0.18);
+        box-shadow:
+            inset 0 1px 0 rgba(252, 230, 184, 0.08),
+            0 20px 60px rgba(0, 0, 0, 0.55),
+            0 0 40px rgba(217, 162, 76, 0.06);
+    }
+    .mc-glass-heavy {
+        background: rgba(28, 24, 18, 0.72);
+        backdrop-filter: blur(28px) saturate(160%);
+        -webkit-backdrop-filter: blur(28px) saturate(160%);
+        border: 1px solid rgba(217, 162, 76, 0.28);
+        box-shadow:
+            inset 0 1px 0 rgba(252, 230, 184, 0.12),
+            0 30px 80px rgba(0, 0, 0, 0.70),
+            0 0 60px rgba(217, 162, 76, 0.10);
+    }
+    /* Gold-edge variant — for hero / featured panels.
+       Uses a transparent border on a padding-box gradient so the
+       gold edge looks lit even when the surface is glassy. */
+    .mc-glass-gold-edge {
+        border: 1px solid transparent;
+        background:
+            linear-gradient(rgba(28, 24, 18, 0.55), rgba(28, 24, 18, 0.55)) padding-box,
+            linear-gradient(135deg, rgba(244, 199, 122, 0.45), rgba(217, 162, 76, 0.05)) border-box;
+        backdrop-filter: blur(20px) saturate(140%);
+        -webkit-backdrop-filter: blur(20px) saturate(140%);
+        box-shadow:
+            inset 0 1px 0 rgba(252, 230, 184, 0.10),
+            0 20px 60px rgba(0, 0, 0, 0.55),
+            0 0 40px rgba(217, 162, 76, 0.10);
+    }
+    /* Cyan-edge variant — rare, only for live/active panels */
+    .mc-glass-cyan-edge {
+        border: 1px solid transparent;
+        background:
+            linear-gradient(rgba(28, 24, 18, 0.55), rgba(28, 24, 18, 0.55)) padding-box,
+            linear-gradient(135deg, rgba(94, 234, 234, 0.45), rgba(34, 211, 219, 0.05)) border-box;
+        backdrop-filter: blur(20px) saturate(140%);
+        -webkit-backdrop-filter: blur(20px) saturate(140%);
     }
 }
 

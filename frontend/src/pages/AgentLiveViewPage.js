@@ -389,7 +389,7 @@ function AgentEventStream({ events }) {
                             maxHeight: 120,
                           }}
                         >
-                          {ev.summary || JSON.stringify(ev.detail)}
+                          {ev.summary || "[no summary]"}
                         </pre>
                       ))}
                     </div>
@@ -501,7 +501,7 @@ function AgentDiffPane({ diff, run, runId }) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const payload = await res.json();
       const data = payload?.ok === false ? payload : (payload?.data || payload);
-      const text = typeof data?.diff === "string" ? data.diff : (data?.ok === false ? null : JSON.stringify(data, null, 2));
+      const text = typeof data?.diff === "string" ? data.diff : null;
       setDiffText(text || "");
     } catch (err) {
       setFetchError(err.message);
@@ -545,7 +545,7 @@ function AgentDiffPane({ diff, run, runId }) {
           {files.length > 0 && (
             <ul className="m-0 list-none p-0 border-b" style={{ borderColor: "var(--mc-line)" }}>
               {files.map((f) => {
-                const path = typeof f === "string" ? f : (f.path || f.name || JSON.stringify(f));
+                const path = typeof f === "string" ? f : (f.path || f.name || "[unknown]");
                 return (
                   <li
                     key={path}

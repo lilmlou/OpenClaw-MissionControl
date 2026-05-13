@@ -17,6 +17,7 @@ import { useGateway } from "@/lib/useGateway";
 
 const CATEGORY_META = {
   agent:    { label: "Agent",    Icon: Bot          },
+  config:   { label: "Config",   Icon: Server       },
   cron:     { label: "Cron",     Icon: Clock        },
   approval: { label: "Approval", Icon: Shield       },
   chat:     { label: "Chat",     Icon: MessageSquare},
@@ -24,6 +25,7 @@ const CATEGORY_META = {
   security: { label: "Security", Icon: LockIcon     },
   watcher:  { label: "Watcher",  Icon: Eye          },
   model:    { label: "Model",    Icon: Sparkles     },
+  error:    { label: "Error",    Icon: AlertCircle  },
 };
 
 const SEVERITY_STYLE = {
@@ -62,8 +64,10 @@ function dayLabel(ts) {
   return d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
 }
 
-function CategoryIcon({ category, className, style }) {
-  const meta = CATEGORY_META[category];
+function CategoryIcon({ kind, className, style }) {
+  // Support both direct kind values and dot-prefixed kinds like "config.set"
+  const baseKind = (kind || "").split(".")[0];
+  const meta = CATEGORY_META[kind] || CATEGORY_META[baseKind];
   if (!meta) return <Activity className={className} style={style} />;
   const Icon = meta.Icon;
   return <Icon className={className} style={style} />;
@@ -98,7 +102,7 @@ function ActivityRow({ activity, onSelect }) {
     >
       <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 mt-0.5"
            style={{ background: `${sev.dot}18`, border: `1px solid ${sev.dot}30` }}>
-        <CategoryIcon category={activity.category} className="w-3.5 h-3.5" style={{ color: sev.dot }} />
+        <CategoryIcon kind={activity.kind} className="w-3.5 h-3.5" style={{ color: sev.dot }} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
@@ -116,8 +120,8 @@ function ActivityRow({ activity, onSelect }) {
         <div className="flex items-center gap-1.5 mt-1">
           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider"
                 style={{ background: C.surface2, color: C.muted, border: `1px solid ${C.border}` }}>
-            <CategoryIcon category={activity.category} className="w-2.5 h-2.5" />
-            {activity.category}
+            <CategoryIcon kind={activity.kind} className="w-2.5 h-2.5" />
+            {activity.kind}
           </span>
           <SeverityPill severity={activity.severity} />
         </div>
@@ -149,7 +153,7 @@ function DetailModal({ activity, onClose, allActivities }) {
           <div className="flex items-start gap-3 min-w-0">
             <div className="w-9 h-9 rounded-md flex items-center justify-center shrink-0"
                  style={{ background: `${C.accent}15`, border: `1px solid ${C.accent}40` }}>
-              <CategoryIcon category={activity.category} className="w-4 h-4" style={{ color: C.accent }} />
+              <CategoryIcon kind={activity.kind} className="w-4 h-4" style={{ color: C.accent }} />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -214,7 +218,7 @@ function DetailModal({ activity, onClose, allActivities }) {
                   <div key={r.id}
                        className="flex items-center gap-2 px-2 py-1.5 rounded-md text-[11px]"
                        style={{ background: C.surface2 }}>
-                    <CategoryIcon category={r.category} className="w-3 h-3 shrink-0" style={{ color: C.muted }} />
+                    <CategoryIcon kind={r.kind} className="w-3 h-3 shrink-0" style={{ color: C.muted }} />
                     <span className="capitalize" style={{ color: C.text }}>{r.actor}</span>
                     <span className="flex-1 truncate" style={{ color: C.muted }}>{r.description}</span>
                     <span style={{ color: C.muted }}>{fmtTime(r.created_at)}</span>
@@ -285,7 +289,7 @@ export default function ActivitiesPage() {
   // narrow them here to whatever the user selected.
   const filtered = useMemo(() => {
     return activities.filter((a) => {
-      if (activitiesFilters.categories.length && !activitiesFilters.categories.includes(a.category)) return false;
+      if (activitiesFilters.categories.length && !activitiesFilters.categories.includes(a.kind)) return false;
       if (activitiesFilters.severities.length && !activitiesFilters.severities.includes(a.severity)) return false;
       if (search) {
         const q = search.toLowerCase();
@@ -312,7 +316,7 @@ export default function ActivitiesPage() {
     const byCategory = {};
     let errors = 0;
     for (const a of filtered) {
-      byCategory[a.category] = (byCategory[a.category] || 0) + 1;
+      byCategory[a.kind] = (byCategory[a.kind] || 0) + 1;
       if (a.severity === "error" || a.severity === "critical") errors++;
     }
     return { total: filtered.length, byCategory, errors };

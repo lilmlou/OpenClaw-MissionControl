@@ -557,7 +557,7 @@ export const useGateway = create(
   persist(
     (set, get) => ({
       // Connection state
-      status: "connecting",
+      status: "idle",
       phase: "idle",
       lastError: null,
 
@@ -1103,10 +1103,10 @@ export const useGateway = create(
         activitiesWs.onmessage = (evt) => {
           try {
             const msg = JSON.parse(evt.data);
-            // Backend emits raw activity frames; some servers wrap them
+            // Backend emits raw activity frames with 'kind'; some servers wrap them
             // in { type: 'activity', payload }. Accept both.
             const a = msg?.payload && msg?.type === "activity" ? msg.payload
-                    : msg?.id && msg?.category ? msg
+                    : msg?.id && msg?.kind ? msg
                     : null;
             if (!a) return;
             set((s) => {
@@ -2557,16 +2557,7 @@ export const useGateway = create(
       setTheme: (theme) => set({ theme }),
       setDefaultModel: (defaultModel) => set({ defaultModel }),
       
-      // Initialize connection
-      initGateway: async () => {
-        set({ status: "connecting" });
-        await new Promise(r => setTimeout(r, 1500));
-        set({ status: "connected", clawStatus: { state: "Scheduled" } });
-        await get().fetchPendingApprovals();
-        await get().fetchApprovalHistory();
-        await get().fetchModelGroups({ refresh: true });
-        get().connectApprovalsWebSocket();
-      },
+      // (legacy fake initGateway removed 2026-05-13 — real one at L2913)
       
       // Switch model — also persist to current thread immediately
       setChatParameters: (patch) => set((state) => ({ chatParameters: { ...state.chatParameters, ...patch } })),
@@ -2884,12 +2875,29 @@ export const useGateway = create(
               }
             }
             
-            set({ status: "error", lastError: "WebSocket error" });
+            set({ status: "disconnected", lastError: "WebSocket error" });
+            
+            // Auto-reconnect on error (mirrors onclose).  If onclose fires
+            // right after, its guard prevents a second timer.
+            if (!gatewayWsReconnectTimer) {
+              gatewayWsReconnectTimer = setTimeout(() => {
+                gatewayWsReconnectTimer = null;
+                get().connectGateway();
+              }, 5000);
+            }
           };
           
         } catch (err) {
           console.error("Failed to connect to gateway:", err);
-          set({ status: "error", lastError: err.message });
+          set({ status: "disconnected", lastError: err.message });
+          
+          // Schedule reconnect after connection failure
+          if (!gatewayWsReconnectTimer) {
+            gatewayWsReconnectTimer = setTimeout(() => {
+              gatewayWsReconnectTimer = null;
+              get().connectGateway();
+            }, 5000);
+          }
         }
       },
       
