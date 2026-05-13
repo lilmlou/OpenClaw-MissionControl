@@ -8,6 +8,9 @@ import EventsPage from "@/pages/EventsPage";
 import ApprovalsPage from "@/pages/ApprovalsPage";
 import AgentsPage from "@/pages/AgentsPage";
 import AgentLiveViewPage from "@/pages/AgentLiveViewPage";
+import BrainLogPage from "@/pages/BrainLogPage";
+import BrainPageLegacy from "@/pages/BrainPage.legacy";
+import InsightsPage from "@/pages/InsightsPage";
 import SpacesPage from "@/pages/SpacesPage";
 import QudosPage from "@/pages/QudosPage";
 import CodePage from "@/pages/CodePage";
@@ -38,6 +41,10 @@ function App() {
         <Route path="/events" element={<EventsPage />} />
         <Route path="/agents" element={<AgentsPage />} />
         <Route path="/agents/live" element={<AgentLiveViewPage />} />
+        <Route path="/brain" element={<BrainLogPage />} />
+        <Route path="/brain/:turnId" element={<BrainLogPage />} />
+        <Route path="/brain/legacy" element={<BrainPageLegacy />} />
+        <Route path="/insights" element={<InsightsPage />} />
         <Route path="/sessions" element={<SessionsPage />} />
         <Route path="/system" element={<SystemPage />} />
         <Route path="/cron" element={<CronPage />} />

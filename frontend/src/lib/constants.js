@@ -19,10 +19,10 @@ export const DEFAULT_RUNTIME = "openclaw";
 export const RUNTIME_META = {
   openclaw: {
     id: "openclaw",
-    label: "OpenClaw",
+    label: "Mission",
     title: "Mission Control",
-    assistantName: "OpenClaw",
-    placeholder: "Message OpenClaw...",
+    assistantName: "MC",
+    placeholder: "Ask Mission Control…",
     statusLabel: "Mission",
   },
 };
@@ -66,7 +66,7 @@ export const RUNTIME_BACKGROUNDS = {
     position: "center center",
     size: "cover",
     overlay:
-      "radial-gradient(120% 80% at 0% 0%, rgba(255, 48, 78, 0.10) 0%, transparent 55%), radial-gradient(120% 80% at 100% 100%, rgba(255, 106, 61, 0.08) 0%, transparent 55%), linear-gradient(180deg, #14080d 0%, #0a0608 100%)",
+      "radial-gradient(120% 80% at 0% 0%, rgba(229, 177, 53, 0.07) 0%, transparent 55%), radial-gradient(120% 80% at 100% 100%, rgba(94, 226, 201, 0.05) 0%, transparent 55%), linear-gradient(180deg, #0e0e12 0%, #08080a 100%)",
     accentGlow: "var(--mc-accent-glow)",
   },
 };
@@ -128,6 +128,8 @@ export const NAV = [
   { href: "/design", label: "Design", icon: Sparkles },
   { href: "/projects", label: "Projects", icon: Grid3X3 },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/brain", label: "Brain", icon: Brain },
+  { href: "/insights", label: "Insights", icon: BarChart3 },
   { href: "/system", label: "System", icon: Cpu },
   { href: "/qudos", label: "Qudos", icon: Monitor },
   { href: "/jobs", label: "Jobs", icon: Briefcase },
@@ -137,7 +139,7 @@ export const NAV = [
   { href: "/cron", label: "Schedule", icon: Calendar },
   { href: "/activity", label: "Activity", icon: Activity },
   { href: "/costs", label: "Costs", icon: DollarSign },
-  { href: "/customize", label: "Customize", icon: Palette },
+  { href: "/customize", label: "Customise", icon: Palette },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
