@@ -20,3 +20,4 @@ export { BindMetric } from "./BindMetric";
 export { BindSparkline } from "./BindSparkline";
 export { BindFeed } from "./BindFeed";
 export { BindLog } from "./BindLog";
+export { BindList } from "./BindList";

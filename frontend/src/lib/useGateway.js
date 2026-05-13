@@ -527,12 +527,12 @@ const getProviders = () => {
 };
 
 // ─── Live data containers ───────────────────────────────────────────────────
-// NO-MOCK-DATA RULE (2026-05-12): empty initial state only.
-// Pages must fetch via the gateway endpoints below. Empty arrays render
-// proper empty/error states; they are NEVER fallback placeholders.
-const EMPTY_JOBS = [];
-const EMPTY_APPROVALS = [];
-const DEFAULT_SPACES = [];
+// NO-MOCK-DATA RULE (2026-05-14): we no longer define module-level constants
+// that stand in for live data. Initial state for live-data collections must be
+// inlined as `[]` (or `null`) at the use site so it's unambiguously empty,
+// never a placeholder seed. Pages must fetch via the gateway endpoints below.
+// Spaces, jobs, and approvals are derived from live backend state (with
+// `useState([])` / `useEffect` patterns) — never from a hard-coded constant.
 
 // ─── Auto-routing: keyword → space mapping ──────────────────────────────────
 const ROUTE_KEYWORDS = {
@@ -687,10 +687,10 @@ export const useGateway = create(
       activeTab: "chat",
       
       // Jobs (live data, fetched from Express AgentRuntime gateway)
-      jobs: EMPTY_JOBS,
+      jobs: [],
 
       // Approvals (live data, fetched from FastAPI approval_engine)
-      approvals: EMPTY_APPROVALS,
+      approvals: [],
       approvalHistory: [],
       approvalsLoading: false,
       approvalsBackend: "mock",
@@ -827,8 +827,8 @@ export const useGateway = create(
         lastError: null,               // last generate/fetch error (string)
       },
 
-      // Spaces
-      spaces: DEFAULT_SPACES,
+      // Spaces — derived from live backend state; never seed a mock array.
+      spaces: [],
       
       // Conversation threads
       threads: [],
@@ -2972,7 +2972,7 @@ export const useGateway = create(
       version: 4,
       migrate: (persisted, version) => {
         if (version < 3) {
-          return { ...persisted, spaces: DEFAULT_SPACES, threads: [], activeThreadId: null };
+          return { ...persisted, spaces: [], threads: [], activeThreadId: null };
         }
         if (version < 4) {
           // v4: added top_k default + lockedParameters + voiceSettings + disableSystemPrompt
