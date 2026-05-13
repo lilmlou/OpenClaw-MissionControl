@@ -481,6 +481,7 @@ from app.config_bus import ws as config_ws_module
 from app.config_bus.defaults import register_day_one
 from app.activity import emitter as activity_emitter
 from app.activity import activity_router
+from app.brain_config import register_brain_config_keys
 
 # Phase 0.3 backend half — Actions registry
 from app.actions import actions_router
@@ -512,6 +513,7 @@ blockers_store.set_db(db)
 progress_store.set_db(db)
 register_day_one()
 register_agent_bus_keys()
+register_brain_config_keys()
 register_builtins()
 config_ws_module.register_replay_provider(get_last_replay)
 config_ws_module.register_replay_provider(get_progress_last_replay)
