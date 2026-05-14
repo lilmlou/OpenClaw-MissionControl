@@ -8,6 +8,7 @@ import {
 } from "recharts";
 import { C } from "@/lib/constants";
 import { useGateway } from "@/lib/useGateway";
+import { BudgetMeter } from "@/components/cost";
 
 // /costs — token + cost dashboard.
 //
@@ -344,6 +345,16 @@ export default function CostsPage() {
               icon={TrendingUp}
             />
           </div>
+
+          {/* Budget — Phase F1 visible surface. Shell only; FE wiring will
+              bind real spent/budget/projected once /api/v2/budget ships. */}
+          <BudgetMeter
+            period="month"
+            spent={totals?.total_cost_usd}
+            budget={null}
+            projected={projections?.projected_monthly_usd}
+            data-testid="budget-meter"
+          />
 
           {/* Subscriptions card */}
           {subscriptionStat && (
