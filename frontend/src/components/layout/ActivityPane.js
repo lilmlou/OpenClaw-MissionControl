@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { C } from "@/lib/constants";
 import { useGateway } from "@/lib/useGateway";
+import { useConfigValue } from "@/hooks/useConfigBus";
 
 // Right-side global activity pane. Hidden on /activity (the dedicated page
 // already shows the same data more richly) and /system (which has its own
@@ -44,6 +45,24 @@ function fmtTime(ts) {
   return `${Math.floor(diff / 86_400_000)}d`;
 }
 
+// Render a human-friendly description for each activity row.
+// Handles chat.config.set specially; falls back to a.description.
+function fmtDescription(a) {
+  if (a.kind === "chat.config.set") {
+    // data shape: { key, old_value, new_value } — BE Sprint 4 contract
+    const d = a.data || {};
+    const key = d.key || a.key || "";
+    const shortKey = key.replace(/^chat\./, "");
+    const oldVal = d.old_value ?? d.old ?? "—";
+    const newVal = d.new_value ?? d.new ?? d.value ?? "—";
+    if (shortKey) {
+      return `chat.${shortKey} changed: ${String(oldVal)} → ${String(newVal)}`;
+    }
+    return a.description || "chat config changed";
+  }
+  return a.description || "";
+}
+
 function CategoryIcon({ kind, className, style }) {
   // Support both direct kind values and dot-prefixed kinds like "config.set"
   const baseKind = (kind || "").split(".")[0];
@@ -60,6 +79,10 @@ export default function ActivityPane() {
     toggleActivitiesPane, markActivitiesRead, connectActivitiesWebSocket,
   } = useGateway();
 
+  // Read max items from config bus — default 50 if key not yet seeded.
+  const { value: maxItemsRaw } = useConfigValue("activities.feed.max_items");
+  const maxItems = typeof maxItemsRaw === "number" && maxItemsRaw > 0 ? maxItemsRaw : 50;
+
   // Idempotent — no-op if already connected. Layout mounts once,
   // ensures the WS is up regardless of which page the user lands on.
   useEffect(() => { connectActivitiesWebSocket(); }, [connectActivitiesWebSocket]);
@@ -70,7 +93,7 @@ export default function ActivityPane() {
               || location.pathname === "/system";
   if (hidden) return null;
 
-  const recent = activities.slice(0, 50);
+  const recent = activities.slice(0, maxItems);
 
   return (
     <>
@@ -169,7 +192,7 @@ export default function ActivityPane() {
                           </span>
                         </div>
                         <div className="text-[11px] truncate" style={{ color: C.muted }}>
-                          {a.description}
+                          {fmtDescription(a)}
                         </div>
                       </div>
                     </Link>
