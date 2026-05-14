@@ -26,6 +26,7 @@ import StandupPage from "@/pages/StandupPage";
 import AuditPage from "@/pages/AuditPage";
 import SecurityPage from "@/pages/SecurityPage";
 import FilesPage from "@/pages/FilesPage";
+import MemoryPage from "@/pages/MemoryPage";
 import SchemaFormDemoPage from "@/pages/SchemaFormDemoPage";
 import ModelChromePreviewPage from "@/pages/ModelChromePreviewPage";
 import InspectorPreviewPage from "@/pages/InspectorPreviewPage";
@@ -61,6 +62,7 @@ function App() {
         <Route path="/audit" element={<AuditPage />} />
         <Route path="/security" element={<SecurityPage />} />
         <Route path="/files" element={<FilesPage />} />
+        <Route path="/memory" element={<MemoryPage />} />
         <Route path="/qudos" element={<QudosPage />} />
         <Route path="/cowork" element={<Navigate to="/qudos" replace />} />
         <Route path="/code" element={<CodePage />} />

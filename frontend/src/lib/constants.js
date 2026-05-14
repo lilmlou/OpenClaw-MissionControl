@@ -143,6 +143,7 @@ export const NAV = [
   { href: "/audit", label: "Audit", icon: Shield },
   { href: "/security", label: "Security", icon: ShieldCheck },
   { href: "/files", label: "Files", icon: FolderOpen },
+  { href: "/memory", label: "Memory", icon: Brain },
   { href: "/customize", label: "Customise", icon: Palette },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
