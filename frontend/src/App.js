@@ -30,6 +30,7 @@ import MemoryPage from "@/pages/MemoryPage";
 import SchemaFormDemoPage from "@/pages/SchemaFormDemoPage";
 import ModelChromePreviewPage from "@/pages/ModelChromePreviewPage";
 import InspectorPreviewPage from "@/pages/InspectorPreviewPage";
+import PersonasPage from "@/pages/PersonasPage";
 import { Toaster } from "@/components/ui/toaster";
 import { HealthToastBridge } from "@/components/HealthToastBridge";
 import "./App.css";
@@ -68,6 +69,7 @@ function App() {
         <Route path="/code" element={<CodePage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/customize" element={<CustomizePage />} />
+        <Route path="/personas" element={<PersonasPage />} />
         <Route path="/design" element={<DesignPage />} />
         <Route path="/dev/schema-form-demo" element={<SchemaFormDemoPage />} />
         <Route path="/dev/model-chrome" element={<ModelChromePreviewPage />} />

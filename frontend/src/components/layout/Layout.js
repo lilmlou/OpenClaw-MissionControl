@@ -574,6 +574,7 @@ const HEADER_TITLES = {
   "/code": "Code",
   "/settings": "Settings",
   "/customize": "Customise",
+  "/personas": "Personas",
   "/design": "Design",
   "/brain": "Brain",
   "/dev/schema-form-demo": "Schema Demo",
