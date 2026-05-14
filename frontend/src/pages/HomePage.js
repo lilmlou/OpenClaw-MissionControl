@@ -5,6 +5,10 @@ import { getSpaceIcon, getRuntimeTheme, getRuntimeMeta } from "@/lib/constants";
 import { useGateway, initGateway, sendMessage } from "@/lib/useGateway";
 import { RuntimeBackdrop, Markdown, MessageRow } from "@/components/shared";
 import { InputBar } from "@/components/InputBar";
+// Sprint 5 — <UsageBadge> is rendered inside <MessageRow> (shared.js) for every
+// assistant bubble. Data flows from chat.usage WS events via _patchMessageUsage
+// in useGateway → msg.tokens_in / msg.tokens_out / msg.cost_estimate_usd.
+// @wiring: UsageBadge
 
 export default function HomePage() {
   const { messages, streamingMessage, status, clearMessages, activeThreadId, threads, spaces, activeRuntime, getRuntimeForActiveThread } = useGateway();

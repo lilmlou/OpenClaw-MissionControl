@@ -122,6 +122,7 @@ function HorizontalBar({ label, value, max, formatted, color, sublabel }) {
 export default function CostsPage() {
   const {
     usage,
+    tokenUsageToday,
     setUsageTimeRange,
     refreshAllUsage,
   } = useGateway();
@@ -258,6 +259,63 @@ export default function CostsPage() {
 
       <div className="flex-1 overflow-y-auto p-6 space-y-5">
         <div className="max-w-6xl mx-auto space-y-5">
+          {/* Token Usage Today — Sprint 5 live aggregate (first card per spec) */}
+          <div
+            className="p-4 rounded-xl"
+            style={{ background: C.surface, border: `1px solid ${C.border}` }}
+            data-testid="token-usage-today-card"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span
+                className="text-[12px] font-semibold uppercase tracking-wider"
+                style={{ color: C.muted }}
+              >
+                Token Usage Today
+              </span>
+              {tokenUsageToday?.lastUpdated && Date.now() - tokenUsageToday.lastUpdated < 60_000 && (
+                <span
+                  className="flex items-center gap-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full"
+                  style={{ background: `${C.green}18`, border: `1px solid ${C.green}44`, color: C.green }}
+                  data-testid="token-usage-today-live"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: C.green }} />
+                  Live
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-lg p-3" style={{ background: C.surface2, border: `1px solid ${C.border}` }} data-testid="token-usage-today-messages">
+                <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: C.muted }}>Messages</div>
+                <div className="text-xl font-semibold tabular-nums" style={{ color: C.text }}>
+                  {tokenUsageToday?.messages ?? 0}
+                </div>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: C.surface2, border: `1px solid ${C.border}` }} data-testid="token-usage-today-tokens-in">
+                <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: C.muted }}>Tokens In</div>
+                <div className="text-xl font-semibold tabular-nums" style={{ color: C.text }}>
+                  {fmtTokens(tokenUsageToday?.tokens_in ?? 0)}
+                </div>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: C.surface2, border: `1px solid ${C.border}` }} data-testid="token-usage-today-tokens-out">
+                <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: C.muted }}>Tokens Out</div>
+                <div className="text-xl font-semibold tabular-nums" style={{ color: C.text }}>
+                  {fmtTokens(tokenUsageToday?.tokens_out ?? 0)}
+                </div>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: C.surface2, border: `1px solid ${C.border}` }} data-testid="token-usage-today-cost">
+                <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: C.muted }}>Cost (USD)</div>
+                <div className="text-xl font-semibold tabular-nums" style={{ color: C.accent }}>
+                  {fmtUsd(tokenUsageToday?.cost_estimate_usd ?? 0)}
+                </div>
+              </div>
+            </div>
+            {tokenUsageToday?.error && (
+              <div className="mt-2 text-[11px] font-mono" style={{ color: "#f87171" }}>
+                ⚠ {tokenUsageToday.error}
+              </div>
+            )}
+          </div>
+
           {/* Hero row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <HeroCard
