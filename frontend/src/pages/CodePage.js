@@ -51,7 +51,7 @@ export default function CodePage() {
       <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${C.border}`, background: "#0d0d0d" }}>
         <div className="flex items-center gap-3">
           <div className="text-lg font-semibold">Terminal</div>
-          <span className="text-xs px-2 py-0.5 rounded" style={{ background: C.surface2, color: C.muted }}>OpenClaw Sandbox</span>
+          <span className="text-xs px-2 py-0.5 rounded" style={{ background: C.surface2, color: C.muted }}>Mietorè Sandbox</span>
           {isLocal ? (
             <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "rgba(34,197,94,0.1)", color: C.green }}>Local</span>
           ) : (
@@ -89,7 +89,7 @@ export default function CodePage() {
             <h3 className="text-sm font-semibold" style={{ color: C.text }}>Terminal Alias Bridge</h3>
             <button onClick={() => setShowAliasSetup(false)} className="p-1 rounded hover:bg-white/5"><X className="w-3.5 h-3.5" style={{ color: C.muted }} /></button>
           </div>
-          <p className="text-xs" style={{ color: C.muted }}>Run OpenClaw commands from any terminal. Add one of these to your shell config:</p>
+          <p className="text-xs" style={{ color: C.muted }}>Run Mietorè commands from any terminal. Add one of these to your shell config:</p>
 
           {[
             { id: "alias", label: "Quick alias (opens browser)", code: aliasSnippet },
@@ -110,7 +110,7 @@ export default function CodePage() {
 
           <p className="text-[11px]" style={{ color: "#444" }}>
             Then use: <code className="px-1 rounded" style={{ background: C.surface2, color: C.muted }}>claw ls -la</code> from any terminal window.
-            Commands are dispatched to this OpenClaw sandbox via URL.
+            Commands are dispatched to this Mietorè sandbox via URL.
           </p>
         </div>
       )}
@@ -119,9 +119,9 @@ export default function CodePage() {
         {terminalOutput.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="text-6xl mb-6">&#129438;</div>
-            <h2 className="text-xl font-bold mb-2">OpenClaw Terminal</h2>
+            <h2 className="text-xl font-bold mb-2">Mietorè Terminal</h2>
             <p className="text-sm mb-4" style={{ color: C.muted }}>Execute commands in the sandboxed environment</p>
-            <p className="text-xs mb-6" style={{ color: "#444" }}>Works on desktop, mobile, and anywhere you can access OpenClaw</p>
+            <p className="text-xs mb-6" style={{ color: "#444" }}>Works on desktop, mobile, and anywhere you can access Mietorè</p>
             <button onClick={() => setShowAliasSetup(true)} className="text-xs px-3 py-1.5 rounded-lg transition-colors hover:bg-white/5"
               style={{ border: `1px solid ${C.border}`, color: C.muted }} data-testid="setup-alias-cta">
               <Terminal className="w-3.5 h-3.5 inline mr-1.5" />Set up terminal alias

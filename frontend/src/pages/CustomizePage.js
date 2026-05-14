@@ -386,7 +386,7 @@ export default function CustomizePage() {
           </div>
           <div className="flex items-center justify-between mb-6">
             <span className="text-xs px-3 py-1.5 rounded-full font-medium" style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text }}>
-              OpenClaw & Partners
+              Mietorè & Partners
             </span>
             <div className="flex items-center gap-2">
               {categories.length > 2 && (

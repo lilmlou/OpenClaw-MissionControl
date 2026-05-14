@@ -180,7 +180,7 @@ function DashboardInner() {
         <>
             <PageHeader
                 title="Mission Control"
-                subtitle="Real-time operational view of your OpenClaw runtime."
+                subtitle="Real-time operational view of your Mietorè runtime."
                 actions={
                     <Pill
                         tone={isOnline ? "ok" : "err"}

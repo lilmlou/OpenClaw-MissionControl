@@ -371,7 +371,7 @@ export default function SettingsPage() {
                   <div>
                     <label className="block text-sm mb-1.5">Custom Instructions</label>
                     <p className="text-xs mb-2" style={{ color: C.muted }}>
-                      Tell OpenClaw about yourself, your preferences, or how you'd like it to respond.
+                      Tell Mietorè about yourself, your preferences, or how you'd like it to respond.
                     </p>
                     <textarea
                       value={userProfile.customInstructions}

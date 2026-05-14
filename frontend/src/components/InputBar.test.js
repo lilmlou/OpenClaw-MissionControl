@@ -31,7 +31,7 @@ jest.mock('@/components/PlusMenu', () => ({
 describe('InputBar', () => {
   test('keeps chat input and plus menu available when gateway is disconnected', () => {
     render(
-      <InputBar onSend={jest.fn()} disabled={true} placeholder="Message OpenClaw..." />
+      <InputBar onSend={jest.fn()} disabled={true} placeholder="Message Mietorè..." />
     );
 
     expect(screen.getByTestId('chat-input')).not.toBeDisabled();
