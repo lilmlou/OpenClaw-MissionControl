@@ -84,7 +84,7 @@ export default function Layout({ children }) {
   })();
   const navByHref = Object.fromEntries(NAV.map(item => [item.href, item]));
   const interfaceTabs = ["/", "/qudos", "/design", "/projects"];
-  const operationsTabs = ["/dashboard", "/brain", "/insights", "/system", "/sessions", "/jobs", "/cron", "/activity", "/costs", "/standup", "/audit", "/security", "/files", "/memory", "/approvals", "/events"];
+  const operationsTabs = ["/dashboard", "/brain", "/insights", "/system", "/sessions", "/jobs", "/cron", "/activity", "/costs", "/standup", "/roadmap", "/audit", "/security", "/files", "/memory", "/approvals", "/events"];
   const configureTabs = ["/agents", "/customize"];
 
   const renderNavLink = (href) => {
@@ -579,6 +579,7 @@ const HEADER_TITLES = {
   "/personas": "Personas",
   "/design": "Design",
   "/brain": "Brain",
+  "/roadmap": "Roadmap",
   "/dev/schema-form-demo": "Schema Demo",
 };
 function getHeaderTitle(pathname) {

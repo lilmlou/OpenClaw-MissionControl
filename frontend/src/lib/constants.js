@@ -140,6 +140,7 @@ export const NAV = [
   { href: "/activity", label: "Activity", icon: Activity },
   { href: "/costs", label: "Costs", icon: DollarSign },
   { href: "/standup", label: "Standup", icon: Sun },
+  { href: "/roadmap", label: "Roadmap", icon: Map },
   { href: "/audit", label: "Audit", icon: Shield },
   { href: "/security", label: "Security", icon: ShieldCheck },
   { href: "/files", label: "Files", icon: FolderOpen },
