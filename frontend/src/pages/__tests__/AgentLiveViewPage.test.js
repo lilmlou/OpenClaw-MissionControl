@@ -21,7 +21,7 @@ jest.mock("@/hooks/useAgentRuns", () => ({
 jest.mock("@/hooks/useConfigBus", () => ({
   subscribeConfigWs: jest.fn(() => () => {}),
   ensureConfigWs: jest.fn(),
-  useConfigValue: jest.fn(),
+  useConfigValue: jest.fn(() => ({ loading: false, value: null, error: null })),
 }));
 
 jest.mock("@/lib/useGateway", () => ({
