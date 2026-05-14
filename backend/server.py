@@ -480,7 +480,7 @@ from app.config_bus import events as config_events
 from app.config_bus import ws as config_ws_module
 from app.config_bus.defaults import register_day_one
 from app.activity import emitter as activity_emitter
-from app.activity import activity_router
+from app.activity import activity_router, activity_ws_router, activity_ws_broadcast
 from app.brain_config import register_brain_config_keys
 from app.chat_config import register_chat_config_keys
 
@@ -515,7 +515,7 @@ from app.progress import progress_store
 set_db(db)
 config_store.set_db(db)
 activity_emitter.set_db(db)
-activity_emitter.set_broadcaster(ws_broadcast)
+activity_emitter.set_broadcaster(activity_ws_broadcast)
 agents_store.set_db(db)
 blockers_store.set_db(db)
 progress_store.set_db(db)
@@ -535,6 +535,7 @@ app.include_router(system_v2_router)
 app.include_router(config_router)
 app.include_router(config_ws_router)
 app.include_router(activity_router)
+app.include_router(activity_ws_router)
 app.include_router(actions_router)
 app.include_router(logs_router)
 app.include_router(design_router)
