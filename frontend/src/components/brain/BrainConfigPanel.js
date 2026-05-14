@@ -2,9 +2,9 @@
  * P0-A FE-4 — Brain Config Panel
  *
  * Slide-over panel triggered by ⚙ button on BrainLogPage.
- * Fetches GET :8765/api/v2/config?prefix=brain. on open.
+ * Fetches GET /api/v2/config?prefix=brain. via apiUrl() (routes through :7801 gateway).
  * Renders each key as schema-driven field via useConfigBus.
- * On change: PUT :8765/api/v2/config/:key.
+ * On change: PUT /api/v2/config/:key via apiUrl() (gateway, not direct FastAPI).
  * WS-driven updates via /api/ws/config for cross-tab live sync.
  *
  * ZERO .env references. Schema-driven — no hardcoded field list.
@@ -13,9 +13,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { X, Save, RotateCcw } from "lucide-react";
 import { subscribeConfigWs, ensureConfigWs } from "@/hooks/useConfigBus";
-import { getApiBase } from "@/lib/useGateway";
-
-const FASTAPI_BASE = (getApiBase() || "http://127.0.0.1:7801").replace(/:7801$/, ":8765");
+import { apiUrl } from "@/lib/useGateway";
 
 export default function BrainConfigPanel({ open, onClose }) {
   const [keys, setKeys] = useState([]);
@@ -28,7 +26,7 @@ export default function BrainConfigPanel({ open, onClose }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${FASTAPI_BASE}/api/v2/config?prefix=brain.`, { cache: "no-store" });
+      const res = await fetch(apiUrl("/api/v2/config?prefix=brain."), { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const payload = await res.json();
       const items = payload?.data?.items || payload?.items || [];
@@ -96,7 +94,7 @@ export default function BrainConfigPanel({ open, onClose }) {
         }
       }
 
-      const res = await fetch(`${FASTAPI_BASE}/api/v2/config/${encodeURIComponent(key)}`, {
+      const res = await fetch(apiUrl(`/api/v2/config/${encodeURIComponent(key)}`), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ value }),

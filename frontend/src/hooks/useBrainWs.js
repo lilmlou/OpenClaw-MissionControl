@@ -12,7 +12,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
-import { getApiBase } from "@/lib/useGateway";
+import { getApiBase, apiUrl } from "@/lib/useGateway";
 
 const GATEWAY_BASE = getApiBase() || "http://127.0.0.1:7801";
 const DEBOUNCE_MS = 50;
@@ -89,9 +89,7 @@ export function useBrainWs() {
 
   // Fetch ring size from config bus on mount
   useEffect(() => {
-    const cfgUrl = getApiBase()
-      ? `${getApiBase().replace(/7801$/, "8765")}/api/v2/config/brain.log.retention_events`
-      : "http://127.0.0.1:8765/api/v2/config/brain.log.retention_events";
+    const cfgUrl = apiUrl("/api/v2/config/brain.log.retention_events");
     fetch(cfgUrl, { cache: "no-store" })
       .then(r => r.json())
       .then(payload => {
