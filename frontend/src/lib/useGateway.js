@@ -1054,7 +1054,8 @@ export const useGateway = create(
         const f = { ...get().activitiesFilters, ...overrides };
         const params = new URLSearchParams();
         params.set("limit", String(overrides.limit || 100));
-        if (f.categories?.length) params.set("category", f.categories.join(","));
+        // Backend /api/v2/activities accepts ?kind=, not ?category=  (M-FE-2)
+        if (f.categories?.length) params.set("kind", f.categories.join(","));
         if (f.severities?.length) params.set("severity", f.severities.join(","));
         if (f.since) params.set("since", String(f.since));
         if (f.until) params.set("until", String(f.until));
@@ -1064,7 +1065,10 @@ export const useGateway = create(
           const res = await fetch(apiUrl(`/api/v2/activities?${params.toString()}`));
           if (!res.ok) throw new Error(`activities HTTP ${res.status}`);
           const payload = await res.json();
-          const items = Array.isArray(payload?.activities) ? payload.activities : Array.isArray(payload) ? payload : [];
+          // Backend returns { ok, data: [...], available, ts }  (M-FE-2 envelope fix)
+          const items = Array.isArray(payload?.data) ? payload.data
+                      : Array.isArray(payload?.activities) ? payload.activities
+                      : Array.isArray(payload) ? payload : [];
           set((s) => ({
             activities: append ? [...s.activities, ...items] : items,
             activitiesLoading: false,
