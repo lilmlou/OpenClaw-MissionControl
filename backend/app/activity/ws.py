@@ -43,6 +43,15 @@ def _activity_frame(event: Dict[str, Any]) -> Dict[str, Any]:
         "summary": event.get("summary") or event.get("description") or "",
         "actor": event.get("actor"),
         "severity": event.get("severity", "info"),
+        "activity": {
+            "id": event.get("id"),
+            "kind": event.get("kind"),
+            "severity": event.get("severity", "info"),
+            "actor": event.get("actor"),
+            "description": event.get("summary") or event.get("description") or "",
+            "data": data,
+            "ts": ts,
+        },
         "payload": event,
     }
 

@@ -149,6 +149,18 @@ def register_day_one() -> None:
             "category": "appearance",
         },
     )
+    bus.register_default(
+        "activities.feed.max_items",
+        50,
+        schema={
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 500,
+            "title": "Activity feed items to display",
+            "description": "Maximum number of rows shown in the global Activity Feed drawer.",
+            "category": "activities",
+        },
+    )
 
     # ─── agents ───────────────────────────────────────────────────────
     bus.register_default(
@@ -192,6 +204,7 @@ def list_day_one_keys() -> List[str]:
         "ui.appearance.font_scale",
         "ui.appearance.density",
         "ui.wallpaper.url",
+        "activities.feed.max_items",
         "agents.kill_after_minutes",
         "agents.acceptance_timeout_seconds",
     ]
