@@ -1,171 +1,185 @@
 /**
- * SystemHealthStrip — Mietorè system health surface (SHELL)
+ * SystemHealthStrip — SHELL (mc-fe-builder)
  *
- * P1 visual-mirror surface from MASTER_PLAN.md. This is the structural
- * shell ONLY — built by MC FE Builder. Live data wiring (WS frames,
- * /api/v2/system/health endpoints, port probes, fix[] actions) is the
- * responsibility of MC FE Wiring in a follow-up.
+ * A slim, always-mounted strip rendered above the page content showing
+ * the live health of the runtime's canonical ports + critical services
+ * at a glance, replacing the "run `lsof -nP -iTCP:8765`" + "tail
+ * /tmp/mc_fastapi_8765.log" workflow described in PRODUCT_MISSION.md.
  *
- * Non-coder test: replaces `lsof -nP -iTCP:8765` and tailing log files.
- * Meg sees port + service state visually, without a terminal.
+ * STATUS: shell only. Reads from existing `systemServices` slice if it
+ * happens to be populated (no new fetch here — wiring lane owns that).
+ * Renders nothing until at least one canonical service has a known
+ * status, so it never adds chrome on an empty page.
  *
- * Theme: locked Mietorè tokens — warm-black #0A0807, gold #D9A24C,
- * cyan #22D3DB, hairline gold borders, glassmorphism backdrop.
+ * Non-coder test (PRODUCT_MISSION.md):
+ *   - Meg sees green/red dots for Gateway / FastAPI / WS / Tailscale
+ *     without opening a terminal.
+ *   - Click → opens /system page already wired by the runtime, so the
+ *     strip itself does not need to fetch.
  *
- * No localStorage. No mock data — empty/unknown state is rendered
- * explicitly so the wiring layer can drop real probes in.
+ * Theme: locked Mietorè tokens
+ *   --mc-bg-2, --mc-line, --mc-gold-soft, --mc-cyan-400, --mc-ok,
+ *   --mc-err, --mc-fg-3. Glassmorphism via .mc-glass class on the bar.
+ *
+ * Wiring follow-up (mc-fe-wiring):
+ *   1. Subscribe to `system.*` and `service.*` frames on the shared
+ *      config bus so dots flip in real time.
+ *   2. Map canonical ports (8765 FastAPI, 7801 Express Gateway,
+ *      /api/ws/brain, Tailscale) to status colours via a new selector
+ *      `selectSystemHealthStrip(state)`.
+ *   3. Hide automatically on `/system` to avoid duplication (parallel
+ *      to StatusBar's current behaviour).
  */
 import React, { useMemo } from "react";
-import {
-  Activity,
-  CheckCircle2,
-  AlertOctagon,
-  AlertTriangle,
-  Loader2,
-  Cpu,
-  Plug,
-  Radio,
-  ServerCog,
-} from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { Server, Activity, Wifi, Database, Loader2 } from "lucide-react";
 import { useGateway } from "@/lib/useGateway";
 
-const STATE_STYLE = {
-  ok:      { color: "var(--mc-ok)",   bg: "var(--mc-ok-soft)",   Icon: CheckCircle2 },
-  warn:    { color: "var(--mc-warn)", bg: "var(--mc-warn-soft)", Icon: AlertTriangle },
-  err:     { color: "var(--mc-err)",  bg: "var(--mc-err-soft)",  Icon: AlertOctagon },
-  loading: { color: "var(--mc-fg-2)", bg: "transparent",         Icon: Loader2 },
-  unknown: { color: "var(--mc-fg-2)", bg: "transparent",         Icon: Activity },
-};
+// Canonical services Meg needs to see at a glance. Names must match the
+// keys the runtime emits in `systemServices` once wiring lands.
+const CANONICAL = [
+  { key: "fastapi",   label: "FastAPI",  port: 8765, Icon: Server },
+  { key: "gateway",   label: "Gateway",  port: 7801, Icon: Database },
+  { key: "ws_brain",  label: "WS Brain", port: 7801, Icon: Activity },
+  { key: "tailscale", label: "Tailscale", port: null, Icon: Wifi   },
+];
 
-function pickGatewayState(status) {
-  if (status === "connected") return "ok";
-  if (status === "connecting" || status === "reconnecting") return "loading";
-  if (status === "error" || status === "disconnected") return "err";
-  return "unknown";
+function pickStatus(services, key) {
+  if (!services || typeof services !== "object") return null;
+  // Tolerate both list and dict shapes from backend.
+  if (Array.isArray(services)) {
+    const hit = services.find((s) => s && (s.id === key || s.name === key || s.key === key));
+    return hit ? hit.status || hit.state || null : null;
+  }
+  const entry = services[key];
+  if (!entry) return null;
+  if (typeof entry === "string") return entry;
+  return entry.status || entry.state || null;
 }
 
-function HealthPill({ label, state, detail, Glyph }) {
-  const style = STATE_STYLE[state] || STATE_STYLE.unknown;
-  const Icon = Glyph || style.Icon;
-  return (
-    <div
-      data-testid={`system-health-pill-${label.toLowerCase().replace(/\s+/g, "-")}`}
-      className="flex items-center gap-1.5 rounded-full"
-      style={{
-        padding: "4px 10px",
-        background: style.bg,
-        border: `1px solid color-mix(in srgb, ${style.color} 28%, transparent)`,
-        fontSize: 11,
-        color: style.color,
-        letterSpacing: 0.2,
-        whiteSpace: "nowrap",
-      }}
-      title={detail || label}
-    >
-      <Icon
-        size={12}
-        strokeWidth={2}
-        className={state === "loading" ? "animate-spin" : ""}
-        aria-hidden="true"
-      />
-      <span style={{ fontWeight: 600 }}>{label}</span>
-      {detail && (
-        <span style={{ color: "var(--mc-fg-2)", fontWeight: 400 }}>· {detail}</span>
-      )}
-    </div>
-  );
+function toneFor(status) {
+  switch (status) {
+    case "connected":
+    case "online":
+    case "healthy":
+    case "running":
+      return { color: "var(--mc-ok, #6BCF94)", pulse: false };
+    case "rate_limited":
+    case "warning":
+    case "stalled":
+      return { color: "var(--mc-gold-400, #D9A24C)", pulse: true };
+    case "auth_failed":
+    case "disconnected":
+    case "offline":
+    case "error":
+    case "failed":
+      return { color: "var(--mc-err, #E55C5C)", pulse: false };
+    case "loading":
+    case "starting":
+      return { color: "var(--mc-cyan-400, #22D3DB)", pulse: true };
+    default:
+      return { color: "var(--mc-fg-3, #6B6560)", pulse: false };
+  }
 }
 
-/**
- * SystemHealthStrip
- *
- * Slim horizontal strip (28px tall) suitable for header/footer placement.
- * Renders four service pills:
- *   - Gateway WS    (already in-store via useGateway().status)
- *   - FastAPI :8765 (placeholder — wiring populates from /api/v2/system/health)
- *   - Express :7801 (placeholder — wiring populates from brain/router probe)
- *   - Brain Router  (placeholder — wiring populates from router insights)
- *
- * Props:
- *   compact     boolean — denser variant for nested headers
- *   className   string  — additional class hooks for layout consumers
- */
-export function SystemHealthStrip({ compact = false, className = "" }) {
-  const status = useGateway((s) => s.status);
+export function SystemHealthStrip() {
+  const location = useLocation();
+  const systemServices = useGateway((s) => s.systemServices);
 
-  const services = useMemo(
-    () => [
-      {
-        key: "gateway",
-        label: "Gateway",
-        state: pickGatewayState(status),
-        detail: status || "unknown",
-        Glyph: Radio,
-      },
-      {
-        key: "fastapi",
-        label: "API :8765",
-        state: "unknown",
-        detail: "awaiting probe",
-        Glyph: ServerCog,
-      },
-      {
-        key: "express",
-        label: "Brain :7801",
-        state: "unknown",
-        detail: "awaiting probe",
-        Glyph: Cpu,
-      },
-      {
-        key: "router",
-        label: "Router",
-        state: "unknown",
-        detail: "awaiting probe",
-        Glyph: Plug,
-      },
-    ],
-    [status]
-  );
+  // Don't double up on /system page — full cards already render there.
+  const hideOnSystem = location.pathname === "/system";
+
+  const rows = useMemo(() => {
+    return CANONICAL.map((svc) => {
+      const status = pickStatus(systemServices, svc.key);
+      return { ...svc, status, tone: toneFor(status) };
+    });
+  }, [systemServices]);
+
+  // Shell behaviour: render nothing until at least one service has
+  // a *known* (non-null) status. Avoids fake "all loading" chrome.
+  const knownCount = rows.filter((r) => r.status != null).length;
+  if (knownCount === 0) return null;
+  if (hideOnSystem) return null;
 
   return (
-    <div
+    <Link
+      to="/system"
       data-testid="system-health-strip"
-      className={`flex items-center gap-2 ${className}`}
+      aria-label="Open System page"
+      className="mc-glass w-full flex items-center gap-4 px-4 hover:opacity-95 transition-opacity"
       style={{
-        height: compact ? 26 : 32,
-        padding: compact ? "0 8px" : "0 14px",
-        background: "var(--mc-bg-overlay)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        borderTop: "1px solid var(--mc-line)",
-        borderBottom: "1px solid var(--mc-line)",
-        fontFamily: "var(--mc-font-sans)",
-        overflowX: "auto",
+        height: 28,
+        background: "var(--mc-glass-bg, rgba(28,24,18,0.55))",
+        backdropFilter: "blur(20px) saturate(140%)",
+        WebkitBackdropFilter: "blur(20px) saturate(140%)",
+        borderBottom: "1px solid var(--mc-line, rgba(212,162,76,0.10))",
+        color: "var(--mc-fg-1, #E5DDD0)",
+        fontSize: 11,
+        letterSpacing: 0.6,
+        textTransform: "uppercase",
+        fontFamily: "var(--mc-font-mono, ui-monospace, monospace)",
+        textDecoration: "none",
       }}
-      aria-label="System health strip"
     >
       <span
         style={{
-          fontSize: 9,
-          letterSpacing: 1.4,
-          textTransform: "uppercase",
-          color: "var(--mc-fg-3)",
-          marginRight: 4,
-          flexShrink: 0,
+          color: "var(--mc-fg-3, #6B6560)",
+          letterSpacing: "0.15em",
+          fontSize: 10,
         }}
       >
-        System
+        SYSTEM
       </span>
-      {services.map((svc) => (
-        <HealthPill
-          key={svc.key}
-          label={svc.label}
-          state={svc.state}
-          detail={svc.detail}
-          Glyph={svc.Glyph}
-        />
-      ))}
-    </div>
+      <div className="flex items-center gap-4 flex-1">
+        {rows.map(({ key, label, Icon, status, tone }) => (
+          <div
+            key={key}
+            data-testid={`system-health-strip-${key}`}
+            className="flex items-center gap-1.5"
+            title={status ? `${label} — ${status}` : `${label} — unknown`}
+          >
+            <span
+              aria-hidden="true"
+              className="inline-block rounded-full"
+              style={{
+                width: 7,
+                height: 7,
+                background: tone.color,
+                boxShadow: `0 0 8px ${tone.color}`,
+                animation: tone.pulse
+                  ? "mc-pulse 1.6s ease-in-out infinite"
+                  : "none",
+              }}
+            />
+            <Icon size={11} aria-hidden="true" style={{ opacity: 0.7 }} />
+            <span style={{ fontSize: 10 }}>{label}</span>
+          </div>
+        ))}
+        {/* Loading sentinel when slice exists but no concrete statuses yet. */}
+        {knownCount < CANONICAL.length && (
+          <Loader2
+            size={11}
+            className="animate-spin"
+            aria-hidden="true"
+            style={{
+              color: "var(--mc-cyan-400, #22D3DB)",
+              opacity: 0.5,
+              marginLeft: "auto",
+            }}
+          />
+        )}
+      </div>
+      <span
+        style={{
+          color: "var(--mc-fg-3, #6B6560)",
+          fontSize: 10,
+          letterSpacing: "0.12em",
+        }}
+      >
+        OPEN /SYSTEM →
+      </span>
+    </Link>
   );
 }
 

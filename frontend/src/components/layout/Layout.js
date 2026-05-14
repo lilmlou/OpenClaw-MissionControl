@@ -11,6 +11,7 @@ import StatusBar from "@/components/layout/StatusBar";
 import ActivityPane from "@/components/layout/ActivityPane";
 import BlockersBanner from "@/components/layout/BlockersBanner";
 import DoctorFixBanner from "@/components/layout/DoctorFixBanner";
+import SystemHealthStrip from "@/components/layout/SystemHealthStrip";
 
 const HEALTH_STYLES = {
   healthy: { color: "#22c55e", icon: CheckCircle2 },
@@ -527,6 +528,7 @@ export default function Layout({ children }) {
         </header>
         <BlockersBanner />
         <DoctorFixBanner />
+        <SystemHealthStrip />
         <div className="flex-1 overflow-hidden relative">{children}</div>
         <StatusBar />
       </main>
