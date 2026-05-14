@@ -28,6 +28,7 @@ import SecurityPage from "@/pages/SecurityPage";
 import FilesPage from "@/pages/FilesPage";
 import SchemaFormDemoPage from "@/pages/SchemaFormDemoPage";
 import ModelChromePreviewPage from "@/pages/ModelChromePreviewPage";
+import InspectorPreviewPage from "@/pages/InspectorPreviewPage";
 import { Toaster } from "@/components/ui/toaster";
 import { HealthToastBridge } from "@/components/HealthToastBridge";
 import "./App.css";
@@ -68,6 +69,7 @@ function App() {
         <Route path="/design" element={<DesignPage />} />
         <Route path="/dev/schema-form-demo" element={<SchemaFormDemoPage />} />
         <Route path="/dev/model-chrome" element={<ModelChromePreviewPage />} />
+        <Route path="/dev/inspector" element={<InspectorPreviewPage />} />
         <Route path="/spaces" element={<Navigate to="/projects" replace />} />
         <Route path="/agent" element={<Navigate to="/design" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
