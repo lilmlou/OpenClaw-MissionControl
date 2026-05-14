@@ -496,6 +496,7 @@ from app.design import design_router
 from app.qudos import qudos_router
 from app.models import models_router
 from app.usage import usage_router
+from app.personas import personas_router, seed_defaults as personas_seed_defaults, set_db as personas_set_db
 
 # F7 — Agent Live View
 from app.agents import agents_router, agents_ws_router, ws_broadcast as agents_ws_broadcast
@@ -540,6 +541,7 @@ app.include_router(design_router)
 app.include_router(qudos_router)
 app.include_router(models_router)
 app.include_router(usage_router)
+app.include_router(personas_router)
 app.include_router(agents_router)
 app.include_router(agents_ws_router)
 app.include_router(blockers_router)
@@ -552,6 +554,13 @@ async def _config_bus_startup() -> None:
     logging.getLogger(__name__).info("config bus loaded %d Mongo overrides", n)
     await start_mirror_loop(db)
     await start_progress_mirror_loop(db)
+    try:
+        personas_set_db(db)
+        inserted = await personas_seed_defaults()
+        if inserted:
+            logging.getLogger(__name__).info("personas seeded %d default personas", inserted)
+    except Exception as exc:  # noqa: BLE001
+        logging.getLogger(__name__).warning("personas startup error: %s", exc)
 
 app.add_middleware(
     CORSMiddleware,
