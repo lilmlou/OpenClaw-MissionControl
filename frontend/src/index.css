@@ -484,3 +484,158 @@ code, pre, .mono {
         border-bottom-color: inherit;
     }
 }
+
+/* ============================================================
+   THEMES — html[data-theme="..."] overrides
+   Default (no attribute) = Mietorè gold (declared above).
+   Switching via setStoredTheme()/applyTheme() in src/lib/themes.js.
+   ============================================================ */
+
+/* ── Mietorè (default gold) — explicit so the switcher can re-pick it ── */
+html[data-theme="mietore"] {
+    /* identical to default :root — listed for clarity */
+}
+html[data-theme="mietore"] body {
+    background-color: #0A0807;
+    background-image:
+        radial-gradient(900px 600px at 0% 0%, rgba(217, 162, 76, 0.07) 0%, transparent 60%),
+        radial-gradient(900px 600px at 100% 100%, rgba(34, 211, 219, 0.04) 0%, transparent 60%),
+        linear-gradient(180deg, #100D0A 0%, #0A0807 100%);
+}
+
+/* ── Mietorè 3D — same palette, richer glass + glow ── */
+html[data-theme="mietore-3d"] {
+    --mc-bg:           #0A0807;
+    --mc-bg-1:         #100D0A;
+    --mc-bg-2:         #15110D;
+    --mc-bg-3:         #1C1812;
+    --mc-bg-elevated:  #241F17;
+    --mc-fg:           #F6ECD2;
+    --mc-fg-1:         #E5DDD0;
+    --mc-fg-2:         #A89A87;
+    --mc-fg-3:         #6B6560;
+    --mc-line:         rgba(217, 162, 76, 0.18);
+    --mc-line-strong:  rgba(217, 162, 76, 0.32);
+    --mc-accent:       #D9A24C;
+    --mc-accent-hover: #F4C77A;
+    --mc-accent-soft:  rgba(217, 162, 76, 0.14);
+    --mc-accent-glow:  rgba(244, 199, 122, 0.65);
+    --mc-accent-2:     #22D3DB;
+    --mc-accent-2-soft:rgba(34, 211, 219, 0.14);
+    --mc-accent-2-glow:rgba(34, 211, 219, 0.55);
+}
+html[data-theme="mietore-3d"] body {
+    background-color: #06040A;
+    background-image:
+        radial-gradient(1400px 900px at 5% -10%, rgba(244, 199, 122, 0.12) 0%, transparent 55%),
+        radial-gradient(1100px 800px at 100% 110%, rgba(168, 116, 54, 0.10) 0%, transparent 60%),
+        radial-gradient(900px 700px at 50% 50%, rgba(34, 211, 219, 0.025) 0%, transparent 70%),
+        linear-gradient(180deg, #100D0A 0%, #06040A 100%);
+}
+/* Heavier card depth + diagonal sheen for 3D variant.
+   Targets the common kit `.mc-glass` utility we already exposed. */
+html[data-theme="mietore-3d"] .mc-glass {
+    background:
+        linear-gradient(135deg, rgba(252, 230, 184, 0.10) 0%, rgba(252, 230, 184, 0.02) 18%, transparent 35%),
+        radial-gradient(120% 80% at 50% 110%, rgba(168, 116, 54, 0.18) 0%, transparent 60%),
+        linear-gradient(180deg, rgba(36, 30, 22, 0.62) 0%, rgba(20, 16, 12, 0.58) 100%);
+    border: 1px solid rgba(217, 162, 76, 0.22);
+    box-shadow:
+        inset 0 1px 0 rgba(252, 230, 184, 0.18),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.45),
+        0 1px 2px rgba(0, 0, 0, 0.50),
+        0 12px 28px rgba(0, 0, 0, 0.45),
+        0 36px 80px rgba(0, 0, 0, 0.65),
+        0 0 48px rgba(217, 162, 76, 0.08);
+}
+
+/* ── Neon Glass — cyan + violet, frosted 3D ── */
+html[data-theme="neon"] {
+    --mc-bg:           #06060C;
+    --mc-bg-1:         #0C0B14;
+    --mc-bg-2:         #12101C;
+    --mc-bg-3:         #1A1726;
+    --mc-bg-elevated:  #241F2E;
+    --mc-fg:           #F3F4FB;
+    --mc-fg-1:         #D8D9E5;
+    --mc-fg-2:         #8B8DA6;
+    --mc-fg-3:         #5A5C73;
+    --mc-line:         rgba(34, 211, 255, 0.14);
+    --mc-line-strong:  rgba(34, 211, 255, 0.28);
+    --mc-accent:       #22D3FF;
+    --mc-accent-hover: #67E8FF;
+    --mc-accent-soft:  rgba(34, 211, 255, 0.12);
+    --mc-accent-fg:    #04040A;
+    --mc-accent-glow:  rgba(34, 211, 255, 0.65);
+    --mc-accent-2:     #B14BFF;
+    --mc-accent-2-hover:#D685FF;
+    --mc-accent-2-soft:rgba(177, 75, 255, 0.12);
+    --mc-accent-2-glow:rgba(177, 75, 255, 0.55);
+    --mc-accent-2-fg:  #04040A;
+    --mc-ok:           #3FE3A2;
+    --mc-warn:         #FFB84D;
+    --mc-err:          #FF5577;
+    --mc-info:         #22D3FF;
+    --mc-ok-soft:      rgba(63, 227, 162, 0.14);
+    --mc-warn-soft:    rgba(255, 184, 77, 0.14);
+    --mc-err-soft:     rgba(255, 85, 119, 0.14);
+    --mc-info-soft:    rgba(34, 211, 255, 0.12);
+    --mc-ok-glow:      rgba(63, 227, 162, 0.45);
+    --mc-warn-glow:    rgba(255, 184, 77, 0.45);
+    --mc-err-glow:     rgba(255, 85, 119, 0.45);
+    --mc-chart-1: #22D3FF;
+    --mc-chart-2: #B14BFF;
+    --mc-chart-3: #67E8FF;
+    --mc-chart-4: #FF4FBA;
+    --mc-chart-5: #3FE3A2;
+}
+html[data-theme="neon"] body {
+    background-color: #04040A;
+    color: #F3F4FB;
+    background-image:
+        radial-gradient(1400px 900px at 0% 0%, rgba(34, 211, 255, 0.12) 0%, transparent 55%),
+        radial-gradient(1200px 800px at 100% 100%, rgba(177, 75, 255, 0.12) 0%, transparent 60%),
+        radial-gradient(700px 500px at 50% 50%, rgba(255, 79, 186, 0.04) 0%, transparent 70%),
+        linear-gradient(180deg, #0A0912 0%, #02020A 100%);
+}
+html[data-theme="neon"] ::selection {
+    background: rgba(34, 211, 255, 0.32);
+    color: #F3F4FB;
+}
+html[data-theme="neon"] ::-webkit-scrollbar-thumb {
+    background: rgba(34, 211, 255, 0.22);
+}
+html[data-theme="neon"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(34, 211, 255, 0.38);
+}
+html[data-theme="neon"] *:focus-visible {
+    box-shadow: 0 0 0 2px rgba(34, 211, 255, 0.55);
+}
+html[data-theme="neon"] .mc-glass {
+    background:
+        linear-gradient(135deg, rgba(103, 232, 255, 0.10) 0%, rgba(103, 232, 255, 0.02) 18%, transparent 35%),
+        radial-gradient(120% 80% at 110% 110%, rgba(177, 75, 255, 0.16) 0%, transparent 60%),
+        linear-gradient(180deg, rgba(22, 18, 32, 0.62) 0%, rgba(12, 10, 20, 0.62) 100%);
+    border: 1px solid rgba(34, 211, 255, 0.28);
+    box-shadow:
+        inset 0 1px 0 rgba(103, 232, 255, 0.20),
+        inset 0 -1px 0 rgba(177, 75, 255, 0.06),
+        0 1px 2px rgba(0, 0, 0, 0.55),
+        0 12px 28px rgba(0, 0, 0, 0.55),
+        0 36px 80px rgba(0, 0, 0, 0.70),
+        0 0 40px rgba(34, 211, 255, 0.18),
+        0 0 80px rgba(177, 75, 255, 0.08);
+}
+html[data-theme="neon"] .mc-glass-heavy {
+    background:
+        linear-gradient(135deg, rgba(103, 232, 255, 0.12) 0%, rgba(103, 232, 255, 0.02) 18%, transparent 35%),
+        radial-gradient(120% 80% at 110% 110%, rgba(177, 75, 255, 0.22) 0%, transparent 60%),
+        linear-gradient(180deg, rgba(24, 18, 34, 0.78) 0%, rgba(14, 10, 22, 0.78) 100%);
+    border: 1px solid rgba(34, 211, 255, 0.38);
+    box-shadow:
+        inset 0 1px 0 rgba(103, 232, 255, 0.26),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.55),
+        0 18px 40px rgba(0, 0, 0, 0.65),
+        0 48px 100px rgba(0, 0, 0, 0.80),
+        0 0 60px rgba(34, 211, 255, 0.28);
+}

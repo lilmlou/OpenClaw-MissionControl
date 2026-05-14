@@ -2,11 +2,12 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Wrench, Link2, Puzzle, Search, Download, Plus, ChevronLeft, Trash2,
-  Settings, Check, MonitorSmartphone, ShieldCheck, ArrowRight,
+  Settings, Check, MonitorSmartphone, ShieldCheck, ArrowRight, Palette,
 } from "lucide-react";
 import { C, DIRECTORY_SKILLS, DIRECTORY_CONNECTORS, DIRECTORY_PLUGINS,
   SKILL_CATEGORIES, CONNECTOR_CATEGORIES, PLUGIN_CATEGORIES } from "@/lib/constants";
 import { useGateway } from "@/lib/useGateway";
+import { THEMES, applyTheme, getStoredTheme, onThemeChange } from "@/lib/themes";
 
 export default function CustomizePage() {
   const [activeTab, setActiveTab] = useState("skills");
@@ -18,10 +19,15 @@ export default function CustomizePage() {
   const { enabledSkills, toggleSkill, plugins, togglePlugin, connectors, toggleConnector, customSkills, customConnectors, customPlugins, addCustomSkill, addCustomConnector, addCustomPlugin, removeCustomSkill, removeCustomConnector, removeCustomPlugin } = useGateway();
   const location = useLocation();
 
+  // ── Theme state (live preview + persisted choice) ────────────────────────
+  const [theme, setTheme] = useState(getStoredTheme());
+  useEffect(() => onThemeChange(setTheme), []);
+  const pickTheme = (id) => { applyTheme(id); setTheme(id); };
+
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const urlTab = params.get("tab");
-    if (urlTab && ["desktop", "skills", "connectors", "plugins"].includes(urlTab)) { setActiveTab(urlTab); setSearch(""); setFilterCat("All"); }
+    if (urlTab && ["desktop", "skills", "connectors", "plugins", "theme"].includes(urlTab)) { setActiveTab(urlTab); setSearch(""); setFilterCat("All"); }
   }, [location.search]);
 
   const TABS = [
@@ -29,6 +35,7 @@ export default function CustomizePage() {
     { id: "skills", label: "Skills", icon: Wrench },
     { id: "connectors", label: "Connectors", icon: Link2 },
     { id: "plugins", label: "Plugins", icon: Puzzle },
+    { id: "theme", label: "Theme", icon: Palette },
   ];
 
   const matchSearch = (item) => !search || item.name.toLowerCase().includes(search.toLowerCase()) || item.desc.toLowerCase().includes(search.toLowerCase());
@@ -258,7 +265,116 @@ export default function CustomizePage() {
             </div>
           )}
 
-          {activeTab !== "desktop" && (
+          {activeTab === "theme" && (
+            <div className="space-y-4" data-testid="theme-picker">
+              <div className="mb-2">
+                <h2 className="text-sm font-medium mb-1">Choose a theme</h2>
+                <p className="text-xs leading-relaxed" style={{ color: C.muted }}>
+                  Live preview — changes apply immediately and persist across sessions. The default Mietorè gold is the baseline; the others stack richer surface treatments on top.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {THEMES.map(t => {
+                  const active = theme === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => pickTheme(t.id)}
+                      className="relative text-left p-0 rounded-xl overflow-hidden transition-all cursor-pointer group"
+                      style={{
+                        border: `1px solid ${active ? t.preview.accent : C.border}`,
+                        boxShadow: active
+                          ? `0 0 0 1px ${t.preview.accent}, 0 0 28px ${t.preview.glow}, 0 12px 32px rgba(0,0,0,0.55)`
+                          : "0 8px 20px rgba(0,0,0,0.30)",
+                      }}
+                      data-testid={`theme-card-${t.id}`}
+                    >
+                      <div
+                        className="relative h-32 w-full"
+                        style={{
+                          background: t.preview.bg,
+                        }}
+                      >
+                        {/* faux preview cards stacked to suggest depth */}
+                        <div
+                          style={{
+                            position: "absolute", top: 16, left: 16, right: 40, height: 18,
+                            borderRadius: 6,
+                            background: `linear-gradient(90deg, ${t.preview.accent}33, transparent)`,
+                            border: `1px solid ${t.preview.accent}55`,
+                          }}
+                        />
+                        <div
+                          style={{
+                            position: "absolute", top: 44, left: 16, right: 60, height: 10,
+                            borderRadius: 4, background: "rgba(255,255,255,0.08)",
+                          }}
+                        />
+                        <div
+                          style={{
+                            position: "absolute", top: 60, left: 16, right: 100, height: 10,
+                            borderRadius: 4, background: "rgba(255,255,255,0.05)",
+                          }}
+                        />
+                        {/* glow blob bottom-right */}
+                        <div
+                          style={{
+                            position: "absolute", right: -10, bottom: -10, width: 80, height: 80,
+                            borderRadius: "50%",
+                            background: `radial-gradient(circle, ${t.preview.glow} 0%, transparent 60%)`,
+                            filter: "blur(8px)",
+                          }}
+                        />
+                        {/* diagonal sheen */}
+                        <div
+                          style={{
+                            position: "absolute", inset: 0, pointerEvents: "none",
+                            background: "linear-gradient(115deg, transparent 38%, rgba(255,255,255,0.06) 50%, transparent 62%)",
+                          }}
+                        />
+                        {active && (
+                          <div
+                            style={{
+                              position: "absolute", top: 8, right: 8,
+                              width: 22, height: 22, borderRadius: "50%",
+                              background: t.preview.accent,
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              boxShadow: `0 0 14px ${t.preview.glow}`,
+                            }}
+                          >
+                            <Check className="w-3 h-3" style={{ color: "#0A0807" }} strokeWidth={3} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4" style={{ background: C.surface }}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="text-sm font-medium" style={{ color: C.text }}>{t.label}</div>
+                          <div className="flex gap-1">
+                            {t.swatches.map((sw, i) => (
+                              <span key={i} style={{
+                                width: 10, height: 10, borderRadius: "50%",
+                                background: sw,
+                                border: "1px solid rgba(255,255,255,0.10)",
+                              }} />
+                            ))}
+                          </div>
+                        </div>
+                        <div className="text-[11px] mb-2" style={{ color: t.preview.accent }}>{t.sublabel}</div>
+                        <div className="text-xs leading-relaxed" style={{ color: C.muted }}>{t.description}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-4 p-3 rounded-lg text-xs" style={{
+                background: C.surface, border: `1px solid ${C.border}`, color: C.muted,
+              }}>
+                <strong style={{ color: C.text }}>How it works:</strong> Themes are applied via a <code style={{ color: C.accent }}>data-theme</code> attribute on the document root, with all surface, accent, and glow values driven by CSS variables. Your choice persists in <code style={{ color: C.accent }}>localStorage</code> and re-applies on reload.
+              </div>
+            </div>
+          )}
+
+          {activeTab !== "desktop" && activeTab !== "theme" && (
             <>
           <div className="relative mb-4">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: C.muted }} />
