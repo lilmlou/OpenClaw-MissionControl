@@ -100,7 +100,7 @@ export const getRuntimeMeta = (runtime) => RUNTIME_META[runtime] || RUNTIME_META
 export const getRuntimeBackground = (runtime) => RUNTIME_BACKGROUNDS[runtime] || RUNTIME_BACKGROUNDS[DEFAULT_RUNTIME];
 export const getRuntimeChrome = (runtime) => RUNTIME_CHROME[runtime] || RUNTIME_CHROME[DEFAULT_RUNTIME];
 
-/* Backward-compatible default tokens for existing OpenClaw shell */
+/* Backward-compatible default tokens for existing Mietorè shell */
 export const C = RUNTIME_THEMES[DEFAULT_RUNTIME];
 
 /* ─── Capability Icons ──────────────────────────────────────────────────────── */
@@ -214,7 +214,7 @@ export const DESKTOP_APP_GROUPS = [
 
 export const SKILLS = ["deep-research", "code-review", "web-scraper", "file-manager", "task-scheduler", "mcp-builder", "slack-gif-creator", "canvas-design"];
 
-/* ─── Cowork Task Templates (User prompts to OpenClaw) ─────────────────────── */
+/* ─── Cowork Task Templates (User prompts to Mietorè) ─────────────────────── */
 export const COWORK_TASKS = [
   { id: 1, icon: Timer, title: "Schedule a recurring task", prompt: "I need to set up a recurring task. I'll tell you what it is and how often it should run. Ask me anything unclear, then configure the schedule and confirm before activating.", category: "schedule", tags: ["Automation"] },
   { id: 2, icon: Mail, title: "Create daily briefing", prompt: "I want a daily briefing that pulls from my connected tools \u2014 Slack, email, calendar \u2014 every morning at 8am. I'll tell you what to include. Ask follow-ups, draft the format, and wait for my approval before scheduling.", category: "schedule", tags: ["Productivity"] },
@@ -250,27 +250,27 @@ export const COWORK_CATEGORIES = [
 
 /* ─── Directory Data (Customize \u2014 Skills / Connectors / Plugins catalog) \u2500\u2500\u2500\u2500\u2500 */
 export const DIRECTORY_SKILLS = [
-  { id: "deep-research", name: "/deep-research", provider: "OpenClaw", downloads: "134.7K", desc: "Comprehensive multi-source research with synthesis and citation tracking.", icon: Telescope, category: "Research" },
-  { id: "canvas-design", name: "/canvas-design", provider: "OpenClaw", downloads: "145.2K", desc: "Create beautiful visual art in .png and .pdf documents using design philosophy.", icon: Paintbrush, category: "Design" },
-  { id: "web-artifacts-builder", name: "/web-artifacts-builder", provider: "OpenClaw", downloads: "92.2K", desc: "Suite of tools for creating multi-component HTML artifacts using modern frontend tech.", icon: Globe, category: "Development" },
-  { id: "mcp-builder", name: "/mcp-builder", provider: "OpenClaw", downloads: "75.3K", desc: "Guide for creating high-quality MCP servers that enable LLMs to interact with tools.", icon: Wrench, category: "Development" },
-  { id: "code-review", name: "/code-review", provider: "OpenClaw", downloads: "89.4K", desc: "Structured code review with best practices, security checks, and performance analysis.", icon: FileCode, category: "Development" },
-  { id: "theme-factory", name: "/theme-factory", provider: "OpenClaw", downloads: "72.4K", desc: "Toolkit for styling artifacts with a theme \u2014 slides, docs, reportings, landing pages.", icon: Palette, category: "Design" },
-  { id: "doc-coauthoring", name: "/doc-coauthoring", provider: "OpenClaw", downloads: "68.5K", desc: "Guide users through a structured workflow for co-authoring documentation.", icon: NotebookPen, category: "Writing" },
-  { id: "web-scraper", name: "/web-scraper", provider: "OpenClaw", downloads: "63.8K", desc: "Extract, parse, and analyze content from web pages with structured output.", icon: Globe, category: "Development" },
-  { id: "file-manager", name: "/file-manager", provider: "OpenClaw", downloads: "56.1K", desc: "Organize, rename, and manage file systems with intelligent categorization.", icon: FolderKanban, category: "Productivity" },
-  { id: "brand-guidelines", name: "/brand-guidelines", provider: "OpenClaw", downloads: "66.9K", desc: "Applies brand colors and typography to any artifact that benefits from branding.", icon: Paintbrush, category: "Design" },
-  { id: "algorithmic-art", name: "/algorithmic-art", provider: "OpenClaw", downloads: "55K", desc: "Creating algorithmic art with seeded randomness and interactive parameter exploration.", icon: Hash, category: "Creative" },
-  { id: "internal-comms", name: "/internal-comms", provider: "OpenClaw", downloads: "51.8K", desc: "Write all kinds of internal communications using company formats and tone.", icon: Mail, category: "Writing" },
-  { id: "task-scheduler", name: "/task-scheduler", provider: "OpenClaw", downloads: "42.3K", desc: "Schedule, manage, and automate recurring tasks with smart prioritization.", icon: Calendar, category: "Productivity" },
-  { id: "slack-gif-creator", name: "/slack-gif-creator", provider: "OpenClaw", downloads: "38.1K", desc: "Knowledge and utilities for creating animated GIFs optimized for Slack.", icon: Sparkles, category: "Creative" },
-  { id: "skill-creator", name: "/skill-creator", provider: "OpenClaw", downloads: "12.9K", desc: "Create new skills, modify existing skills, and measure skill performance.", icon: Pencil, category: "Development" },
+  { id: "deep-research", name: "/deep-research", provider: "Mietorè", downloads: "134.7K", desc: "Comprehensive multi-source research with synthesis and citation tracking.", icon: Telescope, category: "Research" },
+  { id: "canvas-design", name: "/canvas-design", provider: "Mietorè", downloads: "145.2K", desc: "Create beautiful visual art in .png and .pdf documents using design philosophy.", icon: Paintbrush, category: "Design" },
+  { id: "web-artifacts-builder", name: "/web-artifacts-builder", provider: "Mietorè", downloads: "92.2K", desc: "Suite of tools for creating multi-component HTML artifacts using modern frontend tech.", icon: Globe, category: "Development" },
+  { id: "mcp-builder", name: "/mcp-builder", provider: "Mietorè", downloads: "75.3K", desc: "Guide for creating high-quality MCP servers that enable LLMs to interact with tools.", icon: Wrench, category: "Development" },
+  { id: "code-review", name: "/code-review", provider: "Mietorè", downloads: "89.4K", desc: "Structured code review with best practices, security checks, and performance analysis.", icon: FileCode, category: "Development" },
+  { id: "theme-factory", name: "/theme-factory", provider: "Mietorè", downloads: "72.4K", desc: "Toolkit for styling artifacts with a theme \u2014 slides, docs, reportings, landing pages.", icon: Palette, category: "Design" },
+  { id: "doc-coauthoring", name: "/doc-coauthoring", provider: "Mietorè", downloads: "68.5K", desc: "Guide users through a structured workflow for co-authoring documentation.", icon: NotebookPen, category: "Writing" },
+  { id: "web-scraper", name: "/web-scraper", provider: "Mietorè", downloads: "63.8K", desc: "Extract, parse, and analyze content from web pages with structured output.", icon: Globe, category: "Development" },
+  { id: "file-manager", name: "/file-manager", provider: "Mietorè", downloads: "56.1K", desc: "Organize, rename, and manage file systems with intelligent categorization.", icon: FolderKanban, category: "Productivity" },
+  { id: "brand-guidelines", name: "/brand-guidelines", provider: "Mietorè", downloads: "66.9K", desc: "Applies brand colors and typography to any artifact that benefits from branding.", icon: Paintbrush, category: "Design" },
+  { id: "algorithmic-art", name: "/algorithmic-art", provider: "Mietorè", downloads: "55K", desc: "Creating algorithmic art with seeded randomness and interactive parameter exploration.", icon: Hash, category: "Creative" },
+  { id: "internal-comms", name: "/internal-comms", provider: "Mietorè", downloads: "51.8K", desc: "Write all kinds of internal communications using company formats and tone.", icon: Mail, category: "Writing" },
+  { id: "task-scheduler", name: "/task-scheduler", provider: "Mietorè", downloads: "42.3K", desc: "Schedule, manage, and automate recurring tasks with smart prioritization.", icon: Calendar, category: "Productivity" },
+  { id: "slack-gif-creator", name: "/slack-gif-creator", provider: "Mietorè", downloads: "38.1K", desc: "Knowledge and utilities for creating animated GIFs optimized for Slack.", icon: Sparkles, category: "Creative" },
+  { id: "skill-creator", name: "/skill-creator", provider: "Mietorè", downloads: "12.9K", desc: "Create new skills, modify existing skills, and measure skill performance.", icon: Pencil, category: "Development" },
 ];
 
 export const DIRECTORY_CONNECTORS = [
   { id: "linear", name: "Linear", desc: "Manage issues, projects & team workflows in Linear", icon: ListTodo, category: "Development" },
   { id: "huggingface_conn", name: "Hugging Face", desc: "Access the Hugging Face Hub and thousands of Gradio Apps", icon: Bot, category: "AI & ML" },
-  { id: "atlassian", name: "Atlassian Rovo", desc: "Access Jira & Confluence from OpenClaw", icon: Briefcase, category: "Productivity" },
+  { id: "atlassian", name: "Atlassian Rovo", desc: "Access Jira & Confluence from Mietorè", icon: Briefcase, category: "Productivity" },
   { id: "figma", name: "Figma", desc: "Generate diagrams and better code from Figma context", icon: Paintbrush, category: "Design", badge: "Interactive" },
   { id: "slack", name: "Slack", desc: "Team messaging and workflow automation", icon: MessageSquare, category: "Communication" },
   { id: "notion", name: "Notion", desc: "Knowledge base and documentation management", icon: FileText, category: "Productivity" },
@@ -289,16 +289,16 @@ export const DIRECTORY_CONNECTORS = [
 ];
 
 export const DIRECTORY_PLUGINS = [
-  { id: "productivity-suite", name: "Productivity", provider: "OpenClaw", downloads: "469.9K", desc: "Manage tasks, plan your day, and build up memory of important context about your work.", icon: Briefcase, category: "Workflow" },
-  { id: "design-suite", name: "Design", provider: "OpenClaw", downloads: "423.5K", desc: "Accelerate design workflows \u2014 critique, design system management, UX writing, accessibility audits.", icon: Paintbrush, category: "Creative" },
-  { id: "marketing-suite", name: "Marketing", provider: "OpenClaw", downloads: "359K", desc: "Create content, plan campaigns, and analyze performance across marketing channels.", icon: BarChart3, category: "Workflow" },
-  { id: "data-suite", name: "Data", provider: "OpenClaw", downloads: "343.1K", desc: "Write SQL, explore datasets, and generate insights faster. Build visualizations and dashboards.", icon: Database, category: "Tools" },
-  { id: "engineering-suite", name: "Engineering", provider: "OpenClaw", downloads: "324.9K", desc: "Streamline engineering workflows \u2014 standups, code review, architecture decisions, incident response.", icon: Code2, category: "Tools" },
-  { id: "finance-suite", name: "Finance", provider: "OpenClaw", downloads: "296.3K", desc: "Streamline finance and accounting workflows, from journal entries to financial statements.", icon: CreditCard, category: "Workflow" },
-  { id: "product-mgmt", name: "Product management", provider: "OpenClaw", downloads: "271.4K", desc: "Write feature specs, plan roadmaps, and synthesize user research faster.", icon: FolderKanban, category: "Workflow" },
-  { id: "operations-suite", name: "Operations", provider: "OpenClaw", downloads: "254.4K", desc: "Optimize business operations \u2014 vendor management, process docs, change management.", icon: Layers, category: "Workflow" },
-  { id: "legal-suite", name: "Legal", provider: "OpenClaw", downloads: "242.8K", desc: "Contract review, compliance checks, legal research, and document drafting.", icon: Shield, category: "Workflow" },
-  { id: "sales-suite", name: "Sales", provider: "OpenClaw", downloads: "231.3K", desc: "Pipeline management, outreach templates, CRM workflows, and sales analytics.", icon: Rocket, category: "Workflow" },
+  { id: "productivity-suite", name: "Productivity", provider: "Mietorè", downloads: "469.9K", desc: "Manage tasks, plan your day, and build up memory of important context about your work.", icon: Briefcase, category: "Workflow" },
+  { id: "design-suite", name: "Design", provider: "Mietorè", downloads: "423.5K", desc: "Accelerate design workflows \u2014 critique, design system management, UX writing, accessibility audits.", icon: Paintbrush, category: "Creative" },
+  { id: "marketing-suite", name: "Marketing", provider: "Mietorè", downloads: "359K", desc: "Create content, plan campaigns, and analyze performance across marketing channels.", icon: BarChart3, category: "Workflow" },
+  { id: "data-suite", name: "Data", provider: "Mietorè", downloads: "343.1K", desc: "Write SQL, explore datasets, and generate insights faster. Build visualizations and dashboards.", icon: Database, category: "Tools" },
+  { id: "engineering-suite", name: "Engineering", provider: "Mietorè", downloads: "324.9K", desc: "Streamline engineering workflows \u2014 standups, code review, architecture decisions, incident response.", icon: Code2, category: "Tools" },
+  { id: "finance-suite", name: "Finance", provider: "Mietorè", downloads: "296.3K", desc: "Streamline finance and accounting workflows, from journal entries to financial statements.", icon: CreditCard, category: "Workflow" },
+  { id: "product-mgmt", name: "Product management", provider: "Mietorè", downloads: "271.4K", desc: "Write feature specs, plan roadmaps, and synthesize user research faster.", icon: FolderKanban, category: "Workflow" },
+  { id: "operations-suite", name: "Operations", provider: "Mietorè", downloads: "254.4K", desc: "Optimize business operations \u2014 vendor management, process docs, change management.", icon: Layers, category: "Workflow" },
+  { id: "legal-suite", name: "Legal", provider: "Mietorè", downloads: "242.8K", desc: "Contract review, compliance checks, legal research, and document drafting.", icon: Shield, category: "Workflow" },
+  { id: "sales-suite", name: "Sales", provider: "Mietorè", downloads: "231.3K", desc: "Pipeline management, outreach templates, CRM workflows, and sales analytics.", icon: Rocket, category: "Workflow" },
 ];
 
 export const SKILL_CATEGORIES = ["All", ...new Set(DIRECTORY_SKILLS.map(s => s.category))];
