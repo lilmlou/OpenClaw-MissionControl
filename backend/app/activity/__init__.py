@@ -7,5 +7,14 @@ activity feed; this is the FastAPI counterpart, persisting to Mongo collection
 """
 from .emitter import emit, get_recent, set_db, set_broadcaster
 from .routes import activity_router
+from .ws import activity_ws_router, broadcast as activity_ws_broadcast
 
-__all__ = ["emit", "get_recent", "set_db", "set_broadcaster", "activity_router"]
+__all__ = [
+    "emit",
+    "get_recent",
+    "set_db",
+    "set_broadcaster",
+    "activity_router",
+    "activity_ws_router",
+    "activity_ws_broadcast",
+]
