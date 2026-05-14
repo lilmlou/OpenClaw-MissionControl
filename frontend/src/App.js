@@ -24,6 +24,7 @@ import ActivitiesPage from "@/pages/ActivitiesPage";
 import CostsPage from "@/pages/CostsPage";
 import StandupPage from "@/pages/StandupPage";
 import AuditPage from "@/pages/AuditPage";
+import SecurityPage from "@/pages/SecurityPage";
 import FilesPage from "@/pages/FilesPage";
 import SchemaFormDemoPage from "@/pages/SchemaFormDemoPage";
 import { Toaster } from "@/components/ui/toaster";
@@ -56,6 +57,7 @@ function App() {
         <Route path="/costs" element={<CostsPage />} />
         <Route path="/standup" element={<StandupPage />} />
         <Route path="/audit" element={<AuditPage />} />
+        <Route path="/security" element={<SecurityPage />} />
         <Route path="/files" element={<FilesPage />} />
         <Route path="/qudos" element={<QudosPage />} />
         <Route path="/cowork" element={<Navigate to="/qudos" replace />} />

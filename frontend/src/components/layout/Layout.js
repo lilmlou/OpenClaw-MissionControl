@@ -83,7 +83,7 @@ export default function Layout({ children }) {
   })();
   const navByHref = Object.fromEntries(NAV.map(item => [item.href, item]));
   const interfaceTabs = ["/", "/qudos", "/design", "/projects"];
-  const operationsTabs = ["/dashboard", "/brain", "/insights", "/system", "/sessions", "/jobs", "/cron", "/activity", "/costs", "/standup", "/audit", "/files", "/approvals", "/events"];
+  const operationsTabs = ["/dashboard", "/brain", "/insights", "/system", "/sessions", "/jobs", "/cron", "/activity", "/costs", "/standup", "/audit", "/security", "/files", "/approvals", "/events"];
   const configureTabs = ["/agents", "/customize"];
 
   const renderNavLink = (href) => {
