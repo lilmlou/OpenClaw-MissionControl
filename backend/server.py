@@ -24,7 +24,7 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ.get("DB_NAME", "test_mc")]
 
 # Create the main app
-app = FastAPI(title="OpenClaw Mission Control API")
+app = FastAPI(title="Mietorè Mission Control API")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -111,7 +111,7 @@ class Settings(BaseModel):
 
 @api_router.get("/")
 async def root():
-    return {"message": "OpenClaw Mission Control API", "status": "operational"}
+    return {"message": "Mietorè Mission Control API", "status": "operational"}
 
 
 @api_router.get("/health")

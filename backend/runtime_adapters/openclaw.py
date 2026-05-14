@@ -12,7 +12,7 @@ class OpenClawRuntimeAdapter(RuntimeAdapter):
         return {
             "runtime": self.runtime_name,
             "session_id": session_id,
-            "content": f"I received your message: '{message}'. This is a placeholder response from the OpenClaw Mission Control system.",
+            "content": f"I received your message: '{message}'. This is a placeholder response from the Mietorè system.",
             "context": context,
         }
 
@@ -23,6 +23,6 @@ class OpenClawRuntimeAdapter(RuntimeAdapter):
             "type": "message.delta",
             "runtime": self.runtime_name,
             "session_id": session_id,
-            "content": f"I received your message: '{message}'. This is a placeholder response from the OpenClaw Mission Control system.",
+            "content": f"I received your message: '{message}'. This is a placeholder response from the Mietorè system.",
             "context": context,
         }
