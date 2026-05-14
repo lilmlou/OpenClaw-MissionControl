@@ -8,7 +8,7 @@ import {
   Timer, Receipt, ClipboardList, Presentation, FolderSync, FileSpreadsheet,
   FileSearch, PenTool, MessageSquareText, Image, Film, BookOpen, Users,
   Table, Smartphone, Music, Camera, Video, Map, Chrome, Play, Clapperboard,
-  Cpu, Activity, DollarSign,
+  Cpu, Activity, DollarSign, Sun,
 } from "lucide-react";
 
 /* ─── Runtime + Design tokens ───────────────────────────────────────────────── */
@@ -139,6 +139,9 @@ export const NAV = [
   { href: "/cron", label: "Schedule", icon: Calendar },
   { href: "/activity", label: "Activity", icon: Activity },
   { href: "/costs", label: "Costs", icon: DollarSign },
+  { href: "/standup", label: "Standup", icon: Sun },
+  { href: "/audit", label: "Audit", icon: Shield },
+  { href: "/files", label: "Files", icon: FolderOpen },
   { href: "/customize", label: "Customise", icon: Palette },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

@@ -22,6 +22,9 @@ import SystemPage from "@/pages/SystemPage";
 import CronPage from "@/pages/CronPage";
 import ActivitiesPage from "@/pages/ActivitiesPage";
 import CostsPage from "@/pages/CostsPage";
+import StandupPage from "@/pages/StandupPage";
+import AuditPage from "@/pages/AuditPage";
+import FilesPage from "@/pages/FilesPage";
 import SchemaFormDemoPage from "@/pages/SchemaFormDemoPage";
 import { Toaster } from "@/components/ui/toaster";
 import { HealthToastBridge } from "@/components/HealthToastBridge";
@@ -51,6 +54,9 @@ function App() {
         <Route path="/activity" element={<ActivitiesPage />} />
         <Route path="/activities" element={<Navigate to="/activity" replace />} />
         <Route path="/costs" element={<CostsPage />} />
+        <Route path="/standup" element={<StandupPage />} />
+        <Route path="/audit" element={<AuditPage />} />
+        <Route path="/files" element={<FilesPage />} />
         <Route path="/qudos" element={<QudosPage />} />
         <Route path="/cowork" element={<Navigate to="/qudos" replace />} />
         <Route path="/code" element={<CodePage />} />
