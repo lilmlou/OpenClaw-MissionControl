@@ -693,7 +693,7 @@ export const useGateway = create(
       approvals: [],
       approvalHistory: [],
       approvalsLoading: false,
-      approvalsBackend: "mock",
+      approvalsBackend: "unavailable",
       approvalModesBySession: {},
       approvalsWsConnected: false,
 
@@ -1339,6 +1339,10 @@ export const useGateway = create(
               ),
             };
           });
+        } else if (msg.type === "cron.scheduler.reloaded") {
+          // BLOCKERS 2026-05-13 23:27 — scheduler reloaded; refresh job list so
+          // CronPage reflects the new schedule without a manual page reload.
+          get().fetchCronJobs({ silent: true }).catch(() => null);
         }
       },
 
@@ -2053,7 +2057,7 @@ export const useGateway = create(
           const items = Array.isArray(payload) ? payload : [];
           set({ approvals: items.map(normalizeLegacyApproval), approvalsBackend: "v1", approvalsLoading: false });
         } catch {
-          set({ approvalsLoading: false, approvalsBackend: "mock" });
+          set({ approvalsLoading: false, approvalsBackend: "unavailable" });
         }
       },
       fetchApprovalHistory: async () => {
@@ -2938,6 +2942,26 @@ export const useGateway = create(
         // Sprint 4 — subscribe to /api/ws/activities for the global feed.
         // Idempotent; safe to call from any page.
         connectActivitiesWebSocket();
+        // BLOCKERS 2026-05-14 04:00 — wire chat.config.set events from the
+        // config bus WS into Zustand state so chat config changes from other
+        // tabs / agents propagate without a reload.
+        // Import lazily to avoid circular dependency (useConfigBus imports apiUrl from here).
+        try {
+          const { subscribeConfigWs } = await import("@/hooks/useConfigBus");
+          subscribeConfigWs((msg) => {
+            if (msg?.type !== "chat.config.set" || !msg.key) return;
+            // Map well-known chat.* config bus keys → Zustand state patches.
+            const state = get();
+            if (msg.key === "chat.model.default" && msg.value && msg.value !== state.activeModel) {
+              set({ activeModel: msg.value });
+            }
+            // Other chat.* keys (chat.history.*, chat.provider.*, etc.) are
+            // consumed by pages/components via useConfigValue directly; no
+            // further Zustand patch is required at this layer.
+          });
+        } catch {
+          // Non-fatal: config bus subscriber unavailable (e.g. backend down).
+        }
       },
       
       // Execute terminal command (simulated)

@@ -22,7 +22,7 @@ const AGENT_META = {
 };
 
 const STATUS_STYLE = {
-  done:           { bg: "rgba(34,197,94,0.14)",  fg: "#4ade80", Icon: CheckCircle2,  label: "DONE" },
+  done:           { bg: "rgba(34,197,94,0.14)",  fg: "#4ade80", Icon: CheckCircle2,  label: "CLAIMS DONE" },
   running:        { bg: "rgba(251,191,36,0.16)", fg: "#fbbf24", Icon: Loader2,       label: "RUNNING", spin: true },
   pending:        { bg: "rgba(148,163,184,0.14)",fg: "#94a3b8", Icon: Clock,         label: "PENDING" },
   failed:         { bg: "rgba(239,68,68,0.16)",  fg: "#f87171", Icon: XCircle,       label: "FAILED" },
@@ -33,7 +33,7 @@ const defaultStatus = { bg: "rgba(148,163,184,0.12)", fg: "#94a3b8", Icon: Clock
 const FILTERS = [
   { id: "all",            label: "All" },
   { id: "running",        label: "Running" },
-  { id: "done",           label: "Done" },
+  { id: "claims_done",    label: "Claims Done" },
   { id: "failed",         label: "Failed" },
   { id: "pending",        label: "Pending" },
   { id: "needs_approval", label: "Approval" },
@@ -77,16 +77,25 @@ export default function JobsPage() {
   }, [fetchAgentTasks]);
 
   const counts = useMemo(() => {
-    const out = { all: agentTasks.length, running: 0, done: 0, failed: 0, pending: 0, needs_approval: 0 };
+    const out = { all: agentTasks.length, running: 0, claims_done: 0, failed: 0, pending: 0, needs_approval: 0 };
     for (const t of agentTasks) {
       const k = (t.status || "").toLowerCase();
-      if (out[k] !== undefined) out[k] += 1;
+      // Normalise legacy "done" to "claims_done" for display bucketing.
+      const bucket = k === "done" ? "claims_done" : k;
+      if (out[bucket] !== undefined) out[bucket] += 1;
     }
     return out;
   }, [agentTasks]);
 
   const filtered = useMemo(() => {
     if (filter === "all") return agentTasks;
+    // Treat legacy "done" as "claims_done" for backward compat with running backend.
+    if (filter === "claims_done") {
+      return agentTasks.filter((t) => {
+        const s = (t.status || "").toLowerCase();
+        return s === "claims_done" || s === "done";
+      });
+    }
     return agentTasks.filter((t) => (t.status || "").toLowerCase() === filter);
   }, [agentTasks, filter]);
 

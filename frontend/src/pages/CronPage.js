@@ -30,7 +30,7 @@ const AGENT_META = {
 };
 
 const RUN_STATUS_STYLE = {
-  done:    { bg: "rgba(34,197,94,0.14)",  fg: "#4ade80", Icon: CheckCircle2, label: "DONE" },
+  done:    { bg: "rgba(34,197,94,0.14)",  fg: "#4ade80", Icon: CheckCircle2, label: "CLAIMS DONE" },
   running: { bg: "rgba(251,191,36,0.16)", fg: "#fbbf24", Icon: Loader2,      label: "RUNNING", spin: true },
   failed:  { bg: "rgba(239,68,68,0.16)",  fg: "#f87171", Icon: XCircle,      label: "FAILED" },
   pending: { bg: "rgba(148,163,184,0.14)", fg: "#94a3b8", Icon: Clock,       label: "PENDING" },
