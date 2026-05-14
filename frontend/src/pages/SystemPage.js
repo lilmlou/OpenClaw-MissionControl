@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Activity, AlertCircle, Cpu, HardDrive, Network, Server,
+  Activity, AlertCircle, Coins, Cpu, HardDrive, Network, Server,
   MemoryStick, Search, Package, AppWindow, RefreshCw,
 } from "lucide-react";
 import { C } from "@/lib/constants";
@@ -497,6 +497,77 @@ function AppsTab() {
   );
 }
 
+// ── Token Usage Today card ────────────────────────────────────────
+function TokenUsageTodayCard() {
+  const tokenUsageToday = useGateway((s) => s.tokenUsageToday);
+  const fetchTokenUsageToday = useGateway((s) => s.fetchTokenUsageToday);
+
+  useEffect(() => {
+    fetchTokenUsageToday({ silent: true });
+  }, [fetchTokenUsageToday]);
+
+  const { messages, tokens_in, tokens_out, cost_estimate_usd, loading } = tokenUsageToday;
+
+  const fmtCost = (usd) => {
+    if (usd == null) return "—";
+    const v = Number(usd);
+    if (!isFinite(v)) return "—";
+    if (v === 0) return "$0.0000";
+    if (v < 0.0001) return "<$0.0001";
+    if (v < 1) return `$${v.toFixed(4)}`;
+    return `$${v.toFixed(2)}`;
+  };
+
+  const metrics = [
+    { label: "Messages", value: loading && !messages ? "—" : (messages || 0).toLocaleString(), testid: "token-usage-messages" },
+    { label: "Tokens In",  value: loading && !tokens_in ? "—" : (tokens_in || 0).toLocaleString(),  testid: "token-usage-tokens-in" },
+    { label: "Tokens Out", value: loading && !tokens_out ? "—" : (tokens_out || 0).toLocaleString(), testid: "token-usage-tokens-out" },
+    { label: "Cost (USD)", value: fmtCost(cost_estimate_usd), testid: "token-usage-cost" },
+  ];
+
+  return (
+    <div
+      data-testid="token-usage-today-card"
+      style={{
+        background: C.surface,
+        border: `1px solid ${C.border}`,
+        borderRadius: "var(--mc-radius-lg, 12px)",
+        padding: "var(--mc-space-4, 16px)",
+      }}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <Coins className="w-4 h-4" style={{ color: C.accent }} />
+        <span className="text-[13px] font-semibold" style={{ color: C.text }}>Token Usage Today</span>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {metrics.map(({ label, value, testid }) => (
+          <div
+            key={testid}
+            data-testid={testid}
+            style={{
+              background: "rgba(255,255,255,0.03)",
+              border: `1px solid ${C.border}`,
+              borderRadius: "var(--mc-radius-md, 8px)",
+              padding: "var(--mc-space-3, 12px)",
+            }}
+          >
+            <div
+              className="font-semibold tracking-tight"
+              style={{ fontSize: "var(--mc-text-xl, 22px)", color: C.text, lineHeight: 1.1, fontFamily: "var(--mc-font-mono, ui-monospace, monospace)" }}
+              data-testid={`${testid}-value`}
+            >
+              {value}
+            </div>
+            <div className="mt-1 text-[11px] truncate" style={{ color: C.muted }}>
+              {label}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Page shell ───────────────────────────────────────────────────────
 const TABS = [
   { id: "hardware", label: "Hardware", icon: Activity },
@@ -517,6 +588,9 @@ export default function SystemPage() {
               Real-time host telemetry, backend service health, and the installed-app catalog.
             </p>
           </div>
+
+          {/* Token Usage Today — Sprint 5 */}
+          <TokenUsageTodayCard />
 
           {/* Tab strip */}
           <div className="inline-flex items-center gap-1 p-1 rounded-lg"

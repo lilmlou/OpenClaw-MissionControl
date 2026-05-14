@@ -753,6 +753,19 @@ export const useGateway = create(
         lastUpdated: null,
       },
 
+      // Token Usage Today — Sprint 5 inline badge + /system card
+      // Seeded by GET /api/v1/usage/today on init & WS reconnect.
+      // Incremented live by chat.usage WS events from the brain channel.
+      tokenUsageToday: {
+        messages: 0,
+        tokens_in: 0,
+        tokens_out: 0,
+        cost_estimate_usd: 0,
+        loading: false,
+        error: null,
+        lastUpdated: null,
+      },
+
       // Activities (/activity page + global pane) — Sprint 4 backend shipped
       // GET /api/v2/activities?since=&until=&limit=&category=&severity=&actor=&search=
       // WS  /api/ws/activities — live frame stream
@@ -1047,6 +1060,51 @@ export const useGateway = create(
           return null;
         }
       },
+
+      // ── Token Usage Today (Sprint 5 — inline badge + /system card) ─────
+      // Calls GET /api/v1/usage/today and seeds the tokenUsageToday slice.
+      // Called on init (initGateway) and on brain WS reconnect.
+      fetchTokenUsageToday: async ({ silent = false } = {}) => {
+        if (!silent) set((s) => ({ tokenUsageToday: { ...s.tokenUsageToday, loading: true, error: null } }));
+        try {
+          const res = await fetch(apiUrl("/api/v1/usage/today"));
+          if (!res.ok) throw new Error(`usage/today HTTP ${res.status}`);
+          const payload = await res.json();
+          // Backend returns { ok, data: { messages, tokens_in, tokens_out, cost_estimate_usd }, ts }
+          const d = payload?.data ?? payload ?? {};
+          set((s) => ({
+            tokenUsageToday: {
+              ...s.tokenUsageToday,
+              messages: typeof d.messages === "number" ? d.messages : s.tokenUsageToday.messages,
+              tokens_in: typeof d.tokens_in === "number" ? d.tokens_in : s.tokenUsageToday.tokens_in,
+              tokens_out: typeof d.tokens_out === "number" ? d.tokens_out : s.tokenUsageToday.tokens_out,
+              cost_estimate_usd: typeof d.cost_estimate_usd === "number" ? d.cost_estimate_usd : s.tokenUsageToday.cost_estimate_usd,
+              loading: false,
+              error: null,
+              lastUpdated: Date.now(),
+            },
+          }));
+          return d;
+        } catch (err) {
+          set((s) => ({ tokenUsageToday: { ...s.tokenUsageToday, loading: false, error: err?.message || String(err) } }));
+          return null;
+        }
+      },
+
+      // Patch a persisted message in threads + messages arrays with usage data.
+      // Called from the chat.usage WS handler so the UsageBadge has data.
+      _patchMessageUsage: (turnId, usageData) => set((s) => {
+        const patchMsg = (msg) =>
+          (msg.runId === turnId || msg.turn_id === turnId)
+            ? { ...msg, tokens_in: usageData.tokens_in, tokens_out: usageData.tokens_out, cost_estimate_usd: usageData.cost_estimate_usd, model: usageData.model ?? msg.model, provider: usageData.provider ?? msg.provider }
+            : msg;
+        const newMessages = s.messages.map(patchMsg);
+        const newThreads = s.threads.map((t) => ({
+          ...t,
+          messages: Array.isArray(t.messages) ? t.messages.map(patchMsg) : t.messages,
+        }));
+        return { messages: newMessages, threads: newThreads };
+      }),
 
       // ── Activities (Sprint 4) ───────────────────────────────────────
       fetchActivities: async ({ silent = false, append = false, ...overrides } = {}) => {
@@ -2757,6 +2815,9 @@ export const useGateway = create(
               clearTimeout(gatewayWsReconnectTimer);
               gatewayWsReconnectTimer = null;
             }
+
+            // Re-seed token usage today aggregate on (re)connect.
+            get().fetchTokenUsageToday({ silent: true });
           };
           
           gatewayWs.onmessage = (event) => {
@@ -2825,6 +2886,34 @@ export const useGateway = create(
                   // Forward to approval system
                   addEvent({ id: crypto.randomUUID(), ts: Date.now(), type: "approval.requested", payload: data });
                   break;
+
+                case "chat.usage": {
+                  // Sprint 5 — stream-end usage event: patch per-message data + increment today aggregate.
+                  // Shape: { type:"chat.usage", turn_id, tokens_in, tokens_out, cost_estimate_usd, model, provider, ts }
+                  const { _patchMessageUsage } = get();
+                  const turnId = data.turn_id ?? data.runId ?? null;
+                  if (turnId) {
+                    _patchMessageUsage(turnId, {
+                      tokens_in: data.tokens_in ?? null,
+                      tokens_out: data.tokens_out ?? null,
+                      cost_estimate_usd: data.cost_estimate_usd ?? null,
+                      model: data.model ?? null,
+                      provider: data.provider ?? null,
+                    });
+                  }
+                  // Increment today aggregate (single source of truth for /system card).
+                  set((s) => ({
+                    tokenUsageToday: {
+                      ...s.tokenUsageToday,
+                      messages: (s.tokenUsageToday.messages || 0) + 1,
+                      tokens_in: (s.tokenUsageToday.tokens_in || 0) + (data.tokens_in || 0),
+                      tokens_out: (s.tokenUsageToday.tokens_out || 0) + (data.tokens_out || 0),
+                      cost_estimate_usd: (s.tokenUsageToday.cost_estimate_usd || 0) + (data.cost_estimate_usd || 0),
+                      lastUpdated: Date.now(),
+                    },
+                  }));
+                  break;
+                }
                   
                 default:
                   console.log("Unknown gateway message:", data);
@@ -2927,7 +3016,7 @@ export const useGateway = create(
       // racing two parallel WebSocket opens. If a socket is already open or
       // a connect is in flight, skip re-entry; the existing socket is reused.
       initGateway: async () => {
-        const { connectGateway, fetchModelGroups, connectActivitiesWebSocket, status } = get();
+        const { connectGateway, fetchModelGroups, connectActivitiesWebSocket, fetchTokenUsageToday, status } = get();
         // Bail out if already connected or actively connecting.
         if (status === "connected" || status === "connecting") {
           // Still refresh models in case they're stale, but don't re-open WS.
@@ -2939,6 +3028,8 @@ export const useGateway = create(
         set({ status: "connecting" });
         await connectGateway();
         await fetchModelGroups({ refresh: true });
+        // Sprint 5 — seed token usage today aggregate from backend on init.
+        fetchTokenUsageToday({ silent: true });
         // Sprint 4 — subscribe to /api/ws/activities for the global feed.
         // Idempotent; safe to call from any page.
         connectActivitiesWebSocket();

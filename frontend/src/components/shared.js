@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Check, Copy } from "lucide-react";
 import { C, ORIGINAL_FRONTEND_THEME, getRuntimeBackground, getRuntimeTheme } from "@/lib/constants";
+import { UsageBadge } from "@/components/chat/UsageBadge";
 
 export function RuntimeBackdrop({ runtime = "openclaw" }) {
   const background = getRuntimeBackground(runtime);
@@ -162,6 +163,14 @@ export function MessageRow({ msg, runtime = "openclaw" }) {
             {copied ? <Check className="w-3 h-3" style={{ color: baseTheme.green }} /> : <Copy className="w-3 h-3" style={{ color: "#555" }} />}
           </button>
           <span className="text-[10px]" style={{ color: "#555" }}>{fmtTime(msg.timestamp)}</span>
+          <UsageBadge
+            tokens_in={msg.tokens_in ?? null}
+            tokens_out={msg.tokens_out ?? null}
+            cost_estimate_usd={msg.cost_estimate_usd ?? null}
+            model={msg.model ?? null}
+            provider={msg.provider ?? null}
+            pending={msg.tokens_in == null && msg.tokens_out == null && msg.cost_estimate_usd == null}
+          />
         </div>
       </div>
     </div>
