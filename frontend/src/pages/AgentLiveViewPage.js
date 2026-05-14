@@ -1064,6 +1064,21 @@ export default function AgentLiveViewPage() {
     ? pollFallbackS * 1000
     : 30_000;
 
+  // M-FE-6: Seed agents.live_view.poll_fallback_s default (30s) on first load
+  // if the key is absent from the config bus. This ensures the key is visible
+  // in the Settings UI as a configurable value without requiring a backend change.
+  useEffect(() => {
+    if (configPoll.loading) return;
+    if (configPoll.value != null) return; // already set
+    // Seed default silently — fire-and-forget, no UI impact on failure
+    fetch(apiUrl("/api/v2/config/agents.live_view.poll_fallback_s"), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: 30 }),
+    }).catch(() => { /* non-fatal */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configPoll.loading, configPoll.value]);
+
   const { runs, loading, error, reload, runningCount, claimsCount, lastUpdated, wsDisconnected, reconnectWs }
     = useAgentRuns(statusFilter, { pollIntervalMs });
 
