@@ -23,6 +23,7 @@ import CronPage from "@/pages/CronPage";
 import ActivitiesPage from "@/pages/ActivitiesPage";
 import CostsPage from "@/pages/CostsPage";
 import StandupPage from "@/pages/StandupPage";
+import RoadmapPage from "@/pages/RoadmapPage";
 import AuditPage from "@/pages/AuditPage";
 import SecurityPage from "@/pages/SecurityPage";
 import FilesPage from "@/pages/FilesPage";
@@ -60,6 +61,7 @@ function App() {
         <Route path="/activities" element={<Navigate to="/activity" replace />} />
         <Route path="/costs" element={<CostsPage />} />
         <Route path="/standup" element={<StandupPage />} />
+        <Route path="/roadmap" element={<RoadmapPage />} />
         <Route path="/audit" element={<AuditPage />} />
         <Route path="/security" element={<SecurityPage />} />
         <Route path="/files" element={<FilesPage />} />
